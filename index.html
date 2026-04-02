@@ -548,7 +548,7 @@ function TabImport({onSync,existingData,showToast,savedMappings,setSavedMappings
       }else if(ext==="docx"){
         const buf=await file.arrayBuffer();const res=await mammoth.extractRawText({arrayBuffer:buf});
         addLog("Analisi AI Word…");
-        const resp=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","anthropic-dangerous-direct-browser-access":"true","x-api-key":localStorage.getItem("mac_api_key")||window.__ANTHROPIC_KEY__||"","anthropic-version":"2023-06-01"},body:JSON.stringify({model:"claude-sonnet-4-5-20251001",max_tokens:3000,system:`Estrai iscrizioni. SOLO JSON array senza backtick. Campi: bambino,nato_il(dd/mm/yyyy),eta,inizio(dd/mm/yyyy),fine(dd/mm/yyyy),sett,nav(bool—true se navetta/trasferimento/bus),pasto_casa(bool—true se pranzo al sacco),citta,quota,acconto,saldato,da_saldare,stato(SALDATO|ACCONTO|DA PAGARE),note_pag,note_bimbo,telefono,genitore.`,messages:[{role:"user",content:res.value}]})});
+        const resp=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","anthropic-dangerous-direct-browser-access":"true","x-api-key":localStorage.getItem("mac_api_key")||window.__ANTHROPIC_KEY__||"","anthropic-version":"2023-06-01"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:3000,system:`Estrai iscrizioni. SOLO JSON array senza backtick. Campi: bambino,nato_il(dd/mm/yyyy),eta,inizio(dd/mm/yyyy),fine(dd/mm/yyyy),sett,nav(bool—true se navetta/trasferimento/bus),pasto_casa(bool—true se pranzo al sacco),citta,quota,acconto,saldato,da_saldare,stato(SALDATO|ACCONTO|DA PAGARE),note_pag,note_bimbo,telefono,genitore.`,messages:[{role:"user",content:res.value}]})});
         const d=await resp.json();const txt=d.content.filter(b=>b.type==="text").map(b=>b.text).join("");
         const parsed=JSON.parse(txt.replace(/```json|```/g,"").trim());addLog(`Claude Word: ${parsed.length} iscritti`);
         mergeAndPreview(parsed.map(r=>({...r,id:uid(),da_saldare:calcResidue(r),stato:autoStato(r)})));
@@ -562,7 +562,7 @@ function TabImport({onSync,existingData,showToast,savedMappings,setSavedMappings
         const b64=btoa(binary);
         addLog("Claude OCR PDF — estrazione in corso…");
         const pdfPrompt="Estrai i dati di iscrizione da questo PDF. Restituisci SOLO un oggetto JSON valido senza backtick. Campi: bambino, nato_il(dd/mm/yyyy), eta(int), inizio(dd/mm/yyyy), fine(dd/mm/yyyy), sett(int 1-8), nav(bool), pasto_casa(bool), citta, quota(num), acconto(num), saldato(num), da_saldare(num), stato(SALDATO|ACCONTO|DA PAGARE), note_pag, note_bimbo, telefono, genitore. Valori mancanti: vuoto o 0.";
-        const pdfBody=JSON.stringify({model:"claude-sonnet-4-5-20251001",max_tokens:4000,messages:[{role:"user",content:[{type:"document",source:{type:"base64",media_type:"application/pdf",data:b64}},{type:"text",text:pdfPrompt}]}]});
+        const pdfBody=JSON.stringify({model:"claude-sonnet-4-6",max_tokens:4000,messages:[{role:"user",content:[{type:"document",source:{type:"base64",media_type:"application/pdf",data:b64}},{type:"text",text:pdfPrompt}]}]});
         const pdfHeaders={"Content-Type":"application/json","anthropic-dangerous-direct-browser-access":"true","x-api-key":localStorage.getItem("mac_api_key")||window.__ANTHROPIC_KEY__||"","anthropic-version":"2023-06-01"};
         const resp=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:pdfHeaders,body:pdfBody});
         const rawResp=await resp.json();
@@ -793,21 +793,21 @@ function TabIscritti({data,setData,showToast}){
             const inc=isIncomplete(r);const rbg=idx%2?"#fafafa":"#fff";
             return(<tr key={r.id} style={{outline:inc?"1.5px solid #d97706":"none",outlineOffset:-1}}>
               <td style={TD({background:rbg,width:26,color:"#888",fontSize:10})}>{inc&&<span style={{color:"#d97706",marginRight:2}}>●</span>}{idx+1}</td>
-              <td style={TD({background:rbg,minWidth:120,textAlign:"left"})}><input value={r.bambino||""} onChange={e=>upd(r.id,"bambino",e.target.value)} style={{...iS,textAlign:"left",fontWeight:700}}/></td>
+              <td style={TD({background:rbg,minWidth:160,textAlign:"left"})}><input value={r.bambino||""} onChange={e=>upd(r.id,"bambino",e.target.value)} style={{...iS,textAlign:"left",fontWeight:700}}/></td>
               <td style={TD({background:rbg,width:30})}><input type="number" value={r.eta||0} onChange={e=>upd(r.id,"eta",Number(e.target.value))} style={iS}/></td>
               <td style={TD({background:rbg,width:80})}><select value={r.inizio||"08/06/2026"} onChange={e=>upd(r.id,"inizio",e.target.value)} style={{...iS,cursor:"pointer",fontSize:11}}>{WEEKS.map(w=><option key={w.id} value={w.dal}>{w.dal}</option>)}</select></td>
               <td style={TD({background:rbg,width:28})}><input type="number" value={r.sett||1} min={1} max={8} onChange={e=>upd(r.id,"sett",Number(e.target.value))} style={iS}/></td>
               <td style={TD({background:r.nav?"#dbeafe":rbg,width:46})}><select value={r.nav?"si":"no"} onChange={e=>upd(r.id,"nav",e.target.value==="si")} style={{...iS,color:r.nav?"#1e40af":"#888",fontWeight:r.nav?700:400,cursor:"pointer"}}><option value="si">Sì</option><option value="no">No</option></select></td>
               <td style={TD({background:r.pasto_casa?"#fef9c3":rbg,width:60})}><select value={r.pasto_casa?"s":"p"} onChange={e=>upd(r.id,"pasto_casa",e.target.value==="s")} style={{...iS,color:r.pasto_casa?"#854d0e":"#166534",fontWeight:600,cursor:"pointer",fontSize:10}}><option value="p">🍽️</option><option value="s">🥪</option></select></td>
-              <td style={TD({background:rbg,minWidth:78,textAlign:"left"})}><select value={r.citta||""} onChange={e=>upd(r.id,"citta",e.target.value)} style={{...iS,cursor:"pointer",fontSize:10,color:r.nav?"#1e40af":"inherit",fontWeight:r.nav?700:400}}>{CITTA_OPTIONS.map(c=><option key={c} value={c}>{c}</option>)}</select></td>
+              <td style={TD({background:rbg,minWidth:110,textAlign:"left"})}><select value={r.citta||""} onChange={e=>upd(r.id,"citta",e.target.value)} style={{...iS,cursor:"pointer",fontSize:10,color:r.nav?"#1e40af":"inherit",fontWeight:r.nav?700:400}}>{CITTA_OPTIONS.map(c=><option key={c} value={c}>{c}</option>)}</select></td>
               <td style={TD({background:rbg,width:60})}><input type="number" value={r.quota||0} onChange={e=>upd(r.id,"quota",Number(e.target.value))} style={{...iS,fontWeight:700}}/></td>
               <td style={TD({background:"#f0fdf4",width:66,borderLeft:"2px solid #16a34a"})}><input type="number" value={r.acconto||0} onChange={e=>upd(r.id,"acconto",Number(e.target.value))} style={{...iS,color:"#166534",fontWeight:700}}/></td>
               <td style={TD({background:"#f0fdf4",width:66,borderRight:"2px solid #16a34a"})}><input type="number" value={r.saldato||0} onChange={e=>upd(r.id,"saldato",Number(e.target.value))} style={{...iS,color:"#166534",fontWeight:700}}/></td>
               <td style={TD({background:(r.da_saldare||0)>0?"#fef2f2":"#dcfce7",width:64,fontWeight:800,color:(r.da_saldare||0)>0?"#dc2626":"#166534"})}>{E2(r.da_saldare||0)}</td>
               <td style={TD({background:SBG[r.stato]||rbg,width:80})}><select value={r.stato||"DA PAGARE"} onChange={e=>upd(r.id,"stato",e.target.value)} style={{...iS,fontWeight:700,color:SCL[r.stato],cursor:"pointer"}}><option value="SALDATO">Saldato</option><option value="ACCONTO">Acconto</option><option value="DA PAGARE">Da pagare</option></select></td>
-              <td style={TD({background:nt?ns.bg:rbg,border:nt?ns.border:"1px solid #000",minWidth:90,textAlign:"left"})}>{nt&&<span style={{marginRight:2}}>{ns.icon}</span>}<input value={r.note_bimbo||""} onChange={e=>upd(r.id,"note_bimbo",e.target.value)} style={{...iS,textAlign:"left",color:nt?ns.col:"#aaa",fontWeight:nt?700:400}} placeholder="nessuna"/></td>
+              <td style={TD({background:nt?ns.bg:rbg,border:nt?ns.border:"1px solid #000",minWidth:130,textAlign:"left"})}>{nt&&<span style={{marginRight:2}}>{ns.icon}</span>}<input value={r.note_bimbo||""} onChange={e=>upd(r.id,"note_bimbo",e.target.value)} style={{...iS,textAlign:"left",color:nt?ns.col:"#aaa",fontWeight:nt?700:400}} placeholder="nessuna"/></td>
               <td style={TD({background:!r.telefono?"#fef3c7":rbg,width:86})}><input value={r.telefono||""} onChange={e=>upd(r.id,"telefono",e.target.value)} style={{...iS,color:!r.telefono?"#d97706":"inherit"}} placeholder="mancante"/></td>
-              <td style={TD({background:!r.genitore?"#fef3c7":rbg,minWidth:90,textAlign:"left"})}><input value={r.genitore||""} onChange={e=>upd(r.id,"genitore",e.target.value)} style={{...iS,textAlign:"left",color:!r.genitore?"#d97706":"inherit"}} placeholder="mancante"/></td>
+              <td style={TD({background:!r.genitore?"#fef3c7":rbg,minWidth:130,textAlign:"left"})}><input value={r.genitore||""} onChange={e=>upd(r.id,"genitore",e.target.value)} style={{...iS,textAlign:"left",color:!r.genitore?"#d97706":"inherit"}} placeholder="mancante"/></td>
               <td style={TD({background:rbg,width:26})}><button onClick={()=>setConfirmDel(r)} style={{background:"none",border:"none",color:"#dc2626",fontSize:15,cursor:"pointer",fontWeight:900}}>×</button></td>
             </tr>);
           })}
@@ -1000,7 +1000,7 @@ function TabPastiContab({data,giorniSett,showToast}){
 
 
 /* ══ TAB NAVETTE ════════════════════════════════════════════ */
-function TabNavette({data}){
+function TabNavette({data,onAddNav}){
   const[sel,setSel]=useState(1);
   const w=WEEKS.find(x=>x.id===sel);
   // Solo bambini con navetta in questa settimana
@@ -1081,6 +1081,40 @@ function TabNavette({data}){
     {/* NESSUN BAMBINO */}
     {partenze.length===0&&<div style={{padding:32,color:"#aaa",textAlign:"center",border:"1px dashed #ccc",fontSize:14}}>
       Nessun bambino con navetta nella settimana {w.label} ({w.range})
+    </div>}
+    {/* PANNELLO AGGIUNTA MANUALE */}
+    {addingTo&&<div style={{position:"fixed",inset:0,zIndex:9998,background:"rgba(0,0,0,.55)",display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+      <div style={{background:"#fff",border:"2px solid #000",padding:24,maxWidth:480,width:"100%"}}>
+        <div style={{fontWeight:900,fontSize:15,marginBottom:4}}>🚐 Aggiungi alla navetta {addingTo}</div>
+        <div style={{fontSize:12,color:"#666",marginBottom:14}}>Seleziona un iscritto senza navetta per {w.label} · {w.range}</div>
+        {senzaNav.length===0?<div style={{padding:16,color:"#888",textAlign:"center"}}>Tutti gli iscritti di questa settimana hanno già la navetta.</div>:
+        <div style={{maxHeight:300,overflowY:"auto"}}>
+          {senzaNav.map(r=>(
+            <div key={r.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 12px",borderBottom:"1px solid #f0f0f0",background:"#fff"}}
+              onMouseEnter={e=>e.currentTarget.style.background="#f0f9ff"} onMouseLeave={e=>e.currentTarget.style.background="#fff"}>
+              <div>
+                <div style={{fontWeight:700}}>{r.bambino}</div>
+                <div style={{fontSize:11,color:"#666"}}>{r.citta} · {r.eta}a · S{calcWeeks(r.inizio,r.sett).join("-S")}</div>
+              </div>
+              <button onClick={()=>{
+                const cap=NAV_CAP[addingTo]??14;
+                const used=data.filter(x=>x.nav&&getPartenza(x.citta)===addingTo&&calcWeeks(x.inizio,x.sett).includes(sel)).length;
+                if(used>=cap){alert("Navetta "+addingTo+" è al completo ("+used+"/"+cap+" posti)!");return;}
+                // Aggiorna iscritto: attiva navetta e imposta città corrispondente
+                const cittaTarget=addingTo==="Terlizzi"?"Terlizzi":addingTo==="Ruvo di Puglia"?"Ruvo di Puglia":"Corato";
+                // Usa setData tramite prop
+                if(onAddNav){onAddNav(r.id,cittaTarget);}
+                setAddingTo(null);
+              }} style={{padding:"5px 12px",background:"#16a34a",color:"#fff",border:"none",fontSize:12,cursor:"pointer",fontWeight:700}}>
+                + Aggiungi
+              </button>
+            </div>
+          ))}
+        </div>}
+        <div style={{display:"flex",justifyContent:"flex-end",marginTop:14}}>
+          <button onClick={()=>setAddingTo(null)} style={{padding:"7px 16px",border:"1px solid #000",background:"#fff",cursor:"pointer"}}>Chiudi</button>
+        </div>
+      </div>
     </div>}
     {/* TABELLA PER OGNI NAVETTA */}
     {partenze.map(p=>{
@@ -1515,7 +1549,10 @@ function MainApp({onLogout}){
     {tab==="pasti_contab"&& <TabPastiContab data={data} giorniSett={5} showToast={showToast}/>}
     {tab==="finanziario" && <TabFinanziario data={data} costs={costs} setCosts={setCosts} showToast={showToast}/>}
     {tab==="costi"       && <TabCosti costs={costs} setCosts={setCosts}/>}
-    {tab==="navette"     && <TabNavette data={data}/>}
+    {tab==="navette"     && <TabNavette data={data} onAddNav={(id,citta)=>{
+      setData(prev=>prev.map(r=>r.id===id?{...r,nav:true,citta:citta}:r));
+      showToast("Iscritto aggiunto alla navetta "+citta);
+    }}/>}
     {tab==="export"      && <TabExport data={data}/>}
   </div>);
 }
