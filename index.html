@@ -431,7 +431,7 @@ function DraftEditorPanel({draft,existingData,onCommit,onDiscard,showToast}){
               <div style={{display:"flex",gap:12}}>
                 <label style={{display:"flex",alignItems:"center",gap:6,cursor:"pointer",fontSize:12,fontWeight:600,userSelect:"none"}}>
                   <input type="checkbox" checked={r.nav} onChange={e=>upd("nav",e.target.checked)} style={{width:16,height:16,cursor:"pointer"}}/>
-                  <span style={{background:r.nav?"#1e40af":"#e5e7eb",color:r.nav?"#fff":"#888",padding:"2px 8px",fontWeight:r.nav?700:400}}>🚐 Navetta</span>
+                  <span style={{background:r.nav?"#1e40af":"#e5e7eb",color:r.nav?"#fff":"#888",padding:"2px 8px",fontWeight:r.nav?700:400}}>{"🚐"} Navetta</span>
                 </label>
                 <label style={{display:"flex",alignItems:"center",gap:6,cursor:"pointer",fontSize:12,fontWeight:600,userSelect:"none"}}>
                   <input type="checkbox" checked={r.pasto_casa} onChange={e=>upd("pasto_casa",e.target.checked)} style={{width:16,height:16,cursor:"pointer"}}/>
@@ -476,8 +476,8 @@ function DraftEditorPanel({draft,existingData,onCommit,onDiscard,showToast}){
             <div style={{fontWeight:700,marginBottom:6}}>✅ Effetti dopo "Applica e Salva"</div>
             <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
               <span>📋 Aggiunto a <strong>Tabella Iscritti</strong></span>
-              {r.nav&&<span style={{color:"#1e40af",fontWeight:600}}>🚐 Aggiunto a <strong>Contabilità Navette</strong> · -1 posto disponibile</span>}
-              {!r.pasto_casa&&<span style={{color:"#166534",fontWeight:600}}>🍽️ Aggiunto a <strong>Contabilità Pasti</strong></span>}
+              {r.nav&&<span style={{color:"#1e40af",fontWeight:600}}>{"🚐"} Aggiunto a <strong>Contabilità Navette</strong> · -1 posto disponibile</span>}
+              {!r.pasto_casa&&<span style={{color:"#166534",fontWeight:600}}>{"🍽️"} Aggiunto a <strong>Contabilità Pasti</strong></span>}
               <span style={{color:"#185FA5",fontWeight:600}}>📐 BEP e Ricavi Extra aggiornati</span>
             </div>
           </div>
@@ -778,7 +778,7 @@ function TabIscritti({data,setData,showToast}){
     </div>
     {/* KPI */}
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(110px,1fr))",gap:8,marginBottom:12}}>
-      {[["Mostrati",sorted.length,"#111"],["🚐 Navetta",sorted.filter(r=>r.nav).length,"#1e40af"],["🍽️ Pasti",sorted.filter(r=>!r.pasto_casa).length,"#166534"],["🥪 Sacco",sorted.filter(r=>r.pasto_casa).length,"#854d0e"],["Quote",E(tot.q),"#185FA5"],["Incassato",E(tot.inc),"#166534"]].map(([l,v,c])=>(
+      {[["Mostrati",sorted.length,"#111"],["🚐 Navetta",sorted.filter(r=>r.nav).length,"#1e40af"],["{"🍽️"} Pasti",sorted.filter(r=>!r.pasto_casa).length,"#166534"],["🥪 Sacco",sorted.filter(r=>r.pasto_casa).length,"#854d0e"],["Quote",E(tot.q),"#185FA5"],["Incassato",E(tot.inc),"#166534"]].map(([l,v,c])=>(
         <div key={l} style={{background:"#fff",border:"1px solid #000",padding:"9px 11px"}}><div style={{fontSize:10,color:"#666",marginBottom:2}}>{l}</div><div style={{fontSize:16,fontWeight:800,color:c}}>{v}</div></div>
       ))}
     </div>
@@ -822,7 +822,7 @@ function TabIscritti({data,setData,showToast}){
           <STH col="inizio" label="Inizio"/>
           <STH col="sett" label="S."/>
           <th style={TH}>🚐</th>
-          <th style={TH}>🍽️</th>
+          <th style={TH}>{"🍽️"}</th>
           <STH col="citta" label="Città"/>
           <STH col="quota" label="Quota"/>
           <th style={{...TH,background:"#166534"}}>Acconto</th>
@@ -845,7 +845,7 @@ function TabIscritti({data,setData,showToast}){
               <td style={TD({background:rbg,width:80})}><select value={r.inizio||"08/06/2026"} onChange={e=>upd(r.id,"inizio",e.target.value)} style={{...iS,cursor:"pointer",fontSize:11}}>{WEEKS.map(w=><option key={w.id} value={w.dal}>{w.dal}</option>)}</select></td>
               <td style={TD({background:rbg,width:28})}><input type="number" value={r.sett||1} min={1} max={8} onChange={e=>upd(r.id,"sett",Number(e.target.value))} style={iS}/></td>
               <td style={TD({background:r.nav?"#dbeafe":rbg,width:46})}><select value={r.nav?"si":"no"} onChange={e=>upd(r.id,"nav",e.target.value==="si")} style={{...iS,color:r.nav?"#1e40af":"#888",fontWeight:r.nav?700:400,cursor:"pointer"}}><option value="si">Sì</option><option value="no">No</option></select></td>
-              <td style={TD({background:r.pasto_casa?"#fef9c3":rbg,width:60})}><select value={r.pasto_casa?"s":"p"} onChange={e=>upd(r.id,"pasto_casa",e.target.value==="s")} style={{...iS,color:r.pasto_casa?"#854d0e":"#166534",fontWeight:600,cursor:"pointer",fontSize:10}}><option value="p">🍽️</option><option value="s">🥪</option></select></td>
+              <td style={TD({background:r.pasto_casa?"#fef9c3":rbg,width:60})}><select value={r.pasto_casa?"s":"p"} onChange={e=>upd(r.id,"pasto_casa",e.target.value==="s")} style={{...iS,color:r.pasto_casa?"#854d0e":"#166534",fontWeight:600,cursor:"pointer",fontSize:10}}><option value="p">{"🍽️"}</option><option value="s">🥪</option></select></td>
               <td style={TD({background:rbg,minWidth:110,textAlign:"left"})}><select value={r.citta||""} onChange={e=>upd(r.id,"citta",e.target.value)} style={{...iS,cursor:"pointer",fontSize:10,color:r.nav?"#1e40af":"inherit",fontWeight:r.nav?700:400}}>{CITTA_OPTIONS.map(c=><option key={c} value={c}>{c}</option>)}</select></td>
               <td style={TD({background:rbg,width:60})}><input type="number" value={r.quota||0} onChange={e=>upd(r.id,"quota",Number(e.target.value))} style={{...iS,fontWeight:700}}/></td>
               <td style={TD({background:"#f0fdf4",width:66,borderLeft:"2px solid #16a34a"})}><input type="number" value={r.acconto||0} onChange={e=>upd(r.id,"acconto",Number(e.target.value))} style={{...iS,color:"#166534",fontWeight:700}}/></td>
@@ -890,7 +890,7 @@ function TabNavetteContab({data,giorniSett,showToast}){
   return(<div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:10,marginBottom:14}}>
       <div style={{background:"#1e40af",border:"1px solid #000",padding:14,color:"#fff"}}>
-        <div style={{fontSize:11,opacity:.8,marginBottom:4}}>🚐 Totale ricavi navette (stagione)</div>
+        <div style={{fontSize:11,opacity:.8,marginBottom:4}}>{"🚐"} Totale ricavi navette (stagione)</div>
         <div style={{fontSize:22,fontWeight:900}}>{E(totNav)}</div>
         <div style={{fontSize:11,opacity:.8,marginTop:4}}>{navRows.length} settimane-bambino · {NAV_RATE}€/giorno/bambino</div>
       </div>
@@ -976,7 +976,7 @@ function TabPastiContab({data,giorniSett,showToast}){
   return(<div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:10,marginBottom:14}}>
       <div style={{background:"#166534",border:"1px solid #000",padding:14,color:"#fff"}}>
-        <div style={{fontSize:11,opacity:.8,marginBottom:4}}>🍽️ Totale ricavi pasti (stagione)</div>
+        <div style={{fontSize:11,opacity:.8,marginBottom:4}}>{"🍽️"} Totale ricavi pasti (stagione)</div>
         <div style={{fontSize:22,fontWeight:900}}>{E(totPasti)}</div>
         <div style={{fontSize:11,opacity:.8,marginTop:4}}>{pastiRows.length} settimane-bambino · {PASTI_RATE}€/giorno/bambino</div>
       </div>
@@ -1071,7 +1071,7 @@ function TabNavette({data,onAddNav}){
         const notaStyle=noteType(r.note_bimbo)?"background:#fef2f2;color:#991b1b;font-weight:bold;":"color:#aaa;";
         return "<tr><td>"+(i+1)+"</td><td><strong>"+r.bambino+"</strong></td><td>"+r.citta+"</td><td>"+r.eta+"</td><td>"+r.genitore+"</td><td>"+r.telefono+"</td><td style='"+notaStyle+"'>"+(r.note_bimbo||"—")+"</td></tr>";
       }).join("");
-      return "<h2 style='font-size:13px;margin:14px 0 4px;border-bottom:2px solid #000;padding-bottom:3px'>🚐 "+p+" — "+list.length+"/"+cap+" posti ("+w.label+" · "+w.range+")</h2><table style='border-collapse:collapse;width:100%'><thead><tr><th>#</th><th>Bambino/a</th><th>Città</th><th>Età</th><th>Genitore</th><th>Telefono</th><th>Note mediche</th></tr></thead><tbody>"+trs+"</tbody></table>";
+      return "<h2 style='font-size:13px;margin:14px 0 4px;border-bottom:2px solid #000;padding-bottom:3px'>{"🚐"} "+p+" — "+list.length+"/"+cap+" posti ("+w.label+" · "+w.range+")</h2><table style='border-collapse:collapse;width:100%'><thead><tr><th>#</th><th>Bambino/a</th><th>Città</th><th>Età</th><th>Genitore</th><th>Telefono</th><th>Note mediche</th></tr></thead><tbody>"+trs+"</tbody></table>";
     }).join("<br/>");
     const html="<!DOCTYPE html><html><head><meta charset='UTF-8'><style>body{font-family:Arial;font-size:12px;margin:16px}th{background:#111;color:#fff;padding:5px 8px;border:1px solid #000;font-size:11px}td{border:1px solid #000;padding:4px 7px;font-size:11px}</style></head><body><h1 style='font-size:15px'>Navette "+w.label+" · "+w.range+" · Macaranga 2026</h1><p style='font-size:10px;color:#666'>Stampato: "+new Date().toLocaleDateString("it-IT")+" · "+kids.length+" bambini totali</p>"+rowsHtml+"</body></html>";
     const pw=window.open("","_blank");pw.document.write(html);pw.document.close();pw.print();
@@ -1111,7 +1111,7 @@ function TabNavette({data,onAddNav}){
         return(<div key={p} style={{background:"#fff",border:`2px solid ${alert?"#dc2626":col}`,padding:12}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
             <div>
-              <div style={{fontWeight:700,fontSize:13,color:col}}>🚐 {p}</div>
+              <div style={{fontWeight:700,fontSize:13,color:col}}>{"🚐"} {p}</div>
               {p==="Terlizzi"&&<div style={{fontSize:10,color:"#888"}}>Comprende anche Molfetta</div>}
             </div>
             <div style={{fontWeight:900,fontSize:20,color:alert?"#dc2626":col}}>{used}<span style={{fontSize:12,fontWeight:400,color:"#888"}}>/{cap}</span></div>
@@ -1133,7 +1133,7 @@ function TabNavette({data,onAddNav}){
     {/* PANNELLO AGGIUNTA MANUALE */}
     {addingTo&&<div style={{position:"fixed",inset:0,zIndex:9998,background:"rgba(0,0,0,.55)",display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
       <div style={{background:"#fff",border:"2px solid #000",padding:24,maxWidth:480,width:"100%"}}>
-        <div style={{fontWeight:900,fontSize:15,marginBottom:4}}>🚐 Aggiungi alla navetta {addingTo}</div>
+        <div style={{fontWeight:900,fontSize:15,marginBottom:4}}>{"🚐"} Aggiungi alla navetta {addingTo}</div>
         <div style={{fontSize:12,color:"#666",marginBottom:14}}>Seleziona un iscritto senza navetta per {w.label} · {w.range}</div>
         {senzaNav.length===0?<div style={{padding:16,color:"#888",textAlign:"center"}}>Tutti gli iscritti di questa settimana hanno già la navetta.</div>:
         <div style={{maxHeight:300,overflowY:"auto"}}>
@@ -1176,7 +1176,7 @@ function TabNavette({data,onAddNav}){
         {/* Header navetta */}
         <div style={{padding:"8px 14px",background:alert?"#dc2626":col,color:"#fff",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <div>
-            <span style={{fontWeight:900,fontSize:15}}>🚐 Navetta {p}</span>
+            <span style={{fontWeight:900,fontSize:15}}>{"🚐"} Navetta {p}</span>
             {p==="Terlizzi"&&<span style={{fontSize:11,opacity:.8,marginLeft:8}}>(Terlizzi + Molfetta)</span>}
           </div>
           <div style={{display:"flex",alignItems:"center",gap:12}}>
@@ -1256,15 +1256,15 @@ function TabFinanziario({data,costs}){
     <div style={{background:"#fff",border:"2px solid #000",padding:16,marginBottom:14}}>
       <div style={{fontWeight:900,fontSize:14,marginBottom:12,borderBottom:"2px solid #000",paddingBottom:6}}>💰 Servizi Accessori</div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
-        <div style={{background:"#eff6ff",border:"1px solid #3b82f6",padding:14,textAlign:"center"}}><div style={{fontSize:13,color:"#1e40af"}}>🚐 Ricavo Navette</div><div style={{fontSize:22,fontWeight:900,color:"#1e40af",marginTop:4}}>{E(sv.totNav)}</div></div>
-        <div style={{background:"#f0fdf4",border:"1px solid #16a34a",padding:14,textAlign:"center"}}><div style={{fontSize:13,color:"#166534"}}>🍽️ Ricavo Pasti</div><div style={{fontSize:22,fontWeight:900,color:"#166534",marginTop:4}}>{E(sv.totPasti)}</div></div>
+        <div style={{background:"#eff6ff",border:"1px solid #3b82f6",padding:14,textAlign:"center"}}><div style={{fontSize:13,color:"#1e40af"}}>{"🚐"} Ricavo Navette</div><div style={{fontSize:22,fontWeight:900,color:"#1e40af",marginTop:4}}>{E(sv.totNav)}</div></div>
+        <div style={{background:"#f0fdf4",border:"1px solid #16a34a",padding:14,textAlign:"center"}}><div style={{fontSize:13,color:"#166534"}}>{"🍽️"} Ricavo Pasti</div><div style={{fontSize:22,fontWeight:900,color:"#166534",marginTop:4}}>{E(sv.totPasti)}</div></div>
         <div style={{background:"#111",border:"1px solid #000",padding:14,textAlign:"center",color:"#fff"}}><div style={{fontSize:13,opacity:.8}}>💰 Totale Extra</div><div style={{fontSize:22,fontWeight:900,marginTop:4}}>{E(sv.totExtra)}</div></div>
       </div>
     </div>
     <div style={{background:"#fff",border:"2px solid #000",padding:16,marginBottom:14}}>
       <div style={{fontWeight:900,fontSize:14,marginBottom:12,borderBottom:"2px solid #000",paddingBottom:6}}>📊 Copertura Servizi</div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-        {[{l:"🚐 Navette",co:costs.costoNavette,ri:sv.totNav,p:pN,sc:scN,ec:ecN},{l:"🍽️ Pasti",co:costs.costoCucina,ri:sv.totPasti,p:pP,sc:scP,ec:ecP}].map(({l,co,ri,p,sc,ec})=>{
+        {[{l:"🚐 Navette",co:costs.costoNavette,ri:sv.totNav,p:pN,sc:scN,ec:ecN},{l:"{"🍽️"} Pasti",co:costs.costoCucina,ri:sv.totPasti,p:pP,sc:scP,ec:ecP}].map(({l,co,ri,p,sc,ec})=>{
           const ok=p>=1;const warn=p>=0.75;const col=ok?"#166534":warn?"#d97706":"#dc2626";const bg=ok?"#f0fdf4":warn?"#fef3c7":"#fef2f2";
           return(<div key={l} style={{background:bg,border:`1px solid ${ok?"#16a34a":warn?"#d97706":"#dc2626"}`,padding:14}}>
             <div style={{fontWeight:700,fontSize:14,marginBottom:8}}>{l} — <span style={{color:col}}>{Pct(p)}</span></div>
@@ -1550,7 +1550,7 @@ function MainApp({onLogout}){
     {id:"import",l:"🤖 Import Smart"},
     {id:"iscritti",l:"Iscritti & Pagamenti"},
     {id:"nav_contab",l:"🚐 Cont. Navette"},
-    {id:"pasti_contab",l:"🍽️ Cont. Pasti"},
+    {id:"pasti_contab",l:"{"🍽️"} Cont. Pasti"},
     {id:"finanziario",l:"Finanziario & BEP"},
     {id:"costi",l:"Costi"},
     {id:"navette",l:"Navette"},
@@ -1568,11 +1568,11 @@ function MainApp({onLogout}){
     {draft&&<DraftEditorPanel draft={draft} existingData={data} onCommit={handleCommitDraft} onDiscard={()=>{setDraft(null);showToast("Bozza scartata","warn");}} showToast={showToast}/>}
     <div style={{marginBottom:"0.75rem",borderBottom:"2px solid #000",paddingBottom:10,display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:8}}>
       <div>
-        <h1 style={{fontSize:18,fontWeight:900,letterSpacing:"-0.02em",margin:"0 0 2px"}}>🌿 Campi Natura Macaranga 2026</h1>
+        <h1 style={{fontSize:18,fontWeight:900,letterSpacing:"-0.02em",margin:"0 0 2px"}}>{"🌿"} Campi Natura Macaranga 2026</h1>
         <div style={{fontSize:11,color:"#666",display:"flex",gap:10,flexWrap:"wrap"}}>
           <span>{data.length} iscritti</span>
-          <span style={{color:"#1e40af",fontWeight:600}}>🚐 {E(sv.totNav)}</span>
-          <span style={{color:"#166534",fontWeight:600}}>🍽️ {E(sv.totPasti)}</span>
+          <span style={{color:"#1e40af",fontWeight:600}}>{"🚐"} {E(sv.totNav)}</span>
+          <span style={{color:"#166534",fontWeight:600}}>{"🍽️"} {E(sv.totPasti)}</span>
           <span style={{fontWeight:700}}>💰 {E(sv.totExtra)}</span>
           {incompleti>0&&<span style={{color:"#d97706",fontWeight:700}}>⚠ {incompleti} incompleti</span>}
           {allergici>0&&<span style={{color:"#dc2626",fontWeight:700}}>🚨 {allergici} allergie</span>}
@@ -1587,4 +1587,39 @@ function MainApp({onLogout}){
         </div>}
       </div>
     </div>
-    <SaveBar hasChanges={hasChanges} saving={saving} onSave=
+    <SaveBar hasChanges={hasChanges} saving={saving} onSave={handleSave} onReset={handleReset} lastSaved={lastSaved} onLogout={handleLogout}/>
+    <div style={{display:"flex",gap:0,borderBottom:"2px solid #000",marginBottom:"1.25rem",overflowX:"auto"}}>
+      {TABS.map(t=><button key={t.id} onClick={()=>setTab(t.id)} style={tS(tab===t.id)}>{t.l}</button>)}
+    </div>
+    {tab==="import"       && <TabImport onSync={handleSync} existingData={data} showToast={showToast} onDraftReady={handleDraftReady} savedMappings={savedMappings} setSavedMappings={setSavedMappings}/>}
+    {tab==="iscritti"    && <TabIscritti data={data} setData={setData} showToast={showToast}/>}
+    {tab==="nav_contab"  && <TabNavetteContab data={data} giorniSett={5} showToast={showToast}/>}
+    {tab==="pasti_contab"&& <TabPastiContab data={data} giorniSett={5} showToast={showToast}/>}
+    {tab==="finanziario" && <TabFinanziario data={data} costs={costs} setCosts={setCosts} showToast={showToast}/>}
+    {tab==="costi"       && <TabCosti costs={costs} setCosts={setCosts}/>}
+    {tab==="navette"     && <TabNavette data={data} onAddNav={(id,citta)=>{
+      setData(prev=>prev.map(r=>r.id===id?{...r,nav:true,citta:citta}:r));
+      showToast("Iscritto aggiunto alla navetta "+citta);
+    }}/>}
+    {tab==="export"      && <TabExport data={data}/>}
+  </div>);
+}
+
+/* ══ ROOT ════════════════════════════════════════════════════ */
+function Root(){
+  const[session,setSession]=useState(null);
+  const[checking,setChecking]=useState(true);
+  useEffect(()=>{
+    SB.auth.getSession().then(({data:{session}})=>{setSession(session);setChecking(false);});
+    const{data:{subscription}}=SB.auth.onAuthStateChange((_,s)=>setSession(s));
+    return()=>subscription.unsubscribe();
+  },[]);
+  if(checking)return(<div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh"}}><div style={{fontSize:14,color:"#666"}}>Verifica sessione…</div></div>);
+  if(!session)return<Login onLogin={()=>SB.auth.getSession().then(({data:{session}})=>setSession(session))}/>;
+  return<MainApp onLogout={()=>setSession(null)}/>;
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<Root/>);
+</script>
+</body>
+</html>
