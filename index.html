@@ -1002,9 +1002,10 @@ function TabPastiContab({data,giorniSett,showToast}){
 /* ══ TAB NAVETTE ════════════════════════════════════════════ */
 function TabNavette({data,onAddNav}){
   const[sel,setSel]=useState(1);
+  const[addingTo,setAddingTo]=useState(null);
   const w=WEEKS.find(x=>x.id===sel);
-  // Solo bambini con navetta in questa settimana
   const kids=data.filter(r=>r.nav&&calcWeeks(r.inizio,r.sett).includes(sel));
+  const senzaNav=data.filter(r=>!r.nav&&calcWeeks(r.inizio,r.sett).includes(sel));
   // Raggruppa per punto di PARTENZA: Molfetta→Terlizzi, tutti gli altri per città
   const byPartenza=kids.reduce((acc,r)=>{
     const p=getPartenza(r.citta)||r.citta||"Altro";
