@@ -106,6 +106,9 @@ const INITIAL_DATA=[
   {id:"vqilhc8",bambino:"Miriam Livorti",nato_il:"09/11/2014",eta:11,inizio:"08/06/2026",fine:"03/07/2026",sett:4,nav:false,pasto_casa:false,citta:"Ruvo di Puglia",quota:260,acconto:180,saldato:0,da_saldare:80,stato:"ACCONTO",note_pag:"Acconto €360 con Gian Michele (24/03)",note_bimbo:"",telefono:"3452135453",genitore:"Antonia Rutigliani"},
   {id:"dr0in6k",bambino:"Francesco Scagliola",nato_il:"22/06/2017",eta:8,inizio:"22/06/2026",fine:"17/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Terlizzi",quota:380,acconto:0,saldato:380,da_saldare:0,stato:"SALDATO",note_pag:"Saldo completo (01/04)",note_bimbo:"⚠ Verifica tel. e data nascita",telefono:"3403740164",genitore:"Michele Scagliola"},
   {id:"63seekj",bambino:"Giuseppe De Leo",nato_il:"01/01/2018",eta:8,inizio:"22/06/2026",fine:"17/07/2026",sett:4,nav:false,pasto_casa:false,citta:"Terlizzi",quota:280,acconto:114,saldato:0,da_saldare:166,stato:"ACCONTO",note_pag:"Acconto 114 (30/03) dal 22 giugno",note_bimbo:"",telefono:"3471234567",genitore:"Emiliano De Leo"}
+,
+  {id:"in3a40k",bambino:"Serena Quatela",nato_il:"",eta:0,inizio:"08/06/2026",fine:"03/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Ruvo di Puglia",quota:330,acconto:0,saldato:0,da_saldare:330,stato:"DA PAGARE",note_pag:"⚠ Dati da completare",note_bimbo:"",telefono:"",genitore:""},
+  {id:"4j4y663",bambino:"Nina Fabiano",nato_il:"",eta:0,inizio:"08/06/2026",fine:"03/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Ruvo di Puglia",quota:330,acconto:0,saldato:0,da_saldare:330,stato:"DA PAGARE",note_pag:"⚠ Dati da completare",note_bimbo:"",telefono:"",genitore:""}
 ];
 
 const E=v=>Number(v||0).toLocaleString("it-IT",{style:"currency",currency:"EUR",maximumFractionDigits:0});
@@ -571,10 +574,19 @@ function TabImport({onSync,existingData,showToast,savedMappings,setSavedMappings
         let parsed;
         try{
           let clean=txt.replace(/```json|```/g,"").trim();
-          // Estrae il primo oggetto JSON valido dalla risposta
-          const jsonMatch=clean.match(/\{[\s\S]*\}/);
-          if(!jsonMatch){addLog("Nessun JSON trovato nella risposta","error");setUploading(false);return;}
-          parsed=JSON.parse(jsonMatch[0]);
+          // Estrae il primo array o oggetto JSON dalla risposta
+          let jsonStr=null;
+          const arrM=clean.match(/\[[\s\S]*?\](?=[^\]]*$)/);
+          const objM=clean.match(/{[^{}]*(?:{[^{}]*}[^{}]*)*}/);
+          if(arrM)jsonStr=arrM[0];
+          else if(objM)jsonStr="["+objM[0]+"]";
+          if(!jsonStr){addLog("Nessun JSON trovato nella risposta","error");setUploading(false);return;}
+          try{parsed=JSON.parse(jsonStr);}catch(e2){
+            // Fallback: prova a estrarre con regex semplice
+            const simple=clean.replace(/[\r\n]/g," ").match(/{[^}]+}/);
+            if(!simple)throw e2;
+            parsed=[JSON.parse(simple[0])];
+          }
         }catch(pe){addLog("JSON error: "+pe.message,"error");setUploading(false);return;}
         const single=Array.isArray(parsed)?parsed[0]:parsed;
         if(!single||typeof single!=="object"){addLog("Risposta non valida","error");setUploading(false);return;}
