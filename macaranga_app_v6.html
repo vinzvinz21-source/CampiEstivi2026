@@ -1,0 +1,1539 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Campi Natura Macaranga 2026</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
+<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#fafafa}input,select,button{font-family:inherit}</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+window.__ANTHROPIC_KEY__="";
+const{useState,useMemo,useEffect,useCallback}=React;
+
+/* ══ SUPABASE ══════════════════════════════════════════════════ */
+const{createClient}=supabase;
+const SB=createClient(
+  "https://dmfgcofmvcowhzciekeq.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRtZmdjb2ZtdmNvd2h6Y2lla2VxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5NzE0ODksImV4cCI6MjA5MDU0NzQ4OX0.eoZdxs8WotvYCftFYPDjRmk3fKMSFFmrTSOESgR1LrE"
+);
+
+/* ══ COSTANTI ════════════════════════════════════════════════ */
+const WEEKS=[
+  {id:1,label:"S1",range:"8–12 giu",  dal:"08/06/2026",al:"12/06/2026"},
+  {id:2,label:"S2",range:"15–19 giu", dal:"15/06/2026",al:"19/06/2026"},
+  {id:3,label:"S3",range:"22–26 giu", dal:"22/06/2026",al:"26/06/2026"},
+  {id:4,label:"S4",range:"29 giu–3 lug",dal:"29/06/2026",al:"03/07/2026"},
+  {id:5,label:"S5",range:"6–10 lug",  dal:"06/07/2026",al:"10/07/2026"},
+  {id:6,label:"S6",range:"13–17 lug", dal:"13/07/2026",al:"17/07/2026"},
+  {id:7,label:"S7",range:"20–24 lug", dal:"20/07/2026",al:"24/07/2026"},
+  {id:8,label:"S8",range:"27–31 lug", dal:"27/07/2026",al:"31/07/2026"},
+];
+const DAL_TO_SETT=Object.fromEntries(WEEKS.map(w=>[w.dal,w.id]));
+const NAV_RATE=4;const PASTI_RATE=5;const GIORNI_SETT=5;
+const NAV_CAP={"Ruvo di Puglia":8,"Terlizzi":14,"Molfetta":14,"Corato":4};
+const getCap=c=>NAV_CAP[c]??14;
+const NAVETTA_PARTENZA={"Terlizzi":"Terlizzi","Molfetta":"Terlizzi","Ruvo di Puglia":"Ruvo di Puglia","Corato":"Corato"};
+const getPartenza=c=>NAVETTA_PARTENZA[c]||c;
+const CITTA_OPTIONS=["Ruvo di Puglia","Terlizzi","Molfetta","Corato","Roma","Torino","Altro"];
+
+const DEFAULT_COSTS={
+  voci:[
+    {id:"c1",cat:"Personale educativo",label:"Educatori esperti (2×€300×6 sett.)",importo:3600,note:""},
+    {id:"c2",cat:"Personale educativo",label:"Educatori junior (2×€200×6 sett.)",importo:2400,note:""},
+    {id:"c3",cat:"Personale cucina",label:"Cuochi (2×€300×8 sett.)",importo:4800,note:""},
+    {id:"c4",cat:"Struttura",label:"Location (8 sett.)",importo:3400,note:""},
+    {id:"c5",cat:"Struttura",label:"Assicurazione RC+infortuni",importo:410,note:""},
+    {id:"c6",cat:"Trasporti",label:"Noleggio mezzo (8 sett.)",importo:3000,note:""},
+    {id:"c7",cat:"Trasporti",label:"Assicurazione mezzo",importo:1200,note:""},
+    {id:"c8",cat:"Materiali",label:"Attrezzature e materiali",importo:500,note:""},
+  ],
+  costoNavette:3000,
+  costoCucina:4800,
+};
+
+const INITIAL_DATA=[
+  {id:uid(),bambino:"Roberta Anna Amenduni",nato_il:"28/11/2015",eta:10,inizio:"08/06/2026",fine:"03/07/2026",sett:4,nav:false,pasto_casa:false,citta:"Ruvo di Puglia",quota:300,acconto:0,saldato:0,da_saldare:300,stato:"DA PAGARE",note_pag:"",note_bimbo:"",telefono:"3463088601",genitore:"Angela Amenduni"},
+  {id:uid(),bambino:"Vincenzo Ficco",nato_il:"02/02/2015",eta:11,inizio:"22/06/2026",fine:"17/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Terlizzi",quota:330,acconto:100,saldato:0,da_saldare:230,stato:"ACCONTO",note_pag:"Acconto €200 con Adriano",note_bimbo:"",telefono:"3471958825",genitore:"Angela D'Elia"},
+  {id:uid(),bambino:"Adriano Ficco",nato_il:"20/08/2019",eta:6,inizio:"22/06/2026",fine:"17/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Terlizzi",quota:330,acconto:100,saldato:0,da_saldare:230,stato:"ACCONTO",note_pag:"Acconto €200 con Vincenzo",note_bimbo:"",telefono:"3471958825",genitore:"Angela D'Elia"},
+  {id:uid(),bambino:"Beatrice N. Tamborra",nato_il:"12/11/2016",eta:9,inizio:"29/06/2026",fine:"24/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Terlizzi",quota:355,acconto:125,saldato:0,da_saldare:230,stato:"ACCONTO",note_pag:"Acconto €250 con Lorenzo (01/04)",note_bimbo:"",telefono:"3927581223",genitore:"Angela De Nicolo"},
+  {id:uid(),bambino:"Lorenzo F. Tamborra",nato_il:"04/10/2019",eta:6,inizio:"29/06/2026",fine:"24/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Terlizzi",quota:355,acconto:125,saldato:0,da_saldare:230,stato:"ACCONTO",note_pag:"Acconto €250 con Beatrice (01/04)",note_bimbo:"",telefono:"3927581223",genitore:"Angela De Nicolo"},
+  {id:uid(),bambino:"Matilde Digregorio",nato_il:"03/05/2017",eta:9,inizio:"08/06/2026",fine:"03/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Terlizzi",quota:330,acconto:100,saldato:0,da_saldare:230,stato:"ACCONTO",note_pag:"Acconto – Aniello",note_bimbo:"",telefono:"3470355091",genitore:"Anna Aniello"},
+  {id:uid(),bambino:"Elena Musacchio",nato_il:"05/02/2014",eta:12,inizio:"29/06/2026",fine:"24/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Corato",quota:355,acconto:107,saldato:0,da_saldare:248,stato:"ACCONTO",note_pag:"Acconto €213 con Giuseppe (31/03)",note_bimbo:"",telefono:"3405668376",genitore:"Annamaria Portaccio"},
+  {id:uid(),bambino:"Giuseppe Musacchio",nato_il:"11/03/2016",eta:10,inizio:"29/06/2026",fine:"24/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Corato",quota:355,acconto:106,saldato:0,da_saldare:249,stato:"ACCONTO",note_pag:"Acconto €213 con Elena (31/03)",note_bimbo:"",telefono:"3405668376",genitore:"Annamaria Portaccio"},
+  {id:uid(),bambino:"Gabriele Cagnetta",nato_il:"24/03/2020",eta:6,inizio:"22/06/2026",fine:"17/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Molfetta",quota:380,acconto:114,saldato:0,da_saldare:266,stato:"ACCONTO",note_pag:"Acconto – Cagnetta (31/03)",note_bimbo:"",telefono:"3497632126",genitore:"Francesco Cagnetta"},
+  {id:uid(),bambino:"Francisco J. Gadaleta",nato_il:"28/04/2013",eta:13,inizio:"08/06/2026",fine:"03/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Ruvo di Puglia",quota:380,acconto:0,saldato:0,da_saldare:380,stato:"DA PAGARE",note_pag:"",note_bimbo:"Leggermente intollerante al lattosio",telefono:"3493763545",genitore:"Stefania Carbonara"},
+  {id:uid(),bambino:"Alessandro Carlucci",nato_il:"17/01/2014",eta:12,inizio:"08/06/2026",fine:"03/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Ruvo di Puglia",quota:330,acconto:0,saldato:330,da_saldare:0,stato:"SALDATO",note_pag:"Saldo completo (17/03)",note_bimbo:"",telefono:"3493428077",genitore:"Cinzia Ribatti"},
+  {id:uid(),bambino:"Andrea Dallafiore",nato_il:"10/09/2019",eta:6,inizio:"29/06/2026",fine:"24/07/2026",sett:4,nav:false,pasto_casa:false,citta:"Ruvo di Puglia",quota:260,acconto:0,saldato:0,da_saldare:260,stato:"DA PAGARE",note_pag:"",note_bimbo:"",telefono:"3498080711",genitore:"Francesca Di Gregorio"},
+  {id:uid(),bambino:"Mattia Dallafiore",nato_il:"10/09/2019",eta:6,inizio:"29/06/2026",fine:"24/07/2026",sett:4,nav:false,pasto_casa:false,citta:"Ruvo di Puglia",quota:260,acconto:0,saldato:0,da_saldare:260,stato:"DA PAGARE",note_pag:"",note_bimbo:"",telefono:"3498080711",genitore:"Francesca Di Gregorio"},
+  {id:uid(),bambino:"Michelangelo Gattulli",nato_il:"28/11/2013",eta:12,inizio:"08/06/2026",fine:"26/06/2026",sett:3,nav:false,pasto_casa:false,citta:"Ruvo di Puglia",quota:240,acconto:0,saldato:0,da_saldare:240,stato:"DA PAGARE",note_pag:"",note_bimbo:"",telefono:"3471855715",genitore:"Francesco Gattulli"},
+  {id:uid(),bambino:"Gabriel Formiglio",nato_il:"26/08/2016",eta:9,inizio:"08/06/2026",fine:"19/06/2026",sett:2,nav:false,pasto_casa:false,citta:"Roma",quota:160,acconto:0,saldato:160,da_saldare:0,stato:"SALDATO",note_pag:"Saldo completo (18/03)",note_bimbo:"",telefono:"3518102475",genitore:"Giovanni Formiglio"},
+  {id:uid(),bambino:"Francesco G. De Noia",nato_il:"17/12/2017",eta:8,inizio:"08/06/2026",fine:"03/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Terlizzi",quota:330,acconto:0,saldato:330,da_saldare:0,stato:"SALDATO",note_pag:"Saldo completo (17/03)",note_bimbo:"",telefono:"3407443173",genitore:"Barbara de Robertis"},
+  {id:uid(),bambino:"Antonio Altomare",nato_il:"14/10/2016",eta:9,inizio:"08/06/2026",fine:"19/06/2026",sett:2,nav:false,pasto_casa:false,citta:"Terlizzi",quota:150,acconto:0,saldato:0,da_saldare:150,stato:"DA PAGARE",note_pag:"",note_bimbo:"Allergia ulivi, polvere, gatto",telefono:"3805477973",genitore:"Valeria D'aniello"},
+  {id:uid(),bambino:"Martina Altomare",nato_il:"01/08/2020",eta:5,inizio:"08/06/2026",fine:"19/06/2026",sett:2,nav:false,pasto_casa:false,citta:"Terlizzi",quota:150,acconto:0,saldato:0,da_saldare:150,stato:"DA PAGARE",note_pag:"",note_bimbo:"",telefono:"3805477973",genitore:"Valeria D'aniello"},
+  {id:uid(),bambino:"Chiara Mastrorilli",nato_il:"20/08/2015",eta:10,inizio:"22/06/2026",fine:"17/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Terlizzi",quota:380,acconto:120,saldato:0,da_saldare:260,stato:"ACCONTO",note_pag:"Acconto – Mastrorilli (01/04)",note_bimbo:"",telefono:"3498721444",genitore:"Tommaso Mastrorilli"},
+  {id:uid(),bambino:"Adelina Burlan",nato_il:"18/10/2015",eta:10,inizio:"08/06/2026",fine:"03/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Ruvo di Puglia",quota:330,acconto:150,saldato:0,da_saldare:180,stato:"ACCONTO",note_pag:"Anticipo mar'26",note_bimbo:"Lattosio · FANS",telefono:"3485416308",genitore:"Larisa Burlan"},
+  {id:uid(),bambino:"Claudio Fontana",nato_il:"21/03/2018",eta:8,inizio:"20/07/2026",fine:"31/07/2026",sett:2,nav:false,pasto_casa:false,citta:"Torino",quota:150,acconto:175,saldato:0,da_saldare:0,stato:"SALDATO",note_pag:"Bonifico 350 diviso (24/03)",note_bimbo:"",telefono:"3478849913",genitore:"Tiziana Pellegrini"},
+  {id:uid(),bambino:"Dario Di Liddo",nato_il:"05/06/2012",eta:14,inizio:"08/06/2026",fine:"03/07/2026",sett:4,nav:false,pasto_casa:false,citta:"Ruvo di Puglia",quota:260,acconto:78,saldato:0,da_saldare:182,stato:"ACCONTO",note_pag:"Acconto 156 con Luca (01/04)",note_bimbo:"Autistico",telefono:"3293058110",genitore:"Marina Cantatore"},
+  {id:uid(),bambino:"Delia Calo",nato_il:"26/10/2013",eta:12,inizio:"29/06/2026",fine:"24/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Ruvo di Puglia",quota:355,acconto:250,saldato:0,da_saldare:105,stato:"ACCONTO",note_pag:"Acconto €500 con Marco (31/03)",note_bimbo:"",telefono:"3471200518",genitore:"Sara Cantatore"},
+  {id:uid(),bambino:"Edoardo Di Michele",nato_il:"01/03/2016",eta:10,inizio:"15/06/2026",fine:"10/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Terlizzi",quota:330,acconto:100,saldato:0,da_saldare:230,stato:"ACCONTO",note_pag:"Acconto – Di Michele (17/03)",note_bimbo:"",telefono:"3476611586",genitore:"Stefano Di Michele"},
+  {id:uid(),bambino:"Elisa Gesmundo",nato_il:"02/01/2015",eta:11,inizio:"08/06/2026",fine:"03/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Terlizzi",quota:330,acconto:110,saldato:0,da_saldare:220,stato:"ACCONTO",note_pag:"Acconto €220 con Ettore (01/04)",note_bimbo:"",telefono:"3498727654",genitore:"Marianna Pardini"},
+  {id:uid(),bambino:"Ettore Gesmundo",nato_il:"04/09/2018",eta:7,inizio:"08/06/2026",fine:"03/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Terlizzi",quota:330,acconto:110,saldato:0,da_saldare:220,stato:"ACCONTO",note_pag:"Acconto €220 con Elisa (01/04)",note_bimbo:"",telefono:"3498727654",genitore:"Marianna Pardini"},
+  {id:uid(),bambino:"Francesco Colasanto",nato_il:"17/05/2013",eta:13,inizio:"29/06/2026",fine:"24/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Terlizzi",quota:380,acconto:114,saldato:0,da_saldare:266,stato:"ACCONTO",note_pag:"Acconto – Colasanto (23/03)",note_bimbo:"",telefono:"3475162064",genitore:"Sara De Chirico"},
+  {id:uid(),bambino:"Giulio Fontana",nato_il:"29/12/2015",eta:10,inizio:"20/07/2026",fine:"31/07/2026",sett:2,nav:false,pasto_casa:false,citta:"Torino",quota:150,acconto:175,saldato:0,da_saldare:0,stato:"SALDATO",note_pag:"Bonifico 350 diviso (24/03)",note_bimbo:"",telefono:"3478849913",genitore:"Tiziana Pellegrini"},
+  {id:uid(),bambino:"Giulio Vitale",nato_il:"11/12/2019",eta:6,inizio:"15/06/2026",fine:"10/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Terlizzi",quota:380,acconto:114,saldato:0,da_saldare:266,stato:"ACCONTO",note_pag:"Acconto – Gesmundo (16/03)",note_bimbo:"",telefono:"3495753007",genitore:"Maria Gesmundo"},
+  {id:uid(),bambino:"Joannis Montaruli",nato_il:"23/03/2019",eta:7,inizio:"08/06/2026",fine:"03/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Terlizzi",quota:380,acconto:90,saldato:0,da_saldare:290,stato:"ACCONTO",note_pag:"Acconto – Gadaleta (16/03)",note_bimbo:"",telefono:"3451137848",genitore:"Valeria Gadaleta"},
+  {id:uid(),bambino:"Luca Di Liddo",nato_il:"27/06/2014",eta:11,inizio:"08/06/2026",fine:"03/07/2026",sett:4,nav:false,pasto_casa:false,citta:"Ruvo di Puglia",quota:260,acconto:78,saldato:0,da_saldare:182,stato:"ACCONTO",note_pag:"Acconto 156 con Dario (01/04)",note_bimbo:"",telefono:"3293058110",genitore:"Marina Cantatore"},
+  {id:uid(),bambino:"Luigi Sforza",nato_il:"22/11/2017",eta:8,inizio:"15/06/2026",fine:"10/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Terlizzi",quota:330,acconto:99,saldato:0,da_saldare:231,stato:"ACCONTO",note_pag:"Acconto 198 con Raffaele (18/03)",note_bimbo:"",telefono:"3497782136",genitore:"Maria Mariani"},
+  {id:uid(),bambino:"Marco Calo",nato_il:"06/08/2011",eta:14,inizio:"29/06/2026",fine:"24/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Ruvo di Puglia",quota:355,acconto:250,saldato:0,da_saldare:105,stato:"ACCONTO",note_pag:"Acconto €500 con Delia (31/03)",note_bimbo:"",telefono:"3471200518",genitore:"Sara Cantatore"},
+  {id:uid(),bambino:"Maria V. Decanio",nato_il:"18/07/2019",eta:6,inizio:"29/06/2026",fine:"24/07/2026",sett:4,nav:false,pasto_casa:false,citta:"Corato",quota:280,acconto:0,saldato:0,da_saldare:280,stato:"DA PAGARE",note_pag:"",note_bimbo:"",telefono:"3457119637",genitore:"Lucia Iannone"},
+  {id:uid(),bambino:"Pierluigi Decanio",nato_il:"18/07/2019",eta:6,inizio:"29/06/2026",fine:"24/07/2026",sett:4,nav:false,pasto_casa:false,citta:"Corato",quota:280,acconto:0,saldato:0,da_saldare:280,stato:"DA PAGARE",note_pag:"",note_bimbo:"",telefono:"3457119637",genitore:"Lucia Iannone"},
+  {id:uid(),bambino:"Raffaele Sforza",nato_il:"13/11/2019",eta:6,inizio:"15/06/2026",fine:"10/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Terlizzi",quota:330,acconto:99,saldato:0,da_saldare:231,stato:"ACCONTO",note_pag:"Acconto 198 con Luigi (18/03)",note_bimbo:"",telefono:"3497782136",genitore:"Maria Mariani"},
+  {id:uid(),bambino:"Rebecca Nardi",nato_il:"19/12/2012",eta:13,inizio:"06/07/2026",fine:"31/07/2026",sett:4,nav:false,pasto_casa:false,citta:"Ruvo di Puglia",quota:280,acconto:0,saldato:0,da_saldare:280,stato:"DA PAGARE",note_pag:"",note_bimbo:"",telefono:"3408605024",genitore:"Sabrina De Fronzo"},
+  {id:uid(),bambino:"Salvatore Gattullo",nato_il:"07/05/2014",eta:12,inizio:"08/06/2026",fine:"03/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Ruvo di Puglia",quota:380,acconto:110,saldato:0,da_saldare:270,stato:"ACCONTO",note_pag:"Acconto – Gattullo (23/03)",note_bimbo:"Verifica n. sett.",telefono:"3206555738",genitore:"Maria Rutigliani"},
+  {id:uid(),bambino:"Geremia Pizzolorusso",nato_il:"18/05/2015",eta:11,inizio:"22/06/2026",fine:"17/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Terlizzi",quota:380,acconto:114,saldato:0,da_saldare:266,stato:"ACCONTO",note_pag:"Acconto €114 – Bisceglie (23/03)",note_bimbo:"",telefono:"3478557866",genitore:"Maria Bisceglie"},
+  {id:uid(),bambino:"Gian Michele Livorti",nato_il:"12/09/2013",eta:12,inizio:"08/06/2026",fine:"03/07/2026",sett:4,nav:false,pasto_casa:false,citta:"Ruvo di Puglia",quota:260,acconto:180,saldato:0,da_saldare:80,stato:"ACCONTO",note_pag:"Acconto €360 con Miriam (24/03)",note_bimbo:"",telefono:"3452135453",genitore:"Antonia Rutigliani"},
+  {id:uid(),bambino:"Miriam Livorti",nato_il:"09/11/2014",eta:11,inizio:"08/06/2026",fine:"03/07/2026",sett:4,nav:false,pasto_casa:false,citta:"Ruvo di Puglia",quota:260,acconto:180,saldato:0,da_saldare:80,stato:"ACCONTO",note_pag:"Acconto €360 con Gian Michele (24/03)",note_bimbo:"",telefono:"3452135453",genitore:"Antonia Rutigliani"},
+  {id:uid(),bambino:"Francesco Scagliola",nato_il:"22/06/2017",eta:8,inizio:"22/06/2026",fine:"17/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Terlizzi",quota:380,acconto:0,saldato:380,da_saldare:0,stato:"SALDATO",note_pag:"Saldo completo (01/04)",note_bimbo:"⚠ Verifica tel. e data nascita",telefono:"3403740164",genitore:"Michele Scagliola"},
+  {id:uid(),bambino:"Giuseppe De Leo",nato_il:"01/01/2018",eta:8,inizio:"22/06/2026",fine:"17/07/2026",sett:4,nav:false,pasto_casa:false,citta:"Terlizzi",quota:280,acconto:114,saldato:0,da_saldare:166,stato:"ACCONTO",note_pag:"Acconto 114 (30/03) dal 22 giugno",note_bimbo:"",telefono:"3471234567",genitore:"Emiliano De Leo"}
+];
+
+/* ══ UTILS ═══════════════════════════════════════════════════ */
+const uid=()=>Math.random().toString(36).slice(2,9);
+const E=v=>Number(v||0).toLocaleString("it-IT",{style:"currency",currency:"EUR",maximumFractionDigits:0});
+const E2=v=>Number(v||0).toLocaleString("it-IT",{style:"currency",currency:"EUR",minimumFractionDigits:2,maximumFractionDigits:2});
+const calcWeeks=(inizio,sett)=>{const s=DAL_TO_SETT[inizio];if(!s)return[];return Array.from({length:sett},(_,i)=>s+i).filter(w=>w>=1&&w<=8);};
+const calcResidue=r=>Math.max(0,(r.quota||0)-(r.acconto||0)-(r.saldato||0));
+const autoStato=r=>{const res=calcResidue(r);if(res===0&&((r.saldato||0)>0||(r.acconto||0)>=(r.quota||0)))return"SALDATO";if((r.acconto||0)>0||(r.saldato||0)>0)return"ACCONTO";return"DA PAGARE";};
+const AKW=["lattosio","glutin","celiac","allergi","latte","uova","pesce","noci","arachid","epipen","fans"];
+const MKW=["autist","epiless","diabeti","asma","cardiop","sindrome","disabilit","iperattiv","adhd"];
+const noteType=note=>{if(!note?.trim())return null;const l=note.toLowerCase();if(MKW.some(k=>l.includes(k)))return"medica";if(AKW.some(k=>l.includes(k)))return"allergia";return"nota";};
+const NST={allergia:{bg:"#fef2f2",border:"2px solid #dc2626",col:"#991b1b",icon:"🚨"},medica:{bg:"#fff7ed",border:"2px solid #ea580c",col:"#9a3412",icon:"⚕️"},nota:{bg:"#fefce8",border:"1px solid #ca8a04",col:"#854d0e",icon:"📋"}};
+const isIncomplete=r=>!r.bambino?.trim()||!r.telefono?.trim()||!r.genitore?.trim();
+const SBG={SALDATO:"#dcfce7",ACCONTO:"#fef9c3","DA PAGARE":"#fee2e2"};
+const SCL={SALDATO:"#166534",ACCONTO:"#854d0e","DA PAGARE":"#991b1b"};
+
+function calcServizi(data){
+  const nR=[];const pR=[];
+  data.forEach(r=>{
+    if(!r.bambino?.trim())return;
+    calcWeeks(r.inizio,r.sett).forEach(sid=>{
+      const w=WEEKS.find(x=>x.id===sid);
+      if(r.nav)nR.push({id:r.id,bambino:r.bambino,citta:r.citta,settimana:w?.label||"—",settRange:w?.range||"—",giorni:GIORNI_SETT,totale:GIORNI_SETT*NAV_RATE});
+      if(!r.pasto_casa)pR.push({id:r.id,bambino:r.bambino,citta:r.citta,settimana:w?.label||"—",settRange:w?.range||"—",giorni:GIORNI_SETT,totale:GIORNI_SETT*PASTI_RATE});
+    });
+  });
+  const tN=nR.reduce((s,r)=>s+r.totale,0);const tP=pR.reduce((s,r)=>s+r.totale,0);
+  return{navRows:nR,pastiRows:pR,totNav:tN,totPasti:tP,totExtra:tN+tP};
+}
+
+function useSorted(data){
+  const[sf,setSf]=useState("bambino");const[sd,setSd]=useState(1);
+  const toggle=k=>{if(sf===k)setSd(d=>-d);else{setSf(k);setSd(1);}};
+  const sorted=useMemo(()=>[...data].sort((a,b)=>{const av=a[sf],bv=b[sf];return typeof av==="number"?(av-bv)*sd:String(av||"").localeCompare(String(bv||""))*sd;}),[data,sf,sd]);
+  const STH=({col,label,style={}})=>(<th onClick={()=>toggle(col)} style={{background:"#111",color:"#fff",padding:"7px 8px",border:"1px solid #000",textAlign:"center",fontWeight:600,fontSize:11,whiteSpace:"nowrap",cursor:"pointer",userSelect:"none",...style}}>{label}{sf===col?(sd===1?" ↑":" ↓"):" ·"}</th>);
+  return{sorted,STH};
+}
+
+/* ══ LOGIN ════════════════════════════════════════════════════ */
+function Login({onLogin}){
+  const[email,setEmail]=useState("");
+  const[pass,setPass]=useState("");
+  const[apiKey,setApiKey]=useState(()=>localStorage.getItem("mac_api_key")||"");
+  const[err,setErr]=useState("");const[loading,setLoading]=useState(false);
+  const submit=async()=>{
+    if(!apiKey.trim()){setErr("Inserisci la chiave API Anthropic.");return;}
+    setLoading(true);setErr("");
+    const{error}=await SB.auth.signInWithPassword({email,password:pass});
+    if(error){setErr("Email o password errati.");setLoading(false);return;}
+    localStorage.setItem("mac_api_key",apiKey.trim());
+    onLogin();
+    setLoading(false);
+  };
+  return(
+    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#f5f5f3"}}>
+      <div style={{background:"#fff",border:"2px solid #000",padding:40,width:380,maxWidth:"92%"}}>
+        <div style={{textAlign:"center",marginBottom:28}}>
+          <div style={{fontSize:36,marginBottom:8}}>🌿</div>
+          <h1 style={{fontSize:20,fontWeight:900}}>Campi Natura Macaranga 2026</h1>
+          <div style={{fontSize:12,color:"#666",marginTop:4}}>Gestione interna — accesso riservato al titolare</div>
+        </div>
+        <div style={{marginBottom:14}}>
+          <label style={{fontSize:12,fontWeight:600,display:"block",marginBottom:5}}>Email</label>
+          <input value={email} onChange={e=>setEmail(e.target.value)} type="email" style={{width:"100%",padding:"9px 12px",fontSize:14,border:"1px solid #000"}} onKeyDown={e=>e.key==="Enter"&&submit()}/>
+        </div>
+        <div style={{marginBottom:20}}>
+          <label style={{fontSize:12,fontWeight:600,display:"block",marginBottom:5}}>Password</label>
+          <input value={pass} onChange={e=>setPass(e.target.value)} type="password" style={{width:"100%",padding:"9px 12px",fontSize:14,border:"1px solid #000"}} onKeyDown={e=>e.key==="Enter"&&submit()}/>
+        </div>
+        {err&&<div style={{padding:"8px 12px",background:"#fee2e2",border:"1px solid #fca5a5",fontSize:12,color:"#991b1b",marginBottom:14}}>{err}</div>}
+        <div style={{marginBottom:16}}>
+        <label style={{fontSize:12,fontWeight:600,display:"block",marginBottom:5}}>🔑 Chiave API Anthropic</label>
+        <div style={{fontSize:11,color:"#888",marginBottom:5}}>Necessaria per importare PDF · <a href="https://console.anthropic.com" target="_blank" style={{color:"#185FA5"}}>Ottieni qui</a></div>
+        <input value={apiKey} onChange={e=>setApiKey(e.target.value)} type="password" placeholder="sk-ant-api03-..." style={{width:"100%",padding:"9px 12px",fontSize:12,border:"1px solid #000",fontFamily:"monospace"}} onKeyDown={e=>e.key==="Enter"&&submit()}/>
+      </div>
+      <button onClick={submit} disabled={loading} style={{width:"100%",padding:11,background:loading?"#ccc":"#111",color:"#fff",border:"none",fontSize:14,fontWeight:700,cursor:loading?"not-allowed":"pointer"}}>
+          {loading?"Accesso in corso…":"Accedi →"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ══ TOAST & MODAL ════════════════════════════════════════════ */
+function Toast({msg,type="ok",onDone}){
+  useEffect(()=>{const t=setTimeout(onDone,3500);return()=>clearTimeout(t);},[]);
+  const bg=type==="warn"?"#d97706":type==="error"?"#dc2626":"#16a34a";
+  return(<div style={{position:"fixed",bottom:24,right:24,zIndex:9999,background:bg,color:"#fff",padding:"12px 20px",fontWeight:700,fontSize:13,boxShadow:"0 4px 20px rgba(0,0,0,.3)",display:"flex",gap:10,alignItems:"center",minWidth:280}}>
+    {type==="ok"?"✓":type==="warn"?"⚠":"✕"} {msg}
+  </div>);
+}
+
+function Modal({title,children,onClose}){
+  return(<div style={{position:"fixed",inset:0,zIndex:9998,background:"rgba(0,0,0,.55)",display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+    <div style={{background:"#fff",border:"2px solid #000",padding:24,maxWidth:440,width:"100%",maxHeight:"85vh",display:"flex",flexDirection:"column"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+        <div style={{fontWeight:900,fontSize:15}}>{title}</div>
+        <button onClick={onClose} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:"#666"}}>×</button>
+      </div>
+      <div style={{overflowY:"auto",flex:1}}>{children}</div>
+    </div>
+  </div>);
+}
+
+/* ══ SAVE BAR ════════════════════════════════════════════════ */
+
+function ApiKeyBanner(){
+  const[key,setKey]=useState(()=>localStorage.getItem("mac_api_key")||"");
+  const[show,setShow]=useState(false);
+  const hasKey=key&&key.startsWith("sk-ant-");
+  const save=()=>{localStorage.setItem("mac_api_key",key.trim());window.location.reload();};
+  if(hasKey&&!show)return null;
+  return(<div style={{background:hasKey?"#f0fdf4":"#fef2f2",border:`1px solid ${hasKey?"#16a34a":"#dc2626"}`,padding:"10px 14px",marginBottom:8,display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
+    <span style={{fontSize:12,fontWeight:700,color:hasKey?"#166534":"#991b1b",whiteSpace:"nowrap"}}>
+      {hasKey?"✓ Chiave API attiva":"🔑 Inserisci chiave API Anthropic (per PDF e Word)"}
+    </span>
+    <input value={key} onChange={e=>setKey(e.target.value)} type="password" placeholder="sk-ant-api03-..." 
+      style={{flex:1,minWidth:200,padding:"5px 10px",fontSize:12,border:"1px solid #000",fontFamily:"monospace"}}/>
+    <button onClick={save} style={{padding:"5px 14px",background:"#111",color:"#fff",border:"none",fontSize:12,cursor:"pointer",fontWeight:700,whiteSpace:"nowrap"}}>
+      Salva e ricarica
+    </button>
+    {hasKey&&<button onClick={()=>setShow(false)} style={{padding:"5px 10px",background:"none",border:"1px solid #ccc",fontSize:11,cursor:"pointer"}}>✕</button>}
+  </div>);
+}
+
+function SaveBar({hasChanges,saving,onSave,onReset,lastSaved,onLogout}){
+  return(<div style={{position:"sticky",top:0,zIndex:100,display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 14px",background:hasChanges?"#fef3c7":"#f0fdf4",border:`1px solid ${hasChanges?"#d97706":"#16a34a"}`,marginBottom:12,gap:8,flexWrap:"wrap"}}>
+    <span style={{fontSize:12,fontWeight:700,color:hasChanges?"#92400e":"#166534"}}>
+      {saving?"💾 Salvataggio su Supabase…":hasChanges?"⚠️  Modifiche non salvate — premi Salva":`✓  Salvato su database${lastSaved?" · "+lastSaved:""}`}
+    </span>
+    <div style={{display:"flex",gap:6,alignItems:"center"}}>
+      {hasChanges&&<button onClick={onReset} style={{padding:"5px 12px",border:"1px solid #000",background:"#fff",fontSize:11,cursor:"pointer",fontWeight:600}}>Annulla</button>}
+      <button onClick={onSave} disabled={saving} style={{padding:"7px 20px",border:"2px solid #000",background:saving?"#ccc":hasChanges?"#16a34a":"#166534",color:"#fff",fontSize:12,fontWeight:700,cursor:saving?"not-allowed":"pointer"}}>
+        💾 {hasChanges?"Salva le Modifiche":"Salva"}
+      </button>
+      <button onClick={onLogout} style={{padding:"5px 10px",border:"1px solid #ccc",background:"#fff",fontSize:11,cursor:"pointer",color:"#666"}}>Esci</button>
+    </div>
+  </div>);
+}
+
+/* ══ MAPPING ════════════════════════════════════════════════════ */
+const SCHEMA_FIELDS={bambino:{label:"Nome bambino"},nato_il:{label:"Data nascita"},eta:{label:"Età"},inizio:{label:"Data inizio"},fine:{label:"Data fine"},sett:{label:"N° settimane"},nav:{label:"Navetta"},pasto_casa:{label:"Pranzo al sacco"},citta:{label:"Città"},quota:{label:"Quota €"},acconto:{label:"Acconto €"},saldato:{label:"Saldato €"},stato:{label:"Stato pagamento"},note_pag:{label:"Note pagamento"},note_bimbo:{label:"Note mediche"},telefono:{label:"Telefono"},genitore:{label:"Genitore"},_ignore:{label:"— Ignora —"}};
+const MAPPING_DICT=[
+  {pat:/bambino|partecipant|nome.*(bamb|part)|child|nominativo|name/i,field:"bambino"},
+  {pat:/navett|trasferiment|bus|pullman|shuttle|\+\s*tras|servizio.*(bus|tras)|pick.?up/i,field:"nav"},
+  {pat:/pranzo.*(sacco|casa)|pasto.*(casa|sacco)|porta.*(pasto|pranzo)|sacco/i,field:"pasto_casa"},
+  {pat:/nato|nascita|birth|born/i,field:"nato_il"},
+  {pat:/inizio|arrivo|start|dal\b/i,field:"inizio"},
+  {pat:/fine|partenza|end|al\b/i,field:"fine"},
+  {pat:/sett(imane)?\.?|weeks?|durata/i,field:"sett"},
+  {pat:/et[àa]|age|anni/i,field:"eta"},
+  {pat:/citt[àa]|comune|localit|provenienza/i,field:"citta"},
+  {pat:/quota|importo|totale.*quota|costo.*tot/i,field:"quota"},
+  {pat:/acconto|anticipo|deposit|caparra/i,field:"acconto"},
+  {pat:/saldat|pagat|versato|paid|saldo\b/i,field:"saldato"},
+  {pat:/stat(o|us).*pag/i,field:"stato"},
+  {pat:/allergi|medic|disab|patolog|dieta|intolleranz|sanitari/i,field:"note_bimbo"},
+  {pat:/note.*pag|pag.*note/i,field:"note_pag"},
+  {pat:/telefon|cell|mobile|phone/i,field:"telefono"},
+  {pat:/genitor|parent|tutore|referente|madre|padre/i,field:"genitore"},
+];
+const isTrasf=v=>String(v||"").toLowerCase().replace(/\s/g,"").match(/trasferiment|navett|bus|pullman|shuttle/);
+const parseBool=v=>{const s=String(v||"").toLowerCase().trim();return["si","sì","yes","✓","x","true","1","incluso","presente"].includes(s)||!!isTrasf(s);};
+const parseDate=v=>{if(!v)return"";if(typeof v==="object"&&v instanceof Date)return`${String(v.getDate()).padStart(2,"0")}/${String(v.getMonth()+1).padStart(2,"0")}/${v.getFullYear()}`;if(typeof v==="number"&&v>1000){const d=new Date(Math.round((v-25569)*864e5));return`${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}/${d.getFullYear()}`;}const s=String(v).trim();if(/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s))return s;const iso=s.match(/^(\d{4})-(\d{2})-(\d{2})/);if(iso)return`${iso[3]}/${iso[2]}/${iso[1]}`;return s;};
+const parseNum=v=>{const n=parseFloat(String(v||"").replace(",","."));return isNaN(n)?0:n;};
+const parseStato=v=>{const s=String(v||"").toUpperCase();if(s.includes("SALD"))return"SALDATO";if(s.includes("ACC")||s.includes("PART"))return"ACCONTO";return"DA PAGARE";};
+function autoMapHeaders(headers,saved={}){
+  const result={};const mapped=new Set();
+  headers.forEach(h=>{const k=String(h).trim();if(!k)return;
+    if(saved[k.toLowerCase()]){result[k]=saved[k.toLowerCase()];mapped.add(k);return;}
+    const found=MAPPING_DICT.find(e=>e.pat.test(k));
+    if(found&&!Object.values(result).includes(found.field)){result[k]=found.field;mapped.add(k);}
+  });
+  return{result,unmapped:headers.filter(h=>h&&!mapped.has(String(h).trim()))};
+}
+function buildRecord(raw,mapping){
+  const base={id:uid(),bambino:"",nato_il:"",eta:0,inizio:"08/06/2026",fine:"03/07/2026",sett:1,nav:false,pasto_casa:false,citta:"",quota:0,acconto:0,saldato:0,da_saldare:0,stato:"DA PAGARE",note_pag:"",note_bimbo:"",telefono:"",genitore:""};
+  if(Object.values(raw).some(v=>isTrasf(v)))base.nav=true;
+  Object.entries(mapping).forEach(([h,f])=>{
+    if(f==="_ignore"||!f)return;const val=raw[h];if(val===undefined||val===null||val==="")return;
+    if(f==="bambino")base.bambino=String(val).trim();
+    else if(f==="nato_il")base.nato_il=parseDate(val);
+    else if(f==="eta")base.eta=parseNum(val);
+    else if(f==="inizio")base.inizio=parseDate(val);
+    else if(f==="fine")base.fine=parseDate(val);
+    else if(f==="sett")base.sett=Math.max(1,parseNum(val));
+    else if(f==="nav")base.nav=base.nav||parseBool(val);
+    else if(f==="pasto_casa")base.pasto_casa=parseBool(val);
+    else if(f==="citta")base.citta=String(val).trim();
+    else if(f==="quota")base.quota=parseNum(val);
+    else if(f==="acconto")base.acconto=parseNum(val);
+    else if(f==="saldato")base.saldato=parseNum(val);
+    else if(f==="stato")base.stato=parseStato(val);
+    else if(f==="note_pag")base.note_pag=String(val).trim();
+    else if(f==="note_bimbo")base.note_bimbo=String(val).trim();
+    else if(f==="telefono")base.telefono=String(val).replace(/'/g,"").trim();
+    else if(f==="genitore")base.genitore=String(val).trim();
+  });
+  base.da_saldare=calcResidue(base);base.stato=autoStato(base);
+  return base;
+}
+
+
+
+/* ── CONFLICT RESOLVER ── */
+function ConflictResolver({data,onConfirm,onCancel}){
+  const[decisions,setDecisions]=useState(()=>Object.fromEntries(data.conflicts.map(c=>[c.existing.id,"update"])));
+  const finalize=()=>{
+    const finalAdd=[...data.toAdd];
+    const finalUpdate=[];
+    data.conflicts.forEach(c=>{
+      if(decisions[c.existing.id]==="update"){
+        const merged={...c.existing,...c.incoming,id:c.existing.id,da_saldare:calcResidue({...c.existing,...c.incoming}),stato:autoStato({...c.existing,...c.incoming})};
+        finalUpdate.push(merged);
+      }else{
+        finalAdd.push({...c.incoming,id:uid()});
+      }
+    });
+    onConfirm(finalAdd,finalUpdate);
+  };
+  return(<div>
+    {data.toAdd.length>0&&<div style={{padding:"8px 12px",background:"#f0fdf4",border:"1px solid #16a34a",marginBottom:10,fontSize:12,fontWeight:600}}>✓ {data.toAdd.length} nuovi iscritti pronti per l'aggiunta</div>}
+    {data.conflicts.length>0&&<div style={{marginBottom:14}}>
+      <div style={{padding:"8px 12px",background:"#fef3c7",border:"1px solid #d97706",marginBottom:8,fontSize:12,fontWeight:600,color:"#92400e"}}>⚠ {data.conflicts.length} conflitti: iscritti con lo stesso nome già presenti nel database</div>
+      {data.conflicts.map(c=>(
+        <div key={c.existing.id} style={{background:"#fff",border:"1px solid #000",padding:12,marginBottom:8}}>
+          <div style={{fontWeight:700,fontSize:13,marginBottom:8}}>👤 {c.existing.bambino}</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10,fontSize:12}}>
+            <div style={{background:"#f5f5f3",padding:8}}><div style={{fontWeight:700,marginBottom:4,color:"#555"}}>Dati attuali nel DB</div>
+              {Object.entries(c.changed).map(([k])=><div key={k} style={{padding:"2px 0"}}><span style={{color:"#888"}}>{k}:</span> <span style={{fontWeight:600}}>{String(c.existing[k])}</span></div>)}
+            </div>
+            <div style={{background:"#fef9c3",padding:8}}><div style={{fontWeight:700,marginBottom:4,color:"#854d0e"}}>Dati nel file caricato</div>
+              {Object.entries(c.changed).map(([k,v])=><div key={k} style={{padding:"2px 0"}}><span style={{color:"#888"}}>{k}:</span> <span style={{fontWeight:600,color:"#854d0e"}}>{String(v)}</span></div>)}
+            </div>
+          </div>
+          <div style={{display:"flex",gap:8}}>
+            <button onClick={()=>setDecisions(d=>({...d,[c.existing.id]:"update"}))} style={{flex:1,padding:"7px",border:`2px solid ${decisions[c.existing.id]==="update"?"#16a34a":"#ccc"}`,background:decisions[c.existing.id]==="update"?"#f0fdf4":"#fff",cursor:"pointer",fontWeight:decisions[c.existing.id]==="update"?700:400,fontSize:12}}>↻ Aggiorna iscrizione esistente</button>
+            <button onClick={()=>setDecisions(d=>({...d,[c.existing.id]:"new"}))} style={{flex:1,padding:"7px",border:`2px solid ${decisions[c.existing.id]==="new"?"#185FA5":"#ccc"}`,background:decisions[c.existing.id]==="new"?"#eff6ff":"#fff",cursor:"pointer",fontWeight:decisions[c.existing.id]==="new"?700:400,fontSize:12}}>+ Crea nuova iscrizione separata</button>
+          </div>
+        </div>
+      ))}
+    </div>}
+    <div style={{display:"flex",gap:10,justifyContent:"flex-end",borderTop:"1px solid #e0e0e0",paddingTop:12}}>
+      <button onClick={onCancel} style={{padding:"8px 16px",border:"1px solid #000",background:"#fff",cursor:"pointer"}}>Annulla</button>
+      <button onClick={finalize} style={{padding:"8px 22px",border:"1px solid #000",background:"#16a34a",color:"#fff",cursor:"pointer",fontWeight:700}}>✓ Conferma e Integra — {data.toAdd.length+data.conflicts.length} iscritti</button>
+    </div>
+  </div>);
+}
+
+
+
+/* ══ DRAFT EDITOR PANEL ═════════════════════════════════════════
+   Schema row estratta dal PDF → bozza editabile prima del commit.
+   Il record NON entra nel DB finché l'operatore non preme "Applica".
+   Tutto si aggiorna a cascata solo dopo il commit.
+*/
+function DraftEditorPanel({draft,existingData,onCommit,onDiscard,showToast}){
+  const[r,setR]=useState(()=>({...draft}));
+  const upd=(k,v)=>setR(prev=>{
+    const u={...prev,[k]:v};
+    if(["quota","acconto","saldato"].includes(k)){u.da_saldare=calcResidue(u);u.stato=autoStato(u);}
+    return u;
+  });
+
+  // Rileva conflitto
+  const existing=existingData.find(e=>e.bambino.toLowerCase().trim()===r.bambino.toLowerCase().trim());
+  const isConflict=!!existing;
+  const[conflictMode,setConflictMode]=useState("update"); // "update"|"new"
+
+  const nt=noteType(r.note_bimbo);const ns=nt?NST[nt]:null;
+  const inpS={padding:"7px 10px",fontSize:13,border:"1px solid #000",background:"#fff",width:"100%"};
+  const lbl=(t)=><label style={{fontSize:11,fontWeight:600,color:"#555",display:"block",marginBottom:4}}>{t}</label>;
+
+  const commit=()=>{
+    const finalRecord={...r,id:conflictMode==="update"&&existing?existing.id:uid(),da_saldare:calcResidue(r),stato:autoStato(r)};
+    const type=conflictMode==="update"&&existing?"update":"add";
+    onCommit(type,finalRecord);
+  };
+
+  return(
+    <div style={{position:"fixed",inset:0,zIndex:9997,background:"rgba(0,0,0,0.65)",display:"flex",alignItems:"flex-start",justifyContent:"center",padding:"16px 16px 0",overflowY:"auto"}}>
+      <div style={{background:"#fff",border:"2px solid #000",padding:0,maxWidth:720,width:"100%",marginBottom:16}}>
+        {/* HEADER */}
+        <div style={{background:"#111",color:"#fff",padding:"12px 18px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div>
+            <div style={{fontWeight:900,fontSize:15}}>📋 Revisione Nuova Iscrizione — Bozza da PDF</div>
+            <div style={{fontSize:11,opacity:.7,marginTop:2}}>Controlla e correggi i dati estratti dal PDF, poi premi "Applica e Salva"</div>
+          </div>
+          <span style={{padding:"3px 10px",background:"#fef9c3",color:"#854d0e",fontWeight:700,fontSize:11,border:"1px solid #d97706"}}>BOZZA — non salvata</span>
+        </div>
+
+        {/* CONFLITTO */}
+        {isConflict&&<div style={{padding:"10px 18px",background:"#fef3c7",border:"1px solid #d97706",borderLeft:"none",borderRight:"none",fontSize:12}}>
+          <span style={{fontWeight:700,color:"#92400e"}}>⚠ "{r.bambino}" è già presente nel database. </span>
+          <span style={{color:"#92400e"}}>Scegli come procedere:</span>
+          <div style={{display:"flex",gap:8,marginTop:8}}>
+            <button onClick={()=>setConflictMode("update")} style={{padding:"6px 14px",border:`2px solid ${conflictMode==="update"?"#16a34a":"#ccc"}`,background:conflictMode==="update"?"#f0fdf4":"#fff",cursor:"pointer",fontWeight:conflictMode==="update"?700:400,fontSize:12}}>↻ Aggiorna iscrizione esistente</button>
+            <button onClick={()=>setConflictMode("new")} style={{padding:"6px 14px",border:`2px solid ${conflictMode==="new"?"#185FA5":"#ccc"}`,background:conflictMode==="new"?"#eff6ff":"#fff",cursor:"pointer",fontWeight:conflictMode==="new"?700:400,fontSize:12}}>+ Crea nuova iscrizione separata</button>
+          </div>
+        </div>}
+
+        <div style={{padding:18}}>
+          {/* RIGA 1: nome + genitore + telefono */}
+          <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr",gap:12,marginBottom:12}}>
+            <div>{lbl("Nome bambino/a *")}<input value={r.bambino} onChange={e=>upd("bambino",e.target.value)} style={{...inpS,fontWeight:700}}/></div>
+            <div>{lbl("Genitore / tutore *")}<input value={r.genitore} onChange={e=>upd("genitore",e.target.value)} style={inpS}/></div>
+            <div>{lbl("Telefono *")}<input value={r.telefono} onChange={e=>upd("telefono",e.target.value.replace(/'/g,""))} style={{...inpS,color:!r.telefono?"#d97706":"inherit"}}/></div>
+          </div>
+          {/* RIGA 2: nascita + età + città */}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 2fr",gap:12,marginBottom:12}}>
+            <div>{lbl("Data di nascita")}<input value={r.nato_il} onChange={e=>upd("nato_il",e.target.value)} style={inpS} placeholder="dd/mm/yyyy"/></div>
+            <div>{lbl("Età")}<input type="number" value={r.eta} min={0} max={18} onChange={e=>upd("eta",Number(e.target.value))} style={inpS}/></div>
+            <div>{lbl("Città")}<select value={r.citta||""} onChange={e=>upd(r.id,"citta",e.target.value)} style={{...inpS,cursor:"pointer",fontSize:11}}>{CITTA_OPTIONS.map(c=><option key={c} value={c}>{c}</option>)}</select></div>
+          </div>
+          {/* RIGA 3: settimane */}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:12}}>
+            <div>{lbl("Data inizio")}<select value={r.inizio} onChange={e=>upd("inizio",e.target.value)} style={{...inpS,cursor:"pointer"}}>
+              {WEEKS.map(w=><option key={w.id} value={w.dal}>{w.dal} ({w.label})</option>)}</select></div>
+            <div>{lbl("N° settimane")}<input type="number" value={r.sett} min={1} max={8} onChange={e=>upd("sett",Number(e.target.value))} style={inpS}/></div>
+            <div style={{display:"flex",flexDirection:"column",justifyContent:"flex-end",gap:6,paddingBottom:1}}>
+              <div style={{display:"flex",gap:12}}>
+                <label style={{display:"flex",alignItems:"center",gap:6,cursor:"pointer",fontSize:12,fontWeight:600,userSelect:"none"}}>
+                  <input type="checkbox" checked={r.nav} onChange={e=>upd("nav",e.target.checked)} style={{width:16,height:16,cursor:"pointer"}}/>
+                  <span style={{background:r.nav?"#1e40af":"#e5e7eb",color:r.nav?"#fff":"#888",padding:"2px 8px",fontWeight:r.nav?700:400}}>🚐 Navetta</span>
+                </label>
+                <label style={{display:"flex",alignItems:"center",gap:6,cursor:"pointer",fontSize:12,fontWeight:600,userSelect:"none"}}>
+                  <input type="checkbox" checked={r.pasto_casa} onChange={e=>upd("pasto_casa",e.target.checked)} style={{width:16,height:16,cursor:"pointer"}}/>
+                  <span style={{background:r.pasto_casa?"#854d0e":"#e5e7eb",color:r.pasto_casa?"#fff":"#888",padding:"2px 8px",fontWeight:r.pasto_casa?700:400}}>🥪 Pranzo al sacco</span>
+                </label>
+              </div>
+            </div>
+          </div>
+          {/* RIGA 4: pagamenti */}
+          <div style={{background:"#f0fdf4",border:"1px solid #16a34a",padding:12,marginBottom:12}}>
+            <div style={{fontWeight:700,fontSize:12,marginBottom:8,color:"#166534"}}>💰 Pagamenti — Residuo calcolato in automatico</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:10}}>
+              <div>{lbl("Quota totale €")}<input type="number" value={r.quota} min={0} onChange={e=>upd("quota",Number(e.target.value))} style={{...inpS,fontWeight:700}}/></div>
+              <div>{lbl("Acconto già versato €")}<input type="number" value={r.acconto} min={0} onChange={e=>upd("acconto",Number(e.target.value))} style={{...inpS,color:"#166534",fontWeight:700}}/></div>
+              <div>{lbl("Saldo già versato €")}<input type="number" value={r.saldato} min={0} onChange={e=>upd("saldato",Number(e.target.value))} style={{...inpS,color:"#166534",fontWeight:700}}/></div>
+              <div>{lbl("Residuo da saldare €")}
+                <div style={{padding:"7px 10px",fontSize:13,border:`1px solid ${r.da_saldare>0?"#dc2626":"#16a34a"}`,background:r.da_saldare>0?"#fef2f2":"#f0fdf4",fontWeight:800,color:r.da_saldare>0?"#dc2626":"#166534"}}>
+                  {E(r.da_saldare)} <span style={{fontSize:10,fontWeight:400}}>auto</span>
+                </div>
+              </div>
+            </div>
+            <div style={{marginTop:8,display:"flex",gap:8}}>
+              {["SALDATO","ACCONTO","DA PAGARE"].map(s=>(
+                <button key={s} onClick={()=>upd("stato",s)} style={{padding:"5px 12px",border:`1px solid ${r.stato===s?"#000":"#ccc"}`,background:r.stato===s?SBG[s]:"#fff",color:r.stato===s?SCL[s]:"#888",fontSize:11,cursor:"pointer",fontWeight:r.stato===s?700:400}}>{s}</button>
+              ))}
+            </div>
+          </div>
+          {/* RIGA 5: note mediche */}
+          <div style={{marginBottom:12}}>
+            {lbl("🚨 Allergie / Note mediche / Patologie")}
+            <input value={r.note_bimbo} onChange={e=>upd("note_bimbo",e.target.value)} style={{...inpS,background:nt?ns.bg:"#fff",border:nt?ns.border:"1px solid #000",color:nt?ns.col:"inherit",fontWeight:nt?700:400}} placeholder="es: Lattosio, FANS, Autistico…"/>
+            {nt&&<div style={{marginTop:4,fontSize:11,padding:"4px 8px",background:ns.bg,border:ns.border,color:ns.col,fontWeight:700}}>{ns.icon} {nt==="allergia"?"Allergia rilevata":"Nota medica rilevata"} — verrà evidenziata in rosso nella tabella iscritti e nelle navette</div>}
+          </div>
+          {/* RIGA 6: note pagamento */}
+          <div style={{marginBottom:16}}>
+            {lbl("Note pagamento")}
+            <input value={r.note_pag} onChange={e=>upd("note_pag",e.target.value)} style={{...inpS,color:"#555"}} placeholder="es: Bonifico 15/03, acconto dividito con fratello…"/>
+          </div>
+
+          {/* RIEPILOGO CASCATA */}
+          <div style={{background:"#f5f5f3",border:"1px solid #000",padding:12,marginBottom:16,fontSize:12}}>
+            <div style={{fontWeight:700,marginBottom:6}}>✅ Effetti dopo "Applica e Salva"</div>
+            <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
+              <span>📋 Aggiunto a <strong>Tabella Iscritti</strong></span>
+              {r.nav&&<span style={{color:"#1e40af",fontWeight:600}}>🚐 Aggiunto a <strong>Contabilità Navette</strong> · -1 posto disponibile</span>}
+              {!r.pasto_casa&&<span style={{color:"#166534",fontWeight:600}}>🍽️ Aggiunto a <strong>Contabilità Pasti</strong></span>}
+              <span style={{color:"#185FA5",fontWeight:600}}>📐 BEP e Ricavi Extra aggiornati</span>
+            </div>
+          </div>
+
+          {/* BOTTONI */}
+          <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
+            <button onClick={onDiscard} style={{padding:"10px 20px",border:"1px solid #000",background:"#fff",fontSize:13,cursor:"pointer",fontWeight:600}}>✕ Scarta bozza</button>
+            <button onClick={commit} style={{padding:"10px 28px",border:"2px solid #000",background:"#16a34a",color:"#fff",fontSize:14,cursor:"pointer",fontWeight:800}}>✓ Applica e Salva Modifiche</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+
+/* ══ TAB IMPORT SMART ══════════════════════════════════════════ */
+function TabImport({onSync,existingData,showToast,savedMappings,setSavedMappings,onDraftReady}){
+  const[log,setLog]=useState([]);const[uploading,setUploading]=useState(false);
+  const[mappingState,setMappingState]=useState(null);
+  const[previewData,setPreviewData]=useState(null); // {toAdd, toUpdate, conflicts}
+  const addLog=(msg,type="info")=>setLog(p=>[{msg,type,ts:new Date().toLocaleTimeString()},...p.slice(0,29)]);
+
+  function mergeAndPreview(incoming){
+    const toAdd=[];const toUpdate=[];const conflicts=[];
+    incoming.forEach(r=>{
+      if(!r.bambino.trim())return;
+      const ex=existingData.find(e=>e.bambino.toLowerCase().trim()===r.bambino.toLowerCase().trim());
+      if(ex){
+        const changed={};
+        ["acconto","saldato","quota","stato","note_pag","note_bimbo","nav","pasto_casa","citta","sett","inizio","fine"].forEach(k=>{if(r[k]!==undefined&&r[k]!==ex[k])changed[k]=r[k];});
+        if(Object.keys(changed).length>0) conflicts.push({existing:ex,incoming:r,changed});
+        else toAdd.push({...r,_tipo:"SKIP"});
+      }else toAdd.push({...r,_tipo:"NUOVO"});
+    });
+    if(conflicts.length>0){addLog(`${conflicts.length} conflitti da risolvere`,"warn");}
+    setPreviewData({toAdd:toAdd.filter(r=>r._tipo==="NUOVO"),toUpdate,conflicts});
+  }
+
+  function confirmImport(finalAdd,finalUpdate){
+    const records=[...finalAdd.map(r=>({type:"add",record:r})),...finalUpdate.map(r=>({type:"update",record:r}))];
+    const navSync=finalAdd.filter(r=>r.nav).length+finalUpdate.filter(r=>r.nav).length;
+    onSync(records);
+    showToast(`✓ ${finalAdd.length} aggiunti · ${finalUpdate.length} aggiornati · ${navSync} navette sync`);
+    addLog(`✓ ${finalAdd.length} aggiunti, ${finalUpdate.length} aggiornati`,"ok");
+    setPreviewData(null);setMappingState(null);
+  }
+
+  async function handleFile(file){
+    if(!file||uploading)return;setUploading(true);addLog(`Caricamento: ${file.name}`);
+    const ext=file.name.split(".").pop().toLowerCase();
+    try{
+      if(ext==="xlsx"||ext==="xls"){
+        const buf=await file.arrayBuffer();const wb=XLSX.read(buf,{type:"array",cellDates:true});
+        const ws=wb.Sheets[wb.SheetNames[0]];const rawMatrix=XLSX.utils.sheet_to_json(ws,{header:1,defval:""});
+        let hi=-1;for(let i=0;i<rawMatrix.length;i++){if(rawMatrix[i].some(c=>String(c).toLowerCase().match(/bambino|nome|partecipant/))){hi=i;break;}}
+        if(hi<0){hi=0;}
+        const headers=rawMatrix[hi].map(h=>String(h).trim()).filter(Boolean);
+        addLog(`Header: ${headers.join(", ")}`);
+        const{result:am,unmapped}=autoMapHeaders(headers,savedMappings);
+        const trasfCol=headers.find(h=>isTrasf(h));if(trasfCol&&!am[trasfCol]){am[trasfCol]="nav";addLog(`"${trasfCol}" → navetta rilevato automaticamente`,"ok");}
+        const rawRows=rawMatrix.slice(hi+1).filter(row=>row.some(c=>c!=="")).filter(row=>{const nm=String(row[0]||"").trim();return nm&&!nm.startsWith("TOTALE")&&!["Stato","SALDATI","ACCONTO","DA PAGARE"].some(x=>nm.startsWith(x));}).map(row=>{const obj={};headers.forEach((h,i)=>{obj[h]=row[i]??"";});return obj;});
+        addLog(`${rawRows.length} righe estratte`);
+        if(unmapped.length===0){
+          const records=rawRows.map(row=>buildRecord(row,am)).filter(r=>r.bambino.trim());addLog(`Auto-sync: ${records.length} record`,"ok");mergeAndPreview(records);
+        }else{
+          addLog(`${unmapped.length} campi da mappare manualmente`,"warn");
+          setMappingState({rawRows,headers,currentMapping:am,unmapped});
+        }
+      }else if(ext==="docx"){
+        const buf=await file.arrayBuffer();const res=await mammoth.extractRawText({arrayBuffer:buf});
+        addLog("Analisi AI Word…");
+        const resp=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","anthropic-dangerous-direct-browser-access":"true","x-api-key":localStorage.getItem("mac_api_key")||window.__ANTHROPIC_KEY__||"","anthropic-version":"2023-06-01"},body:JSON.stringify({model:"claude-sonnet-4-5-20251001",max_tokens:3000,system:`Estrai iscrizioni. SOLO JSON array senza backtick. Campi: bambino,nato_il(dd/mm/yyyy),eta,inizio(dd/mm/yyyy),fine(dd/mm/yyyy),sett,nav(bool—true se navetta/trasferimento/bus),pasto_casa(bool—true se pranzo al sacco),citta,quota,acconto,saldato,da_saldare,stato(SALDATO|ACCONTO|DA PAGARE),note_pag,note_bimbo,telefono,genitore.`,messages:[{role:"user",content:res.value}]})});
+        const d=await resp.json();const txt=d.content.filter(b=>b.type==="text").map(b=>b.text).join("");
+        const parsed=JSON.parse(txt.replace(/```json|```/g,"").trim());addLog(`Claude Word: ${parsed.length} iscritti`);
+        mergeAndPreview(parsed.map(r=>({...r,id:uid(),da_saldare:calcResidue(r),stato:autoStato(r)})));
+      }else if(ext==="pdf"){
+        const buf=await file.arrayBuffer();const bytes=new Uint8Array(buf);
+        let binary="";
+        const chunk=8192;
+        for(let i=0;i<bytes.length;i+=chunk){
+          binary+=String.fromCharCode.apply(null,bytes.subarray(i,i+chunk));
+        }
+        const b64=btoa(binary);
+        addLog("Claude OCR PDF — estrazione in corso…");
+        const pdfPrompt="Estrai i dati di iscrizione da questo PDF. Restituisci SOLO un oggetto JSON valido senza backtick. Campi: bambino, nato_il(dd/mm/yyyy), eta(int), inizio(dd/mm/yyyy), fine(dd/mm/yyyy), sett(int 1-8), nav(bool), pasto_casa(bool), citta, quota(num), acconto(num), saldato(num), da_saldare(num), stato(SALDATO|ACCONTO|DA PAGARE), note_pag, note_bimbo, telefono, genitore. Valori mancanti: vuoto o 0.";
+        const pdfBody=JSON.stringify({model:"claude-sonnet-4-5-20251001",max_tokens:4000,messages:[{role:"user",content:[{type:"document",source:{type:"base64",media_type:"application/pdf",data:b64}},{type:"text",text:pdfPrompt}]}]});
+        const pdfHeaders={"Content-Type":"application/json","anthropic-dangerous-direct-browser-access":"true","x-api-key":localStorage.getItem("mac_api_key")||window.__ANTHROPIC_KEY__||"","anthropic-version":"2023-06-01"};
+        const resp=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:pdfHeaders,body:pdfBody});
+        const rawResp=await resp.json();
+        if(!rawResp||!rawResp.content){addLog("Errore API: "+(rawResp&&rawResp.error?rawResp.error.message:"risposta vuota"),"error");setUploading(false);return;}
+        const txt=rawResp.content.filter(b=>b.type==="text").map(b=>b.text).join("");
+        let parsed;
+        try{
+          let clean=txt.replace(/```json|```/g,"").trim();
+          // Estrae il primo oggetto JSON valido dalla risposta
+          const jsonMatch=clean.match(/\{[\s\S]*\}/);
+          if(!jsonMatch){addLog("Nessun JSON trovato nella risposta","error");setUploading(false);return;}
+          parsed=JSON.parse(jsonMatch[0]);
+        }catch(pe){addLog("JSON error: "+pe.message,"error");setUploading(false);return;}
+        const single=Array.isArray(parsed)?parsed[0]:parsed;
+        if(!single||typeof single!=="object"){addLog("Risposta non valida","error");setUploading(false);return;}
+        const record={...single,id:uid(),da_saldare:calcResidue(single),stato:autoStato(single)};
+        addLog("PDF OK: "+(record.bambino||"—")+" nav:"+(record.nav?"Si":"No"),record.bambino?"ok":"warn");
+        onDraftReady(record);
+      }else addLog(`Formato .${ext} non supportato`,"warn");
+    }catch(e){addLog(`❌ ${e.message}`,"error");console.error(e);}
+    setUploading(false);
+  }
+
+  return(<div>
+    {/* MAPPING REVIEW */}
+    {mappingState&&<Modal title="🗺 Mapping Review" subtitle={`${mappingState.unmapped.length} colonne non riconosciute. Assegna il campo corrispondente.`} onClose={()=>setMappingState(null)} wide>
+      <div style={{marginBottom:10,display:"flex",flexWrap:"wrap",gap:6}}>
+        {Object.entries(mappingState.currentMapping).filter(([,f])=>!mappingState.unmapped.includes(Object.keys(mappingState.currentMapping).find(h=>mappingState.currentMapping[h]===f))).map(([h,f])=>(
+          <span key={h} style={{padding:"2px 7px",background:"#f0fdf4",border:"1px solid #86efac",fontSize:11}}>{h} → <strong>{SCHEMA_FIELDS[f]?.label||f}</strong></span>
+        ))}
+      </div>
+      <table style={{borderCollapse:"collapse",width:"100%",fontSize:12,marginBottom:14}}>
+        <thead><tr><th style={{background:"#111",color:"#fff",padding:"6px 8px",border:"1px solid #000",fontSize:11,textAlign:"left"}}>Colonna nel file</th><th style={{background:"#111",color:"#fff",padding:"6px 8px",border:"1px solid #000",fontSize:11}}>Assegna a</th></tr></thead>
+        <tbody>{mappingState.unmapped.map(h=>{
+          const localVal=mappingState.currentMapping[h]||"_ignore";
+          return(<tr key={h} style={{background:"#fef9c3"}}>
+            <td style={{border:"1px solid #000",padding:"8px 10px",fontWeight:700,color:"#854d0e"}}>{h}</td>
+            <td style={{border:"1px solid #000",padding:"6px 8px"}}>
+              <select defaultValue={localVal} onChange={e=>{mappingState.currentMapping[h]=e.target.value;}} style={{width:"100%",padding:"5px 8px",fontSize:12,border:"1px solid #000"}}>
+                {Object.entries(SCHEMA_FIELDS).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}
+              </select>
+            </td>
+          </tr>);
+        })}</tbody>
+      </table>
+      <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
+        <button onClick={()=>setMappingState(null)} style={{padding:"7px 14px",border:"1px solid #000",background:"#fff",cursor:"pointer"}}>Annulla</button>
+        <button onClick={()=>{
+          const newSaved={...savedMappings};mappingState.unmapped.forEach(h=>{if(mappingState.currentMapping[h]&&mappingState.currentMapping[h]!=="_ignore")newSaved[h.toLowerCase()]=mappingState.currentMapping[h];});
+          setSavedMappings(newSaved);
+          const records=mappingState.rawRows.map(row=>buildRecord(row,mappingState.currentMapping)).filter(r=>r.bambino.trim());
+          mergeAndPreview(records);setMappingState(null);
+        }} style={{padding:"7px 20px",border:"1px solid #000",background:"#16a34a",color:"#fff",cursor:"pointer",fontWeight:700}}>✓ Conferma e sincronizza</button>
+      </div>
+    </Modal>}
+
+    {/* ANTEPRIMA IMPORTAZIONE / GESTIONE CONFLITTI */}
+    {previewData&&<Modal title="📋 Anteprima importazione — Stato: In attesa di conferma" subtitle="Controlla i dati estratti. Per i conflitti scegli se aggiornare o creare nuovo." onClose={()=>setPreviewData(null)} wide>
+      <ConflictResolver data={previewData} onConfirm={confirmImport} onCancel={()=>setPreviewData(null)}/>
+    </Modal>}
+
+    <div style={{padding:"12px 16px",background:"#f0fdf4",border:"1px solid #16a34a",marginBottom:12,fontSize:12}}>
+      <div style={{fontWeight:700,marginBottom:6,color:"#166534",fontSize:13}}>🤖 Import Smart — tutti i campi sincronizzati automaticamente</div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:8,color:"#166534",lineHeight:1.7}}>
+        <div>📋 <strong>PDF</strong> → Draft Editor (revisione campo per campo prima del salvataggio)</div>
+        <div>📊 <strong>Excel</strong> → Auto-mapping + Anteprima + Conflict Resolver</div>
+        <div>📄 <strong>Word</strong> → AI parsing + Anteprima + Conflict Resolver</div>
+      </div>
+      <div style={{marginTop:8,padding:"6px 10px",background:"#dcfce7",border:"1px solid #86efac",fontSize:11,color:"#166534"}}>
+        <strong>Campi estratti:</strong> Nome · Cognome · Città · Data nascita · Età · Inizio/Fine campo · N° settimane · Navetta (+ trasferimento) · Pranzo al sacco · Quota · Acconto · Saldo · Allergie/Note mediche · Telefono · Genitore · Stato pagamento — <strong>dopo "Salva le Modifiche" tutto si aggiorna: BEP · Navette · Pasti · Saldi</strong>
+      </div>
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:12,marginBottom:14}}>
+      {[
+        {ext:"Excel .xlsx",icon:"📊",desc:"Auto-mapping + sync immediato verso tutte le tabelle",types:".xlsx,.xls"},
+        {ext:"Word .docx",icon:"📄",desc:"Claude AI estrae struttura dati e popola tutte le colonne",types:".docx"},
+        {ext:"PDF modulo",icon:"📋",desc:"Claude OCR → Draft Editor → revisione → salvataggio definitivo",types:".pdf"}
+      ].map(f=>(
+        <div key={f.ext} style={{background:"#fff",border:"1px solid #000",padding:16,textAlign:"center"}}>
+          <div style={{fontSize:26,marginBottom:4}}>{f.icon}</div>
+          <div style={{fontWeight:700,fontSize:13,marginBottom:4}}>{f.ext}</div>
+          <div style={{fontSize:10,color:"#888",marginBottom:10,lineHeight:1.4}}>{f.desc}</div>
+          <label style={{display:"block",padding:"9px",background:uploading?"#ccc":"#111",color:"#fff",fontSize:12,fontWeight:600,cursor:uploading?"not-allowed":"pointer"}}>
+            {uploading?"Elaborazione…":`⬆ Carica ${f.ext}`}
+            <input type="file" accept={f.types} style={{display:"none"}} onChange={e=>{if(e.target.files[0]){handleFile(e.target.files[0]);e.target.value="";}}} disabled={uploading}/>
+          </label>
+        </div>
+      ))}
+    </div>
+    <div style={{border:"2px dashed #000",padding:24,textAlign:"center",marginBottom:14,background:"#fafafa"}}
+      onDragOver={e=>{e.preventDefault();e.currentTarget.style.background="#f0f9ff";}}
+      onDragLeave={e=>{e.currentTarget.style.background="#fafafa";}}
+      onDrop={e=>{e.preventDefault();e.currentTarget.style.background="#fafafa";handleFile(e.dataTransfer.files[0]);}}>
+      <div style={{fontSize:22,marginBottom:4}}>📂</div>
+      <div style={{fontSize:13,fontWeight:700,color:"#555"}}>Trascina qui un file</div>
+      <div style={{fontSize:11,color:"#888"}}>Auto-sync · Anteprima · Gestione conflitti · Navette e Pasti aggiornati automaticamente</div>
+    </div>
+    {log.length>0&&<div style={{background:"#fff",border:"1px solid #000",padding:12}}>
+      <div style={{fontSize:11,fontWeight:700,marginBottom:6,textTransform:"uppercase"}}>📋 Log</div>
+      <div style={{maxHeight:180,overflowY:"auto"}}>
+        {log.map((l,i)=><div key={i} style={{fontSize:11,padding:"2px 0",borderBottom:"0.5px solid #f0f0f0",color:l.type==="ok"?"#166534":l.type==="error"?"#991b1b":l.type==="warn"?"#854d0e":"#444"}}>
+          <span style={{color:"#aaa",marginRight:6,fontSize:10}}>{l.ts}</span>{l.msg}
+        </div>)}
+      </div>
+    </div>}
+  </div>);
+}
+
+
+
+/* ══ TAB ISCRITTI ════════════════════════════════════════════ */
+function TabIscritti({data,setData,showToast}){
+  const[view,setView]=useState("table");
+  const[fS,setFS]=useState(0);const[fSt,setFSt]=useState("tutti");
+  const[fA,setFA]=useState(false);const[fI,setFI]=useState(false);
+  const[cerca,setCerca]=useState("");const[confirmDel,setConfirmDel]=useState(null);
+  const nF=[fS!==0,fSt!=="tutti",fA,fI,cerca.trim()!==""].filter(Boolean).length;
+  const resetF=()=>{setFS(0);setFSt("tutti");setFA(false);setFI(false);setCerca("");};
+  const upd=useCallback((id,k,v)=>setData(prev=>prev.map(r=>{
+    if(r.id!==id)return r;
+    const u={...r,[k]:v};
+    if(["quota","acconto","saldato"].includes(k)){u.da_saldare=calcResidue(u);u.stato=autoStato(u);}
+    return u;
+  })),[setData]);
+  const add=()=>setData(p=>[{id:uid(),bambino:"",nato_il:"",eta:0,inizio:"08/06/2026",fine:"03/07/2026",sett:1,nav:false,pasto_casa:false,citta:"",quota:0,acconto:0,saldato:0,da_saldare:0,stato:"DA PAGARE",note_pag:"",note_bimbo:"",telefono:"",genitore:""},...p]);
+  const TH={background:"#111",color:"#fff",padding:"7px 8px",border:"1px solid #000",textAlign:"center",fontWeight:600,fontSize:11,whiteSpace:"nowrap"};
+  const TD=ex=>({border:"1px solid #000",padding:"5px 7px",textAlign:"center",fontSize:12,...ex});
+  const iS={border:"none",background:"transparent",width:"100%",textAlign:"center",fontSize:12,color:"#1a1a1a",padding:0};
+  const lista=data.filter(r=>{
+    if(cerca.trim()&&![r.bambino,r.genitore,r.citta,r.note_bimbo].some(v=>String(v||"").toLowerCase().includes(cerca.toLowerCase())))return false;
+    if(fS!==0&&!calcWeeks(r.inizio,r.sett).includes(fS))return false;
+    if(fSt!=="tutti"&&r.stato!==fSt)return false;
+    if(fA&&!noteType(r.note_bimbo))return false;
+    if(fI&&!isIncomplete(r))return false;
+    return true;
+  });
+  const{sorted,STH}=useSorted(lista);
+  const tot=sorted.reduce((a,r)=>({q:a.q+(r.quota||0),inc:a.inc+(r.stato==="SALDATO"?r.quota||0:r.stato==="ACCONTO"?(r.acconto||0)+(r.saldato||0):0),res:a.res+(r.da_saldare||0)}),{q:0,inc:0,res:0});
+
+  return(<div>
+    {confirmDel&&<Modal title="Elimina iscritto" onClose={()=>setConfirmDel(null)}>
+      <p style={{marginBottom:16,lineHeight:1.6}}>Stai per eliminare <strong>{confirmDel.bambino}</strong>. Confermi?</p>
+      <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+        <button onClick={()=>setConfirmDel(null)} style={{padding:"7px 14px",border:"1px solid #000",background:"#fff",cursor:"pointer"}}>Annulla</button>
+        <button onClick={()=>{setData(p=>p.filter(r=>r.id!==confirmDel.id));showToast(`${confirmDel.bambino} eliminato`,"warn");setConfirmDel(null);}} style={{padding:"7px 16px",border:"1px solid #000",background:"#dc2626",color:"#fff",cursor:"pointer",fontWeight:700}}>Elimina</button>
+      </div>
+    </Modal>}
+    {/* filtri */}
+    <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:10,alignItems:"center"}}>
+      <input value={cerca} onChange={e=>setCerca(e.target.value)} placeholder="🔍 Cerca…" style={{padding:"6px 10px",fontSize:12,border:"1px solid #000",minWidth:160}}/>
+      <select value={fS} onChange={e=>setFS(Number(e.target.value))} style={{padding:"6px 8px",fontSize:12,border:"1px solid #000"}}>
+        <option value={0}>Tutte le settimane</option>
+        {WEEKS.map(w=><option key={w.id} value={w.id}>{w.label} — {w.range}</option>)}
+      </select>
+      <select value={fSt} onChange={e=>setFSt(e.target.value)} style={{padding:"6px 8px",fontSize:12,border:"1px solid #000"}}>
+        <option value="tutti">Tutti gli stati</option>
+        <option value="SALDATO">Saldato</option><option value="ACCONTO">Acconto</option><option value="DA PAGARE">Da pagare</option>
+      </select>
+      <button onClick={()=>setFA(!fA)} style={{padding:"5px 9px",fontSize:11,border:`1px solid ${fA?"#dc2626":"#ccc"}`,background:fA?"#fee2e2":"#fff",cursor:"pointer"}}>🚨 Allergie</button>
+      <button onClick={()=>setFI(!fI)} style={{padding:"5px 9px",fontSize:11,border:`1px solid ${fI?"#d97706":"#ccc"}`,background:fI?"#fef3c7":"#fff",cursor:"pointer"}}>⚠ Incompleti</button>
+      {nF>0&&<button onClick={resetF} style={{padding:"5px 9px",fontSize:11,border:"1px solid #000",background:"#111",color:"#fff",cursor:"pointer",fontWeight:700}}>{nF} filtri · ✕</button>}
+      <div style={{marginLeft:"auto",display:"flex",gap:6}}>
+        <button onClick={()=>setView(v=>v==="table"?"card":"table")} style={{padding:"5px 9px",fontSize:11,border:"1px solid #000",background:"#fff",cursor:"pointer"}}>{view==="table"?"📇 Schede":"📋 Tabella"}</button>
+        <button onClick={add} style={{padding:"5px 12px",fontSize:11,border:"1px solid #000",background:"#111",color:"#fff",cursor:"pointer",fontWeight:700}}>+ Aggiungi</button>
+      </div>
+    </div>
+    {/* KPI */}
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(110px,1fr))",gap:8,marginBottom:12}}>
+      {[["Mostrati",sorted.length,"#111"],["🚐 Navetta",sorted.filter(r=>r.nav).length,"#1e40af"],["🍽️ Pasti",sorted.filter(r=>!r.pasto_casa).length,"#166534"],["🥪 Sacco",sorted.filter(r=>r.pasto_casa).length,"#854d0e"],["Quote",E(tot.q),"#185FA5"],["Incassato",E(tot.inc),"#166534"]].map(([l,v,c])=>(
+        <div key={l} style={{background:"#fff",border:"1px solid #000",padding:"9px 11px"}}><div style={{fontSize:10,color:"#666",marginBottom:2}}>{l}</div><div style={{fontSize:16,fontWeight:800,color:c}}>{v}</div></div>
+      ))}
+    </div>
+    {/* VISTA SCHEDE */}
+    {view==="card"&&<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(270px,1fr))",gap:10}}>
+      {sorted.map(r=>{const nt=noteType(r.note_bimbo);const ns=nt?NST[nt]:null;const inc=isIncomplete(r);
+        return(<div key={r.id} style={{background:"#fff",border:`1px solid ${inc?"#d97706":"#000"}`,padding:14,position:"relative"}}>
+          {inc&&<span style={{position:"absolute",top:10,right:10,width:8,height:8,borderRadius:"50%",background:"#d97706"}}/>}
+          <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
+            <div><div style={{fontWeight:800,fontSize:14}}>{r.bambino||<em style={{color:"#aaa"}}>Nome mancante</em>}</div><div style={{fontSize:11,color:"#666"}}>{r.citta} · {r.eta||0}a</div></div>
+            <span style={{background:SBG[r.stato]||"#f5f5f3",color:SCL[r.stato]||"#666",padding:"2px 7px",fontSize:10,fontWeight:700,border:"1px solid #000"}}>{r.stato}</span>
+          </div>
+          {nt&&<div style={{padding:"3px 7px",marginBottom:7,background:ns.bg,border:ns.border,fontSize:11,color:ns.col,fontWeight:700}}>{ns.icon} {r.note_bimbo}</div>}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:4,marginBottom:8}}>
+            {[["Quota",E(r.quota||0),"#f5f5f3","#000"],["Acconto",E(r.acconto||0),"#f0fdf4","#166534"],["Residuo",E(r.da_saldare||0),(r.da_saldare||0)>0?"#fef2f2":"#f0fdf4",(r.da_saldare||0)>0?"#dc2626":"#166534"]].map(([l,v,bg,c])=>(
+              <div key={l} style={{textAlign:"center",padding:"5px 4px",background:bg,border:"1px solid #e0e0e0"}}><div style={{fontSize:10,color:"#888"}}>{l}</div><div style={{fontSize:12,fontWeight:700,color:c}}>{v}</div></div>
+            ))}
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:8}}>
+            {[["Acconto €","acconto",r.acconto||0],["Saldo €","saldato",r.saldato||0]].map(([lbl,field,val])=>(
+              <div key={field}><label style={{fontSize:10,color:"#666",display:"block",marginBottom:2}}>{lbl}</label>
+                <input type="number" value={val} min={0} onChange={e=>upd(r.id,field,Number(e.target.value))} style={{padding:"5px 7px",fontSize:12,border:"1px solid #000",width:"100%"}}/></div>
+            ))}
+          </div>
+          <div style={{display:"flex",gap:6}}>
+            <select value={r.stato} onChange={e=>upd(r.id,"stato",e.target.value)} style={{flex:1,padding:"5px 6px",fontSize:11,border:"1px solid #000",background:SBG[r.stato],color:SCL[r.stato],fontWeight:700,cursor:"pointer"}}>
+              <option value="SALDATO">Saldato</option><option value="ACCONTO">Acconto</option><option value="DA PAGARE">Da pagare</option>
+            </select>
+            <button onClick={()=>setConfirmDel(r)} style={{padding:"5px 10px",fontSize:11,border:"1px solid #dc2626",background:"#fee2e2",color:"#dc2626",cursor:"pointer",fontWeight:700}}>× Elimina</button>
+          </div>
+        </div>);
+      })}
+    </div>}
+    {/* VISTA TABELLA */}
+    {view==="table"&&<div style={{overflowX:"auto",border:"2px solid #000"}}>
+      <table style={{borderCollapse:"collapse",width:"100%",fontSize:12}}>
+        <thead><tr>
+          <th style={TH}>#</th>
+          <STH col="bambino" label="Nome" style={{textAlign:"left",minWidth:120}}/>
+          <STH col="eta" label="Età"/>
+          <STH col="inizio" label="Inizio"/>
+          <STH col="sett" label="S."/>
+          <th style={TH}>🚐</th>
+          <th style={TH}>🍽️</th>
+          <STH col="citta" label="Città"/>
+          <STH col="quota" label="Quota"/>
+          <th style={{...TH,background:"#166534"}}>Acconto</th>
+          <th style={{...TH,background:"#166534"}}>Saldo</th>
+          <STH col="da_saldare" label="Residuo"/>
+          <STH col="stato" label="Stato"/>
+          <th style={TH}>🚨 Note</th>
+          <th style={TH}>Telefono</th>
+          <th style={TH}>Genitore</th>
+          <th style={TH}></th>
+        </tr></thead>
+        <tbody>
+          {sorted.map((r,idx)=>{
+            const nt=noteType(r.note_bimbo);const ns=nt?NST[nt]:null;
+            const inc=isIncomplete(r);const rbg=idx%2?"#fafafa":"#fff";
+            return(<tr key={r.id} style={{outline:inc?"1.5px solid #d97706":"none",outlineOffset:-1}}>
+              <td style={TD({background:rbg,width:26,color:"#888",fontSize:10})}>{inc&&<span style={{color:"#d97706",marginRight:2}}>●</span>}{idx+1}</td>
+              <td style={TD({background:rbg,minWidth:120,textAlign:"left"})}><input value={r.bambino||""} onChange={e=>upd(r.id,"bambino",e.target.value)} style={{...iS,textAlign:"left",fontWeight:700}}/></td>
+              <td style={TD({background:rbg,width:30})}><input type="number" value={r.eta||0} onChange={e=>upd(r.id,"eta",Number(e.target.value))} style={iS}/></td>
+              <td style={TD({background:rbg,width:80})}><select value={r.inizio||"08/06/2026"} onChange={e=>upd(r.id,"inizio",e.target.value)} style={{...iS,cursor:"pointer",fontSize:11}}>{WEEKS.map(w=><option key={w.id} value={w.dal}>{w.dal}</option>)}</select></td>
+              <td style={TD({background:rbg,width:28})}><input type="number" value={r.sett||1} min={1} max={8} onChange={e=>upd(r.id,"sett",Number(e.target.value))} style={iS}/></td>
+              <td style={TD({background:r.nav?"#dbeafe":rbg,width:46})}><select value={r.nav?"si":"no"} onChange={e=>upd(r.id,"nav",e.target.value==="si")} style={{...iS,color:r.nav?"#1e40af":"#888",fontWeight:r.nav?700:400,cursor:"pointer"}}><option value="si">Sì</option><option value="no">No</option></select></td>
+              <td style={TD({background:r.pasto_casa?"#fef9c3":rbg,width:60})}><select value={r.pasto_casa?"s":"p"} onChange={e=>upd(r.id,"pasto_casa",e.target.value==="s")} style={{...iS,color:r.pasto_casa?"#854d0e":"#166534",fontWeight:600,cursor:"pointer",fontSize:10}}><option value="p">🍽️</option><option value="s">🥪</option></select></td>
+              <td style={TD({background:rbg,minWidth:78,textAlign:"left"})}><select value={r.citta||""} onChange={e=>upd(r.id,"citta",e.target.value)} style={{...iS,cursor:"pointer",fontSize:10,color:r.nav?"#1e40af":"inherit",fontWeight:r.nav?700:400}}>{CITTA_OPTIONS.map(c=><option key={c} value={c}>{c}</option>)}</select></td>
+              <td style={TD({background:rbg,width:60})}><input type="number" value={r.quota||0} onChange={e=>upd(r.id,"quota",Number(e.target.value))} style={{...iS,fontWeight:700}}/></td>
+              <td style={TD({background:"#f0fdf4",width:66,borderLeft:"2px solid #16a34a"})}><input type="number" value={r.acconto||0} onChange={e=>upd(r.id,"acconto",Number(e.target.value))} style={{...iS,color:"#166534",fontWeight:700}}/></td>
+              <td style={TD({background:"#f0fdf4",width:66,borderRight:"2px solid #16a34a"})}><input type="number" value={r.saldato||0} onChange={e=>upd(r.id,"saldato",Number(e.target.value))} style={{...iS,color:"#166534",fontWeight:700}}/></td>
+              <td style={TD({background:(r.da_saldare||0)>0?"#fef2f2":"#dcfce7",width:64,fontWeight:800,color:(r.da_saldare||0)>0?"#dc2626":"#166534"})}>{E2(r.da_saldare||0)}</td>
+              <td style={TD({background:SBG[r.stato]||rbg,width:80})}><select value={r.stato||"DA PAGARE"} onChange={e=>upd(r.id,"stato",e.target.value)} style={{...iS,fontWeight:700,color:SCL[r.stato],cursor:"pointer"}}><option value="SALDATO">Saldato</option><option value="ACCONTO">Acconto</option><option value="DA PAGARE">Da pagare</option></select></td>
+              <td style={TD({background:nt?ns.bg:rbg,border:nt?ns.border:"1px solid #000",minWidth:90,textAlign:"left"})}>{nt&&<span style={{marginRight:2}}>{ns.icon}</span>}<input value={r.note_bimbo||""} onChange={e=>upd(r.id,"note_bimbo",e.target.value)} style={{...iS,textAlign:"left",color:nt?ns.col:"#aaa",fontWeight:nt?700:400}} placeholder="nessuna"/></td>
+              <td style={TD({background:!r.telefono?"#fef3c7":rbg,width:86})}><input value={r.telefono||""} onChange={e=>upd(r.id,"telefono",e.target.value)} style={{...iS,color:!r.telefono?"#d97706":"inherit"}} placeholder="mancante"/></td>
+              <td style={TD({background:!r.genitore?"#fef3c7":rbg,minWidth:90,textAlign:"left"})}><input value={r.genitore||""} onChange={e=>upd(r.id,"genitore",e.target.value)} style={{...iS,textAlign:"left",color:!r.genitore?"#d97706":"inherit"}} placeholder="mancante"/></td>
+              <td style={TD({background:rbg,width:26})}><button onClick={()=>setConfirmDel(r)} style={{background:"none",border:"none",color:"#dc2626",fontSize:15,cursor:"pointer",fontWeight:900}}>×</button></td>
+            </tr>);
+          })}
+        </tbody>
+        <tfoot><tr>
+          <th style={{background:"#111",color:"#fff",border:"1px solid #000",padding:"5px 8px",fontSize:11}} colSpan={8}>TOTALI — {sorted.length} iscritti</th>
+          <th style={{background:"#111",color:"#fff",border:"1px solid #000",padding:"5px 8px",fontSize:11}}>{E(tot.q)}</th>
+          <th style={{background:"#166534",color:"#fff",border:"1px solid #000",padding:"5px 8px",fontSize:11}} colSpan={2}></th>
+          <th style={{background:"#111",color:"#fca5a5",border:"1px solid #000",padding:"5px 8px",fontSize:11,fontWeight:700}}>{E(tot.res)}</th>
+          <th style={{background:"#111",color:"#86efac",border:"1px solid #000",padding:"5px 8px",fontSize:11}} colSpan={5}>Incassato: {E(tot.inc)}</th>
+        </tr></tfoot>
+      </table>
+    </div>}
+  </div>);
+}
+
+
+
+/* ══ TAB CONTABILITÀ NAVETTE ════════════════════════════════════ */
+function TabNavetteContab({data,giorniSett,showToast}){
+  const{navRows,totNav}=useMemo(()=>calcServizi(data,giorniSett),[data,giorniSett]);
+  const[filtro,setFiltro]=useState("tutti");
+  const[fSett,setFSett]=useState(0);
+  const lista=navRows.filter(r=>{
+    if(fSett!==0&&r.settimana!==`S${fSett}`)return false;
+    if(filtro!=="tutti"&&r.citta!==filtro)return false;
+    return true;
+  });
+  const cities=[...new Set(navRows.map(r=>r.citta))].sort();
+  const totFiltro=lista.reduce((s,r)=>s+r.totale,0);
+  const TH={background:"#111",color:"#fff",padding:"7px 9px",border:"1px solid #000",textAlign:"center",fontWeight:600,fontSize:11};
+  const TD={border:"1px solid #000",padding:"6px 9px",fontSize:12};
+  return(<div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:10,marginBottom:14}}>
+      <div style={{background:"#1e40af",border:"1px solid #000",padding:14,color:"#fff"}}>
+        <div style={{fontSize:11,opacity:.8,marginBottom:4}}>🚐 Totale ricavi navette (stagione)</div>
+        <div style={{fontSize:22,fontWeight:900}}>{E(totNav)}</div>
+        <div style={{fontSize:11,opacity:.8,marginTop:4}}>{navRows.length} settimane-bambino · {NAV_RATE}€/giorno/bambino</div>
+      </div>
+      <div style={{background:"#fff",border:"1px solid #000",padding:14}}>
+        <div style={{fontSize:11,color:"#666",marginBottom:4}}>Bambini con navetta</div>
+        <div style={{fontSize:22,fontWeight:900,color:"#1e40af"}}>{[...new Set(navRows.map(r=>r.id))].length}</div>
+        <div style={{fontSize:11,color:"#888",marginTop:4}}>su {data.length} iscritti ({Math.round([...new Set(navRows.map(r=>r.id))].length/data.length*100)}%)</div>
+      </div>
+      <div style={{background:"#fff",border:"1px solid #000",padding:14}}>
+        <div style={{fontSize:11,color:"#666",marginBottom:4}}>Ricavo medio per bambino</div>
+        <div style={{fontSize:22,fontWeight:900,color:"#1e40af"}}>{E(navRows.length>0?totNav/[...new Set(navRows.map(r=>r.id))].length:0)}</div>
+        <div style={{fontSize:11,color:"#888",marginTop:4}}>{giorniSett} giorni × {NAV_RATE}€/sett.</div>
+      </div>
+      <div style={{background:"#fff",border:"1px solid #000",padding:14}}>
+        <div style={{fontSize:11,color:"#666",marginBottom:4}}>Filtro attivo</div>
+        <div style={{fontSize:22,fontWeight:900,color:"#1e40af"}}>{E(totFiltro)}</div>
+        <div style={{fontSize:11,color:"#888",marginTop:4}}>{lista.length} righe selezionate</div>
+      </div>
+    </div>
+    <div style={{display:"flex",gap:8,marginBottom:12,flexWrap:"wrap",alignItems:"center"}}>
+      <select value={fSett} onChange={e=>setFSett(Number(e.target.value))} style={{padding:"6px 8px",fontSize:12,border:"1px solid #000"}}>
+        <option value={0}>Tutte le settimane</option>
+        {WEEKS.map(w=><option key={w.id} value={w.id}>{w.label} — {w.range}</option>)}
+      </select>
+      <select value={filtro} onChange={e=>setFiltro(e.target.value)} style={{padding:"6px 8px",fontSize:12,border:"1px solid #000"}}>
+        <option value="tutti">Tutte le città</option>
+        {cities.map(c=><option key={c} value={c}>{c}</option>)}
+      </select>
+      <button onClick={()=>{
+        const rows=[["Nome bambino","Città","Settimana","Date","Giorni","Tariffa €/giorno","Totale €"],...navRows.map(r=>[r.bambino,r.citta,r.settimana,r.settRange,r.giorni,NAV_RATE,r.totale]),["","","","","TOTALE","",totNav]];
+        const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),"Contabilità Navette");
+        XLSX.writeFile(wb,`Navette_Macaranga_2026_${new Date().toISOString().slice(0,10)}.xlsx`);
+        showToast("Export Contabilità Navette completato");
+      }} style={{marginLeft:"auto",padding:"6px 14px",fontSize:11,border:"1px solid #000",background:"#185FA5",color:"#fff",cursor:"pointer",fontWeight:700}}>⬇ Esporta</button>
+    </div>
+    <div style={{overflowX:"auto",border:"2px solid #000"}}>
+      <table style={{borderCollapse:"collapse",width:"100%",fontSize:12}}>
+        <thead><tr>
+          <th style={TH}>#</th>
+          <th style={{...TH,textAlign:"left",minWidth:140}}>Nome partecipante</th>
+          <th style={TH}>Città</th>
+          <th style={TH}>Settimana</th>
+          <th style={TH}>Date</th>
+          <th style={TH}>Giorni prenotati</th>
+          <th style={TH}>Tariffa €/giorno</th>
+          <th style={{...TH,background:"#1e40af"}}>Totale singolo</th>
+        </tr></thead>
+        <tbody>
+          {lista.map((r,i)=>(
+            <tr key={`${r.id}-${r.settimana}`} style={{background:i%2?"#f0f4ff":"#fff"}}>
+              <td style={{...TD,color:"#888",width:28}}>{i+1}</td>
+              <td style={{...TD,textAlign:"left",fontWeight:600}}>{r.bambino}</td>
+              <td style={{...TD}}>{r.citta}</td>
+              <td style={{...TD,fontWeight:700}}>{r.settimana}</td>
+              <td style={{...TD,fontSize:11,color:"#666"}}>{r.settRange}</td>
+              <td style={{...TD,textAlign:"center",fontWeight:600}}>{r.giorni}</td>
+              <td style={{...TD,textAlign:"center",color:"#666"}}>{E2(NAV_RATE)}</td>
+              <td style={{...TD,background:"#dbeafe",fontWeight:700,color:"#1e40af"}}>{E2(r.totale)}</td>
+            </tr>
+          ))}
+        </tbody>
+        <tfoot><tr>
+          <th colSpan={7} style={{...TH,textAlign:"right",padding:"7px 12px"}}>TOTALE {fSett!==0?WEEKS.find(w=>w.id===fSett)?.label+" ·":""} {filtro!=="tutti"?filtro+" ·":""} {lista.length} righe</th>
+          <th style={{...TH,background:"#1e40af",fontSize:14}}>{E(totFiltro)}</th>
+        </tr></tfoot>
+      </table>
+    </div>
+    <div style={{marginTop:8,fontSize:11,color:"#666"}}>Tariffa: <strong>€{NAV_RATE}/giorno × {giorniSett} giorni/settimana</strong> · La tabella si aggiorna automaticamente ad ogni modifica degli iscritti</div>
+  </div>);
+}
+
+
+
+/* ══ TAB CONTABILITÀ PASTI ══════════════════════════════════════ */
+function TabPastiContab({data,giorniSett,showToast}){
+  const{pastiRows,totPasti}=useMemo(()=>calcServizi(data,giorniSett),[data,giorniSett]);
+  const[fSett,setFSett]=useState(0);
+  const lista=fSett===0?pastiRows:pastiRows.filter(r=>r.settimana===`S${fSett}`);
+  const totFiltro=lista.reduce((s,r)=>s+r.totale,0);
+  const nPastoCasa=data.filter(r=>r.pasto_casa).length;
+  const TH={background:"#111",color:"#fff",padding:"7px 9px",border:"1px solid #000",textAlign:"center",fontWeight:600,fontSize:11};
+  const TD={border:"1px solid #000",padding:"6px 9px",fontSize:12};
+  return(<div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:10,marginBottom:14}}>
+      <div style={{background:"#166534",border:"1px solid #000",padding:14,color:"#fff"}}>
+        <div style={{fontSize:11,opacity:.8,marginBottom:4}}>🍽️ Totale ricavi pasti (stagione)</div>
+        <div style={{fontSize:22,fontWeight:900}}>{E(totPasti)}</div>
+        <div style={{fontSize:11,opacity:.8,marginTop:4}}>{pastiRows.length} settimane-bambino · {PASTI_RATE}€/giorno/bambino</div>
+      </div>
+      <div style={{background:"#fff",border:"1px solid #000",padding:14}}>
+        <div style={{fontSize:11,color:"#666",marginBottom:4}}>Bambini con pasti</div>
+        <div style={{fontSize:22,fontWeight:900,color:"#166534"}}>{[...new Set(pastiRows.map(r=>r.id))].length}</div>
+        <div style={{fontSize:11,color:"#888",marginTop:4}}>di cui {nPastoCasa} portano pranzo al sacco</div>
+      </div>
+      <div style={{background:"#fff",border:"1px solid #000",padding:14}}>
+        <div style={{fontSize:11,color:"#666",marginBottom:4}}>Ricavo medio per bambino</div>
+        <div style={{fontSize:22,fontWeight:900,color:"#166534"}}>{E(pastiRows.length>0?totPasti/[...new Set(pastiRows.map(r=>r.id))].length:0)}</div>
+        <div style={{fontSize:11,color:"#888",marginTop:4}}>{giorniSett} giorni × {PASTI_RATE}€/sett.</div>
+      </div>
+      <div style={{background:"#fef9c3",border:"1px solid #000",padding:14}}>
+        <div style={{fontSize:11,color:"#666",marginBottom:4}}>🥪 Pranzo al sacco (esclusi)</div>
+        <div style={{fontSize:22,fontWeight:900,color:"#854d0e"}}>{nPastoCasa}</div>
+        <div style={{fontSize:11,color:"#888",marginTop:4}}>non conteggiati nella tabella</div>
+      </div>
+    </div>
+    <div style={{display:"flex",gap:8,marginBottom:12,alignItems:"center"}}>
+      <select value={fSett} onChange={e=>setFSett(Number(e.target.value))} style={{padding:"6px 8px",fontSize:12,border:"1px solid #000"}}>
+        <option value={0}>Tutte le settimane</option>
+        {WEEKS.map(w=><option key={w.id} value={w.id}>{w.label} — {w.range}</option>)}
+      </select>
+      <button onClick={()=>{
+        const rows=[["Nome bambino","Città","Settimana","Date","Giorni","Tariffa €/giorno","Totale €"],...pastiRows.map(r=>[r.bambino,r.citta,r.settimana,r.settRange,r.giorni,PASTI_RATE,r.totale]),["","","","","TOTALE","",totPasti]];
+        const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),"Contabilità Pasti");
+        XLSX.writeFile(wb,`Pasti_Macaranga_2026_${new Date().toISOString().slice(0,10)}.xlsx`);
+        showToast("Export Contabilità Pasti completato");
+      }} style={{marginLeft:"auto",padding:"6px 14px",fontSize:11,border:"1px solid #000",background:"#166534",color:"#fff",cursor:"pointer",fontWeight:700}}>⬇ Esporta</button>
+    </div>
+    <div style={{overflowX:"auto",border:"2px solid #000"}}>
+      <table style={{borderCollapse:"collapse",width:"100%",fontSize:12}}>
+        <thead><tr>
+          <th style={TH}>#</th>
+          <th style={{...TH,textAlign:"left",minWidth:140}}>Nome partecipante</th>
+          <th style={TH}>Città</th>
+          <th style={TH}>Settimana</th>
+          <th style={TH}>Date</th>
+          <th style={TH}>Giorni totali</th>
+          <th style={TH}>Tariffa €/giorno</th>
+          <th style={{...TH,background:"#166534"}}>Totale singolo</th>
+        </tr></thead>
+        <tbody>
+          {lista.map((r,i)=>(
+            <tr key={`${r.id}-${r.settimana}`} style={{background:i%2?"#f0fdf4":"#fff"}}>
+              <td style={{...TD,color:"#888",width:28}}>{i+1}</td>
+              <td style={{...TD,textAlign:"left",fontWeight:600}}>{r.bambino}</td>
+              <td style={TD}>{r.citta}</td>
+              <td style={{...TD,fontWeight:700}}>{r.settimana}</td>
+              <td style={{...TD,fontSize:11,color:"#666"}}>{r.settRange}</td>
+              <td style={{...TD,textAlign:"center",fontWeight:600}}>{r.giorni}</td>
+              <td style={{...TD,textAlign:"center",color:"#666"}}>{E2(PASTI_RATE)}</td>
+              <td style={{...TD,background:"#dcfce7",fontWeight:700,color:"#166534"}}>{E2(r.totale)}</td>
+            </tr>
+          ))}
+        </tbody>
+        <tfoot><tr>
+          <th colSpan={7} style={{...TH,textAlign:"right",padding:"7px 12px"}}>TOTALE {lista.length} righe</th>
+          <th style={{...TH,background:"#166534",fontSize:14}}>{E(totFiltro)}</th>
+        </tr></tfoot>
+      </table>
+    </div>
+    <div style={{marginTop:8,fontSize:11,color:"#666"}}>Tariffa: <strong>€{PASTI_RATE}/giorno × {giorniSett} giorni/settimana</strong> · Esclusi bambini con "Pranzo al sacco" · Aggiornamento automatico</div>
+  </div>);
+}
+
+
+
+/* ══ TAB NAVETTE ════════════════════════════════════════════ */
+function TabNavette({data}){
+  const[sel,setSel]=useState(1);
+  const w=WEEKS.find(x=>x.id===sel);
+  // Solo bambini con navetta in questa settimana
+  const kids=data.filter(r=>r.nav&&calcWeeks(r.inizio,r.sett).includes(sel));
+  // Raggruppa per punto di PARTENZA: Molfetta→Terlizzi, tutti gli altri per città
+  const byPartenza=kids.reduce((acc,r)=>{
+    const p=getPartenza(r.citta)||r.citta||"Altro";
+    if(!acc[p])acc[p]=[];acc[p].push(r);return acc;
+  },{});
+  const NAVETTE_ORD=["Ruvo di Puglia","Terlizzi","Corato"];
+  const partenze=NAVETTE_ORD.filter(p=>byPartenza[p]);
+  const TH={background:"#111",color:"#fff",padding:"6px 9px",border:"1px solid #000",textAlign:"left",fontWeight:600,fontSize:11};
+  const TD={border:"1px solid #000",padding:"5px 8px",fontSize:12};
+  // Funzione stampa lista navetta settimana selezionata
+  const doPrint=()=>{
+    const rowsHtml=partenze.map(p=>{
+      const cap=NAV_CAP[p]??14;
+      const list=byPartenza[p]||[];
+      const trs=list.map((r,i)=>{
+        const notaStyle=noteType(r.note_bimbo)?"background:#fef2f2;color:#991b1b;font-weight:bold;":"color:#aaa;";
+        return "<tr><td>"+(i+1)+"</td><td><strong>"+r.bambino+"</strong></td><td>"+r.citta+"</td><td>"+r.eta+"</td><td>"+r.genitore+"</td><td>"+r.telefono+"</td><td style='"+notaStyle+"'>"+(r.note_bimbo||"—")+"</td></tr>";
+      }).join("");
+      return "<h2 style='font-size:13px;margin:14px 0 4px;border-bottom:2px solid #000;padding-bottom:3px'>🚐 "+p+" — "+list.length+"/"+cap+" posti ("+w.label+" · "+w.range+")</h2><table style='border-collapse:collapse;width:100%'><thead><tr><th>#</th><th>Bambino/a</th><th>Città</th><th>Età</th><th>Genitore</th><th>Telefono</th><th>Note mediche</th></tr></thead><tbody>"+trs+"</tbody></table>";
+    }).join("<br/>");
+    const html="<!DOCTYPE html><html><head><meta charset='UTF-8'><style>body{font-family:Arial;font-size:12px;margin:16px}th{background:#111;color:#fff;padding:5px 8px;border:1px solid #000;font-size:11px}td{border:1px solid #000;padding:4px 7px;font-size:11px}</style></head><body><h1 style='font-size:15px'>Navette "+w.label+" · "+w.range+" · Macaranga 2026</h1><p style='font-size:10px;color:#666'>Stampato: "+new Date().toLocaleDateString("it-IT")+" · "+kids.length+" bambini totali</p>"+rowsHtml+"</body></html>";
+    const pw=window.open("","_blank");pw.document.write(html);pw.document.close();pw.print();
+  };
+  return(<div>
+    {/* SELETTORE SETTIMANE con conteggio per settimana */}
+    <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:12,alignItems:"center"}}>
+      <div style={{display:"flex",gap:4,flexWrap:"wrap",flex:1}}>
+        {WEEKS.map(wk=>{
+          const cnt=data.filter(r=>r.nav&&calcWeeks(r.inizio,r.sett).includes(wk.id)).length;
+          const alert=NAVETTE_ORD.some(p=>{
+            const cap=NAV_CAP[p]??14;
+            const used=data.filter(r=>r.nav&&getPartenza(r.citta)===p&&calcWeeks(r.inizio,r.sett).includes(wk.id)).length;
+            return used/cap>=0.9;
+          });
+          return(<button key={wk.id} onClick={()=>setSel(wk.id)} style={{padding:"6px 10px",border:`2px solid ${sel===wk.id?"#111":"#ccc"}`,background:sel===wk.id?"#111":"#fff",color:sel===wk.id?"#fff":"#444",fontSize:11,cursor:"pointer",position:"relative",minWidth:70}}>
+            {alert&&<span style={{position:"absolute",top:-3,right:-3,width:8,height:8,borderRadius:"50%",background:"#dc2626"}}/>}
+            <div style={{fontWeight:700}}>{wk.label}</div>
+            <div style={{fontSize:9,opacity:.8}}>{wk.range}</div>
+            <div style={{fontSize:10,marginTop:2,fontWeight:cnt>0?700:400,color:cnt>0?"inherit":"#aaa"}}>{cnt>0?cnt+" 🚐":"—"}</div>
+          </button>);
+        })}
+      </div>
+      <button onClick={doPrint} style={{padding:"7px 14px",fontSize:12,border:"1px solid #000",background:"#185FA5",color:"#fff",cursor:"pointer",fontWeight:700}}>🖨 Stampa lista</button>
+    </div>
+    {/* HEADER SETTIMANA */}
+    <div style={{padding:"8px 14px",background:"#111",color:"#fff",fontWeight:700,fontSize:13,marginBottom:12,display:"flex",justifyContent:"space-between"}}>
+      <span>{w.label} · {w.range} · {kids.length} bambini con navetta</span>
+      <span style={{fontSize:11,opacity:.7}}>Dal {w.dal} al {w.al}</span>
+    </div>
+    {/* RIEPILOGO CAPIENZA 3 NAVETTE */}
+    <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:16}}>
+      {[["Ruvo di Puglia",8,"#1e40af"],["Terlizzi",14,"#0d9488"],["Corato",4,"#7c3aed"]].map(([p,cap,col])=>{
+        const used=data.filter(r=>r.nav&&getPartenza(r.citta)===p&&calcWeeks(r.inizio,r.sett).includes(sel)).length;
+        const pct=Math.round(used/cap*100);
+        const alert=pct>=90;
+        return(<div key={p} style={{background:"#fff",border:`2px solid ${alert?"#dc2626":col}`,padding:12}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+            <div>
+              <div style={{fontWeight:700,fontSize:13,color:col}}>🚐 {p}</div>
+              {p==="Terlizzi"&&<div style={{fontSize:10,color:"#888"}}>Comprende anche Molfetta</div>}
+            </div>
+            <div style={{fontWeight:900,fontSize:20,color:alert?"#dc2626":col}}>{used}<span style={{fontSize:12,fontWeight:400,color:"#888"}}>/{cap}</span></div>
+          </div>
+          <div style={{height:8,background:"#e5e7eb",marginBottom:4}}>
+            <div style={{height:"100%",width:`${Math.min(100,pct)}%`,background:alert?"#dc2626":pct>=75?"#d97706":col,transition:"width .3s"}}/>
+          </div>
+          <div style={{fontSize:11,color:"#666",display:"flex",justifyContent:"space-between"}}>
+            <span>{Math.max(0,cap-used)} posti liberi</span>
+            <span style={{fontWeight:700,color:alert?"#dc2626":"inherit"}}>{pct}%{alert&&" ⚠"}</span>
+          </div>
+        </div>);
+      })}
+    </div>
+    {/* NESSUN BAMBINO */}
+    {partenze.length===0&&<div style={{padding:32,color:"#aaa",textAlign:"center",border:"1px dashed #ccc",fontSize:14}}>
+      Nessun bambino con navetta nella settimana {w.label} ({w.range})
+    </div>}
+    {/* TABELLA PER OGNI NAVETTA */}
+    {partenze.map(p=>{
+      const cap=NAV_CAP[p]??14;
+      const list=byPartenza[p]||[];
+      const used=list.length;
+      const pct=Math.round(used/cap*100);
+      const alert=pct>=90;
+      const col=p==="Ruvo di Puglia"?"#1e40af":p==="Corato"?"#7c3aed":"#0d9488";
+      return(<div key={p} style={{background:"#fff",border:`2px solid ${alert?"#dc2626":col}`,marginBottom:14}}>
+        {/* Header navetta */}
+        <div style={{padding:"8px 14px",background:alert?"#dc2626":col,color:"#fff",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div>
+            <span style={{fontWeight:900,fontSize:15}}>🚐 Navetta {p}</span>
+            {p==="Terlizzi"&&<span style={{fontSize:11,opacity:.8,marginLeft:8}}>(Terlizzi + Molfetta)</span>}
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:12}}>
+            <span style={{fontWeight:700}}>{used}/{cap} posti ({pct}%)</span>
+            {alert&&<span style={{background:"#fff",color:"#dc2626",fontWeight:800,padding:"2px 8px",fontSize:11}}>⚠ QUASI ESAURITO</span>}
+          </div>
+        </div>
+        {/* Barra capienza */}
+        <div style={{height:5,background:"#e5e7eb"}}>
+          <div style={{height:"100%",width:`${Math.min(100,pct)}%`,background:alert?"#dc2626":pct>=75?"#d97706":col}}/>
+        </div>
+        {/* Info settimana */}
+        <div style={{padding:"5px 14px",background:"#f5f5f3",fontSize:11,color:"#555",borderBottom:"1px solid #e0e0e0"}}>
+          📅 {w.label} · {w.range} · {Math.max(0,cap-used)} posti liberi su {cap}
+        </div>
+        {/* Tabella bambini */}
+        <div style={{padding:14}}>
+          <table style={{borderCollapse:"collapse",width:"100%",fontSize:12}}>
+            <thead><tr>
+              {["#","Bambino/a","Città residenza","Età","Genitore","Telefono","Settimane iscritto","🚨 Note med.","Stato pag."].map(h=><th key={h} style={TH}>{h}</th>)}
+            </tr></thead>
+            <tbody>{list.map((r,i)=>{
+              const nt=noteType(r.note_bimbo);const ns=nt?NST[nt]:null;
+              const settBimbo=calcWeeks(r.inizio,r.sett);
+              return(<tr key={r.id} style={{background:i%2?"#fafafa":"#fff"}}>
+                <td style={{...TD,width:28,color:"#888",textAlign:"center"}}>{i+1}</td>
+                <td style={{...TD,fontWeight:700}}>{r.bambino}</td>
+                <td style={{...TD,fontSize:11}}>
+                  <span style={{background:col+"22",color:col,padding:"1px 6px",fontWeight:600,fontSize:10}}>{r.citta}</span>
+                </td>
+                <td style={{...TD,textAlign:"center"}}>{r.eta}</td>
+                <td style={TD}>{r.genitore}</td>
+                <td style={TD}><a href={`tel:${r.telefono}`} style={{color:"#185FA5",textDecoration:"none"}}>{r.telefono}</a></td>
+                <td style={{...TD,textAlign:"center"}}>
+                  <div style={{display:"flex",gap:2,flexWrap:"wrap",justifyContent:"center"}}>
+                    {settBimbo.map(s=>{
+                      const sw=WEEKS.find(x=>x.id===s);
+                      return(<span key={s} style={{background:s===sel?"#111":"#e5e7eb",color:s===sel?"#fff":"#555",padding:"2px 5px",fontSize:9,fontWeight:s===sel?700:400,title:sw?sw.range:""}}>S{s}</span>);
+                    })}
+                  </div>
+                </td>
+                <td style={{...TD,background:nt?ns.bg:"inherit",border:nt?ns.border:"1px solid #000",color:nt?ns.col:"#aaa",fontWeight:nt?700:400}}>
+                  {nt&&<span style={{marginRight:3}}>{ns.icon}</span>}{r.note_bimbo||"—"}
+                </td>
+                <td style={{...TD,background:SBG[r.stato]||"#fff",color:SCL[r.stato]||"#000",fontWeight:700,fontSize:11,textAlign:"center",whiteSpace:"nowrap"}}>{r.stato}</td>
+              </tr>);
+            })}</tbody>
+            <tfoot><tr>
+              <td colSpan={9} style={{padding:"6px 12px",fontSize:11,color:"#666",borderTop:"2px solid #000",background:"#f0f0f0"}}>
+                <strong>{list.length}</strong> bambini · <strong>{Math.max(0,cap-used)}</strong> posti liberi su {cap} · Partenza: <strong>{w.dal}</strong>
+              </td>
+            </tr></tfoot>
+          </table>
+        </div>
+      </div>);
+    })}
+  </div>);
+}
+
+function TabFinanziario({data,costs}){
+  const sv=useMemo(()=>calcServizi(data),[data]);
+  const tF=costs.voci.reduce((s,v)=>s+v.importo,0);
+  const scN=Math.max(0,costs.costoNavette-sv.totNav);const scP=Math.max(0,costs.costoCucina-sv.totPasti);
+  const ecN=Math.max(0,sv.totNav-costs.costoNavette);const ecP=Math.max(0,sv.totPasti-costs.costoCucina);
+  const pN=costs.costoNavette>0?sv.totNav/costs.costoNavette:0;const pP=costs.costoCucina>0?sv.totPasti/costs.costoCucina:0;
+  const tQ=data.reduce((s,r)=>s+(r.quota||0),0);
+  const tI=data.reduce((s,r)=>s+(r.stato==="SALDATO"?r.quota||0:r.stato==="ACCONTO"?(r.acconto||0)+(r.saldato||0):0),0);
+  const tR=data.reduce((s,r)=>s+(r.da_saldare||0),0);
+  const qM=data.length>0?tQ/data.reduce((s,r)=>s+(r.sett||1),0):20;
+  const tSc=scN+scP;
+  const bP=qM>0?Math.ceil((tF+tSc)/qM):0;
+  const pTot=data.reduce((s,r)=>s+(r.sett||0),0);
+  const bOk=pTot>=bP;const bW=Math.min(100,bP>0?Math.round(pTot/bP*100):0);
+  const uN=tI-tF-scN-scP+ecN+ecP;const uP=tQ-tF-scN-scP+ecN+ecP;
+  const Pct=v=>isNaN(v)||!isFinite(v)?"0%":(Math.round(v*100)+"%");
+  return(<div>
+    <div style={{background:"#fff",border:"2px solid #000",padding:16,marginBottom:14}}>
+      <div style={{fontWeight:900,fontSize:14,marginBottom:12,borderBottom:"2px solid #000",paddingBottom:6}}>💰 Servizi Accessori</div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
+        <div style={{background:"#eff6ff",border:"1px solid #3b82f6",padding:14,textAlign:"center"}}><div style={{fontSize:13,color:"#1e40af"}}>🚐 Ricavo Navette</div><div style={{fontSize:22,fontWeight:900,color:"#1e40af",marginTop:4}}>{E(sv.totNav)}</div></div>
+        <div style={{background:"#f0fdf4",border:"1px solid #16a34a",padding:14,textAlign:"center"}}><div style={{fontSize:13,color:"#166534"}}>🍽️ Ricavo Pasti</div><div style={{fontSize:22,fontWeight:900,color:"#166534",marginTop:4}}>{E(sv.totPasti)}</div></div>
+        <div style={{background:"#111",border:"1px solid #000",padding:14,textAlign:"center",color:"#fff"}}><div style={{fontSize:13,opacity:.8}}>💰 Totale Extra</div><div style={{fontSize:22,fontWeight:900,marginTop:4}}>{E(sv.totExtra)}</div></div>
+      </div>
+    </div>
+    <div style={{background:"#fff",border:"2px solid #000",padding:16,marginBottom:14}}>
+      <div style={{fontWeight:900,fontSize:14,marginBottom:12,borderBottom:"2px solid #000",paddingBottom:6}}>📊 Copertura Servizi</div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+        {[{l:"🚐 Navette",co:costs.costoNavette,ri:sv.totNav,p:pN,sc:scN,ec:ecN},{l:"🍽️ Pasti",co:costs.costoCucina,ri:sv.totPasti,p:pP,sc:scP,ec:ecP}].map(({l,co,ri,p,sc,ec})=>{
+          const ok=p>=1;const warn=p>=0.75;const col=ok?"#166534":warn?"#d97706":"#dc2626";const bg=ok?"#f0fdf4":warn?"#fef3c7":"#fef2f2";
+          return(<div key={l} style={{background:bg,border:`1px solid ${ok?"#16a34a":warn?"#d97706":"#dc2626"}`,padding:14}}>
+            <div style={{fontWeight:700,fontSize:14,marginBottom:8}}>{l} — <span style={{color:col}}>{Pct(p)}</span></div>
+            <div style={{height:12,background:"#e5e7eb",marginBottom:8}}><div style={{height:"100%",width:`${Math.min(100,Math.round(p*100))}%`,background:col}}/></div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,fontSize:12}}><div><div style={{color:"#888",fontSize:10}}>Costo</div><div style={{fontWeight:700,color:"#dc2626"}}>{E(co)}</div></div><div><div style={{color:"#888",fontSize:10}}>Ricavo</div><div style={{fontWeight:700,color:"#166534"}}>{E(ri)}</div></div></div>
+            {ec>0&&<div style={{marginTop:6,padding:"3px 7px",background:"#dcfce7",border:"1px solid #86efac",fontSize:11,color:"#166534",fontWeight:700}}>✓ Eccedenza {E(ec)} → utile netto</div>}
+            {sc>0&&<div style={{marginTop:6,padding:"3px 7px",background:"#fee2e2",border:"1px solid #fca5a5",fontSize:11,color:"#991b1b",fontWeight:700}}>⚠ Scoperta {E(sc)} → pesa sul BEP</div>}
+          </div>);
+        })}
+      </div>
+    </div>
+    <div style={{background:"#fff",border:`2px solid ${bOk?"#16a34a":"#d97706"}`,padding:18,marginBottom:14}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
+        <div>
+          <div style={{fontWeight:900,fontSize:14,marginBottom:2}}>📐 Break-Even Point — tempo reale</div>
+          <div style={{fontSize:11,color:"#666"}}>= ({E(tF)} + {E(tSc)}) ÷ {E(qM)}/bambino-sett. = <strong>{bP} presenze</strong></div>
+        </div>
+        <div style={{textAlign:"right"}}>
+          <div style={{fontWeight:900,fontSize:16,color:bOk?"#16a34a":"#d97706"}}>{bOk?"✓ BEP RAGGIUNTO":"⚡ NON RAGGIUNTO"}</div>
+          <div style={{fontSize:11,color:"#666"}}>{pTot}/{bP} presenze</div>
+        </div>
+      </div>
+      <div style={{position:"relative",height:32,background:"#f0f0f0",marginBottom:6,overflow:"hidden"}}>
+        <div style={{position:"absolute",left:0,top:0,height:"100%",width:`${bW}%`,background:bOk?"#16a34a":"#d97706",display:"flex",alignItems:"center",justifyContent:"center",transition:"width .4s"}}>
+          {bW>8&&<span style={{color:"#fff",fontWeight:800,fontSize:12}}>{bW}%</span>}
+        </div>
+        {bOk&&uN>0&&<div style={{position:"absolute",left:`${bW}%`,top:0,height:"100%",width:`${Math.min(100-bW,20)}%`,background:"#059669",display:"flex",alignItems:"center",justifyContent:"center"}}>
+          <span style={{color:"#fff",fontWeight:800,fontSize:11,padding:"0 4px",whiteSpace:"nowrap"}}>{E(uN)}</span>
+        </div>}
+        <div style={{position:"absolute",top:0,left:`${Math.min(98,bP>0?Math.round(bP/Math.max(pTot,bP)*100):100)}%`,height:"100%",borderLeft:"3px dashed #000",zIndex:2}}>
+          <span style={{position:"absolute",top:2,left:4,fontSize:9,fontWeight:700,color:"#000",whiteSpace:"nowrap"}}>BEP</span>
+        </div>
+      </div>
+      <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"#888",marginBottom:12}}>
+        <span>0</span>
+        <span style={{color:bOk?"#16a34a":"#d97706",fontWeight:700}}>{bOk?`✓ Superato di ${pTot-bP} presenze`:`Mancano ${bP-pTot} presenze`}</span>
+        <span>{pTot} presenze attuali</span>
+      </div>
+      {bOk?<div style={{background:"#f0fdf4",border:"2px solid #16a34a",padding:12,marginBottom:12,display:"flex",gap:14,flexWrap:"wrap",alignItems:"center"}}>
+        <div style={{flex:1}}>
+          <div style={{fontWeight:700,fontSize:13,color:"#166534",marginBottom:3}}>💰 Sei in zona utile!</div>
+          <div style={{fontSize:12,color:"#166534"}}>Ogni iscrizione aggiuntiva genera ~<strong>{E(qM)}</strong> di margine.</div>
+          <div style={{fontSize:12,color:"#166534",marginTop:2}}>Superato il BEP di <strong>{pTot-bP} presenze-sett.</strong></div>
+        </div>
+        <div style={{textAlign:"center",background:"#16a34a",color:"#fff",padding:"10px 18px"}}>
+          <div style={{fontSize:11,opacity:.8}}>Utile netto attuale</div>
+          <div style={{fontSize:24,fontWeight:900}}>{E(uN)}</div>
+          <div style={{fontSize:11,opacity:.7}}>Potenziale: {E(uP)}</div>
+        </div>
+      </div>:<div style={{background:"#fef3c7",border:"2px solid #d97706",padding:12,marginBottom:12}}>
+        <div style={{fontWeight:700,fontSize:13,color:"#92400e",marginBottom:3}}>⚡ In zona investimento</div>
+        <div style={{fontSize:12,color:"#92400e"}}>Mancano <strong>{bP-pTot} presenze</strong> · Perdita stimata: <strong>{E(Math.abs(uN))}</strong></div>
+        <div style={{fontSize:12,color:"#92400e",marginTop:2}}>Servono ~<strong>{Math.ceil((bP-pTot)/4)} bambini in più per 4 settimane</strong>.</div>
+      </div>}
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(120px,1fr))",gap:8}}>
+        {[["Costi fissi",E(tF),"#dc2626"],["Scoperta serv.",E(tSc),"#d97706"],["BEP presenze",bP+" pres.","#000"],["Utile attuale",E(uN),uN>=0?"#166534":"#dc2626"],["Utile potenziale",E(uP),uP>=0?"#166534":"#dc2626"]].map(([l,v,c])=>(
+          <div key={l} style={{background:"#f5f5f3",border:"1px solid #000",padding:"9px 11px"}}><div style={{fontSize:10,color:"#666",marginBottom:2}}>{l}</div><div style={{fontSize:13,fontWeight:800,color:c}}>{v}</div></div>
+        ))}
+      </div>
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+      <div style={{background:"#fff",border:"1px solid #000",padding:14}}>
+        <div style={{fontWeight:800,fontSize:13,marginBottom:8,borderBottom:"2px solid #000",paddingBottom:5}}>💰 Entrate</div>
+        {[["Quote iscrizioni",tQ,"#185FA5"],["+ Navette",sv.totNav,"#1e40af"],["+ Pasti",sv.totPasti,"#166534"],["= Totale lorde",tQ+sv.totExtra,"#000"],["Incassato",tI,"#166534"],["Da incassare",tR,"#dc2626"]].map(([l,v,c])=>(
+          <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"4px 0",borderBottom:"0.5px solid #f0f0f0",fontSize:12}}><span style={{color:"#555"}}>{l}</span><span style={{fontWeight:l.startsWith("=")||l.startsWith("Inc")?700:500,color:c}}>{E(v)}</span></div>
+        ))}
+      </div>
+      <div style={{background:"#fff",border:"1px solid #000",padding:14}}>
+        <div style={{fontWeight:800,fontSize:13,marginBottom:8,borderBottom:"2px solid #000",paddingBottom:5}}>📊 Costi</div>
+        {[["Costi fissi",tF,"#dc2626"],["Navette",costs.costoNavette,"#dc2626"],["- Copertura nav.",-sv.totNav,"#166534"],["Cucina",costs.costoCucina,"#dc2626"],["- Copertura pasti",-sv.totPasti,"#166534"],["= Costo netto serv.",tSc,"#d97706"],["TOTALE EFFETTIVO",tF+tSc,"#dc2626"]].map(([l,v,c])=>(
+          <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"4px 0",borderBottom:"0.5px solid #f0f0f0",fontSize:12}}><span style={{color:"#555"}}>{l}</span><span style={{fontWeight:l.startsWith("=")||l.startsWith("TOT")?700:500,color:c}}>{l.startsWith("- ")?"- "+E(-v):E(Math.abs(v))}</span></div>
+        ))}
+      </div>
+    </div>
+
+    {/* BEP */}
+    <div style={{background:"#fff",border:`2px solid ${bOk?"#16a34a":"#d97706"}`,padding:18,marginBottom:14}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
+        <div>
+          <div style={{fontWeight:900,fontSize:14,marginBottom:2}}>📐 Break-Even Point — tempo reale</div>
+          <div style={{fontSize:11,color:"#666"}}>= ({E(tF)} + {E(tSc)}) ÷ {E(qM)}/bambino-sett. = <strong>{bP} presenze</strong></div>
+        </div>
+        <div style={{textAlign:"right"}}>
+          <div style={{fontWeight:900,fontSize:16,color:bOk?"#16a34a":"#d97706"}}>{bOk?"✓ BEP RAGGIUNTO":"⚡ NON RAGGIUNTO"}</div>
+          <div style={{fontSize:11,color:"#666"}}>{pTot}/{bP} presenze</div>
+        </div>
+      </div>
+      <div style={{position:"relative",height:32,background:"#f0f0f0",marginBottom:6,overflow:"hidden",borderRadius:2}}>
+        <div style={{position:"absolute",left:0,top:0,height:"100%",width:`${bW}%`,background:bOk?"#16a34a":"#d97706",display:"flex",alignItems:"center",justifyContent:"center",transition:"width .4s"}}>
+          {bW>8&&<span style={{color:"#fff",fontWeight:800,fontSize:12}}>{bW}%</span>}
+        </div>
+        {bOk&&uN>0&&<div style={{position:"absolute",left:`${bW}%`,top:0,height:"100%",width:`${Math.min(100-bW,Math.round(Math.min(uN,uP)/Math.max(uP,1)*(100-bW)))}%`,background:"#059669",display:"flex",alignItems:"center",justifyContent:"center",minWidth:4}}>
+          {uN>500&&<span style={{color:"#fff",fontWeight:800,fontSize:11,whiteSpace:"nowrap",padding:"0 4px"}}>{E(uN)}</span>}
+        </div>}
+        <div style={{position:"absolute",top:0,left:`${Math.min(98,bP>0?Math.round(bP/Math.max(pTot,bP)*100):100)}%`,height:"100%",borderLeft:"3px dashed #000",zIndex:2}}>
+          <span style={{position:"absolute",top:2,left:4,fontSize:9,fontWeight:700,color:"#000",whiteSpace:"nowrap"}}>BEP</span>
+        </div>
+      </div>
+      <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"#888",marginBottom:12}}>
+        <span>0 presenze</span>
+        <span style={{color:bOk?"#16a34a":"#d97706",fontWeight:700}}>{bOk?`✓ Superato di ${pTot-bP} pres.`:`Mancano ${bP-pTot} presenze`}</span>
+        <span>{pTot} presenze attuali</span>
+      </div>
+      {bOk?<div style={{background:"#f0fdf4",border:"2px solid #16a34a",padding:12,marginBottom:12,display:"flex",gap:14,flexWrap:"wrap",alignItems:"center"}}>
+        <div style={{flex:1}}>
+          <div style={{fontWeight:700,fontSize:13,color:"#166534",marginBottom:3}}>💰 Sei in zona utile!</div>
+          <div style={{fontSize:12,color:"#166534"}}>Ogni iscrizione aggiuntiva genera ~<strong>{E(qM)}</strong> di margine netto.</div>
+          <div style={{fontSize:12,color:"#166534",marginTop:2}}>Hai superato il BEP di <strong>{pTot-bP} presenze-sett.</strong></div>
+        </div>
+        <div style={{textAlign:"center",background:"#16a34a",color:"#fff",padding:"10px 18px"}}>
+          <div style={{fontSize:11,opacity:.8}}>Utile netto attuale</div>
+          <div style={{fontSize:24,fontWeight:900}}>{E(uN)}</div>
+          <div style={{fontSize:11,opacity:.7}}>Potenziale: {E(uP)}</div>
+        </div>
+      </div>:<div style={{background:"#fef3c7",border:"2px solid #d97706",padding:12,marginBottom:12}}>
+        <div style={{fontWeight:700,fontSize:13,color:"#92400e",marginBottom:3}}>⚡ In zona investimento</div>
+        <div style={{fontSize:12,color:"#92400e"}}>Mancano <strong>{bP-pTot} presenze-settimana</strong> · Perdita stimata: <strong>{E(Math.abs(uN))}</strong></div>
+        <div style={{fontSize:12,color:"#92400e",marginTop:2}}>Servono ~<strong>{Math.ceil((bP-pTot)/4)} bambini in più per 4 settimane</strong>.</div>
+      </div>}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(120px,1fr))",gap:8}}>
+        {[["Costi fissi",E(tF),"#dc2626"],["Scoperta serv.",E(tSc),"#d97706"],["BEP",bP+" pres.","#000"],["BEP/sett.",Math.ceil(bP/8)+" bimbi","#000"],["Utile attuale",E(uN),uN>=0?"#166534":"#dc2626"],["Utile potenz.",E(uP),uP>=0?"#166534":"#dc2626"]].map(([l,v,c])=>(
+          <div key={l} style={{background:"#f5f5f3",border:"1px solid #000",padding:"8px 10px"}}><div style={{fontSize:10,color:"#666",marginBottom:2}}>{l}</div><div style={{fontSize:13,fontWeight:800,color:c}}>{v}</div></div>
+        ))}
+      </div>
+    </div>
+
+
+  </div>);
+}
+
+/* ══ TAB COSTI ══════════════════════════════════════════════ */
+function TabCosti({costs,setCosts}){
+  const cats=[...new Set(costs.voci.map(v=>v.cat))];
+  const up=(id,k,val)=>setCosts(p=>({...p,voci:p.voci.map(v=>v.id===id?{...v,[k]:val}:v)}));
+  const tot=costs.voci.reduce((s,v)=>s+v.importo,0);
+  const TH={background:"#111",color:"#fff",padding:"6px 8px",border:"1px solid #000",textAlign:"left",fontSize:11,fontWeight:600};
+  const TD={border:"1px solid #000",padding:"5px 8px",fontSize:12};
+  const iS={border:"none",background:"transparent",width:"100%",fontSize:12,color:"#1a1a1a",padding:0};
+  return(<div>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
+      <div style={{background:"#fff",border:"1px solid #000",padding:12}}><div style={{fontSize:10,color:"#666",marginBottom:3}}>Totale costi fissi</div><div style={{fontSize:20,fontWeight:900,color:"#dc2626"}}>{E(tot)}</div></div>
+      <div style={{background:"#fff",border:"1px solid #000",padding:12}}>
+        <div style={{fontSize:10,color:"#666",marginBottom:6}}>Costi servizi esterni (navette+cucina)</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+          {[["Navette €","costoNavette"],["Cucina €","costoCucina"]].map(([l,k])=>(
+            <div key={k}><label style={{fontSize:10,color:"#888"}}>{l}</label>
+              <input type="number" value={costs[k]} min={0} step={100} onChange={e=>setCosts(p=>({...p,[k]:Number(e.target.value)}))} style={{width:"100%",padding:"4px 6px",fontSize:13,border:"1px solid #000",fontWeight:700}}/></div>
+          ))}
+        </div>
+      </div>
+    </div>
+    {cats.map(cat=>{
+      const voci=costs.voci.filter(v=>v.cat===cat);const sub=voci.reduce((s,v)=>s+v.importo,0);
+      return(<div key={cat} style={{background:"#fff",border:"1px solid #000",marginBottom:10,padding:14}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8,borderBottom:"2px solid #000",paddingBottom:5}}>
+          <div style={{fontWeight:800,fontSize:13}}>{cat}</div>
+          <div style={{display:"flex",gap:8,alignItems:"center"}}>
+            <span style={{fontWeight:700,color:"#185FA5"}}>{E(sub)}</span>
+            <button onClick={()=>setCosts(p=>({...p,voci:[...p.voci,{id:uid(),cat,label:"Nuova voce",importo:0,note:""}]}))} style={{padding:"3px 8px",fontSize:11,border:"1px solid #000",background:"#fff",cursor:"pointer",fontWeight:600}}>+ Voce</button>
+          </div>
+        </div>
+        <table style={{borderCollapse:"collapse",width:"100%",fontSize:12}}>
+          <thead><tr>{["Descrizione","€","Note",""].map(h=><th key={h} style={TH}>{h}</th>)}</tr></thead>
+          <tbody>{voci.map(v=>(
+            <tr key={v.id}>
+              <td style={{...TD,minWidth:180,textAlign:"left"}}><input value={v.label} onChange={e=>up(v.id,"label",e.target.value)} style={{...iS,textAlign:"left"}}/></td>
+              <td style={{...TD,width:100}}><input type="number" value={v.importo} min={0} onChange={e=>up(v.id,"importo",Number(e.target.value))} style={{...iS,fontWeight:700}}/></td>
+              <td style={{...TD,minWidth:130,textAlign:"left"}}><input value={v.note} onChange={e=>up(v.id,"note",e.target.value)} style={{...iS,textAlign:"left",color:"#666",fontSize:11}} placeholder="note…"/></td>
+              <td style={{...TD,width:26}}><button onClick={()=>setCosts(p=>({...p,voci:p.voci.filter(x=>x.id!==v.id)}))} style={{background:"none",border:"none",color:"#dc2626",fontSize:14,cursor:"pointer",fontWeight:900}}>×</button></td>
+            </tr>
+          ))}</tbody>
+        </table>
+      </div>);
+    })}
+    <button onClick={()=>{const c=window.prompt("Nome nuova categoria:");if(c)setCosts(p=>({...p,voci:[...p.voci,{id:uid(),cat:c.trim(),label:"Nuova voce",importo:0,note:""}]}));}} style={{padding:"7px 14px",border:"1px solid #000",background:"#fff",fontSize:12,cursor:"pointer",fontWeight:600}}>+ Nuova categoria</button>
+    <div style={{marginTop:12,background:"#111",color:"#fff",padding:12,display:"flex",justifyContent:"space-between"}}><span style={{fontSize:13,fontWeight:700}}>TOTALE COSTI FISSI</span><span style={{fontSize:20,fontWeight:900,color:"#fca5a5"}}>{E(tot)}</span></div>
+  </div>);
+}
+
+/* ══ TAB EXPORT ═════════════════════════════════════════════ */
+function TabExport({data}){
+  const sv=useMemo(()=>calcServizi(data),[data]);
+  const exp=()=>{
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([["Bambino/a","Nato il","Età","Inizio","Fine","Sett.","Navetta","Sacco","Città","Quota","Acconto","Saldato","Residuo","Stato","Note pag.","Note med.","Telefono","Genitore"],...data.map(r=>[r.bambino,r.nato_il,r.eta,r.inizio,r.fine,r.sett,r.nav?"Sì":"No",r.pasto_casa?"Sì":"No",r.citta,r.quota,r.acconto,r.saldato,r.da_saldare,r.stato,r.note_pag,r.note_bimbo,r.telefono,r.genitore])]),"Iscritti 2026");
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([["Nome","Città","Settimana","Giorni","Tariffa","Totale"],...sv.navRows.map(r=>[r.bambino,r.citta,r.settimana,r.giorni,NAV_RATE,r.totale]),["","","","","TOTALE",sv.totNav]]),"Navette");
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([["Nome","Città","Settimana","Giorni","Tariffa","Totale"],...sv.pastiRows.map(r=>[r.bambino,r.citta,r.settimana,r.giorni,PASTI_RATE,r.totale]),["","","","","TOTALE",sv.totPasti]]),"Pasti");
+    XLSX.writeFile(wb,`Macaranga_2026_${new Date().toISOString().slice(0,10)}.xlsx`);
+  };
+  return(<div>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+      <div style={{background:"#fff",border:"1px solid #000",padding:20}}>
+        <div style={{fontSize:28,marginBottom:8}}>📊</div>
+        <div style={{fontWeight:800,fontSize:14,marginBottom:8}}>Excel completo (.xlsx)</div>
+        <div style={{fontSize:12,color:"#666",marginBottom:16,lineHeight:1.5}}>Iscritti + Contabilità Navette + Contabilità Pasti. Pronto per il commercialista.</div>
+        <button onClick={exp} style={{padding:10,border:"1px solid #000",background:"#185FA5",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer",width:"100%"}}>⬇ Scarica Excel</button>
+      </div>
+      <div style={{background:"#fff",border:"1px solid #000",padding:20}}>
+        <div style={{fontSize:28,marginBottom:8}}>📈</div>
+        <div style={{fontWeight:800,fontSize:14,marginBottom:8}}>Riepilogo stagione</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,fontSize:12}}>
+          {[["Iscritti totali",data.length],["Con navetta",data.filter(r=>r.nav).length],["Allergie/Note",data.filter(r=>noteType(r.note_bimbo)).length],["Saldati",data.filter(r=>r.stato==="SALDATO").length],["Con acconto",data.filter(r=>r.stato==="ACCONTO").length],["Da pagare",data.filter(r=>r.stato==="DA PAGARE").length]].map(([l,v])=>(
+            <div key={l} style={{padding:"8px 10px",background:"#f5f5f3",border:"1px solid #e0e0e0"}}><div style={{fontSize:10,color:"#888"}}>{l}</div><div style={{fontSize:16,fontWeight:800}}>{v}</div></div>
+          ))}
+        </div>
+      </div>
+    </div>
+  </div>);
+}
+
+/* ══ APP PRINCIPALE ══════════════════════════════════════════ */
+function MainApp({onLogout}){
+  const[data,setData]=useState([]);
+  const[costs,setCosts]=useState(DEFAULT_COSTS);
+  const[tab,setTab]=useState("iscritti");
+  const[toast,setToast]=useState(null);
+  const[loading,setLoading]=useState(true);
+  const[saving,setSaving]=useState(false);
+  const[lastSaved,setLastSaved]=useState(null);
+  const[snap,setSnap]=useState("[]");
+  const[draft,setDraft]=useState(null);
+  const[globalQ,setGlobalQ]=useState("");
+  const[savedMappings,setSavedMappings]=useState({});
+  const showToast=useCallback((msg,type="ok")=>setToast({msg,type}),[]);
+  const hasChanges=useMemo(()=>JSON.stringify(data)!==snap,[data,snap]);
+
+  useEffect(()=>{
+    (async()=>{
+      setLoading(true);
+      try{
+        const{data:rows,error}=await SB.from("iscritti").select("*").order("bambino");
+        if(!error&&rows&&rows.length>0){
+          const p=rows.map(r=>({...r,quota:Number(r.quota||0),acconto:Number(r.acconto||0),saldato:Number(r.saldato||0),da_saldare:Number(r.da_saldare||0),eta:Number(r.eta||0),sett:Number(r.sett||1),nav:!!r.nav,pasto_casa:!!r.pasto_casa}));
+          setData(p);setSnap(JSON.stringify(p));
+        }else{
+          setData(INITIAL_DATA);setSnap(JSON.stringify(INITIAL_DATA));
+        }
+        const{data:cfg}=await SB.from("config").select("*").eq("chiave","costs").single();
+        if(cfg?.valore)setCosts(cfg.valore);
+      }catch(e){showToast("Errore caricamento: "+e.message,"error");}
+      setLoading(false);
+    })();
+  },[]);
+
+  const handleSave=useCallback(async()=>{
+    setSaving(true);
+    try{
+      if(data.length>0){
+        const cleanData=data.map(r=>{const{_tipo,...rest}=r;return{...rest,updated_at:new Date().toISOString()};});const{error}=await SB.from("iscritti").upsert(cleanData);
+        if(error)throw error;
+        const ids=data.map(r=>r.id);
+        await SB.from("iscritti").delete().not("id","in",`(${ids.map(i=>`"${i}"`).join(",")})`);
+      }else{
+        await SB.from("iscritti").delete().neq("id","__never__");
+      }
+      await SB.from("config").upsert([{chiave:"costs",valore:costs,updated_at:new Date().toISOString()}]);
+      const ts=new Date().toLocaleTimeString("it-IT",{hour:"2-digit",minute:"2-digit"});
+      setSnap(JSON.stringify(data));setLastSaved(ts);
+      showToast(`✓ Salvato su database alle ${ts} · ${data.length} iscritti`);
+    }catch(e){showToast("Errore: "+e.message,"error");}
+    setSaving(false);
+  },[data,costs,showToast]);
+
+  const handleReset=()=>{if(window.confirm("Annullare le modifiche?"))setData(JSON.parse(snap));};
+  const handleLogout=async()=>{await SB.auth.signOut();onLogout();};
+  const handleSync=useCallback(records=>{
+    setData(prev=>{const upd=[...prev];
+      records.forEach(rec=>{if(rec.type==="update"){const idx=upd.findIndex(r=>r.id===rec.record.id);if(idx>=0)upd[idx]=rec.record;}else upd.push(rec.record);});
+      return upd;
+    });
+  },[]);
+  const handleDraftReady=useCallback(record=>{setDraft(record);showToast("PDF letto — revisiona la bozza prima di salvare","warn");},[showToast]);
+  const handleCommitDraft=useCallback((type,record)=>{
+    setData(prev=>{if(type==="update")return prev.map(r=>r.id===record.id?record:r);return[...prev,record];});
+    setDraft(null);
+    showToast(`✓ ${record.bambino} integrato${record.nav?" · navetta sync":""}${!record.pasto_casa?" · pasti sync":""} · BEP aggiornato`);
+  },[showToast]);
+  const sv=useMemo(()=>calcServizi(data),[data]);
+  const incompleti=data.filter(isIncomplete).length;
+  const allergici=data.filter(r=>noteType(r.note_bimbo)).length;
+  const gRes=useMemo(()=>{if(!globalQ.trim()||globalQ.length<2)return[];const q=globalQ.toLowerCase();return data.filter(r=>[r.bambino,r.genitore,r.citta,r.note_bimbo].some(v=>String(v||"").toLowerCase().includes(q))).slice(0,8);},[globalQ,data]);
+  const TABS=[
+    {id:"import",l:"🤖 Import Smart"},
+    {id:"iscritti",l:"Iscritti & Pagamenti"},
+    {id:"nav_contab",l:"🚐 Cont. Navette"},
+    {id:"pasti_contab",l:"🍽️ Cont. Pasti"},
+    {id:"finanziario",l:"Finanziario & BEP"},
+    {id:"costi",l:"Costi"},
+    {id:"navette",l:"Navette"},
+    {id:"export",l:"Export"},
+  ];
+  const tS=on=>({padding:"9px 13px",border:"none",background:"transparent",borderBottom:on?"3px solid #111":"3px solid transparent",color:on?"#111":"#888",fontWeight:on?700:400,cursor:"pointer",fontSize:12,whiteSpace:"nowrap",marginBottom:-2});
+
+  if(loading)return(<div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",flexDirection:"column",gap:16}}>
+    <div style={{fontSize:36}}>🌿</div><div style={{fontSize:14,color:"#666"}}>Caricamento dati…</div>
+  </div>);
+
+  return(<div style={{fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",padding:"1rem",background:"#fafafa",minHeight:"100vh"}}>
+    {toast&&<Toast msg={toast.msg} type={toast.type||"ok"} onDone={()=>setToast(null)}/>}
+    <ApiKeyBanner/>
+    {draft&&<DraftEditorPanel draft={draft} existingData={data} onCommit={handleCommitDraft} onDiscard={()=>{setDraft(null);showToast("Bozza scartata","warn");}} showToast={showToast}/>}
+    <div style={{marginBottom:"0.75rem",borderBottom:"2px solid #000",paddingBottom:10,display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:8}}>
+      <div>
+        <h1 style={{fontSize:18,fontWeight:900,letterSpacing:"-0.02em",margin:"0 0 2px"}}>🌿 Campi Natura Macaranga 2026</h1>
+        <div style={{fontSize:11,color:"#666",display:"flex",gap:10,flexWrap:"wrap"}}>
+          <span>{data.length} iscritti</span>
+          <span style={{color:"#1e40af",fontWeight:600}}>🚐 {E(sv.totNav)}</span>
+          <span style={{color:"#166534",fontWeight:600}}>🍽️ {E(sv.totPasti)}</span>
+          <span style={{fontWeight:700}}>💰 {E(sv.totExtra)}</span>
+          {incompleti>0&&<span style={{color:"#d97706",fontWeight:700}}>⚠ {incompleti} incompleti</span>}
+          {allergici>0&&<span style={{color:"#dc2626",fontWeight:700}}>🚨 {allergici} allergie</span>}
+        </div>
+      </div>
+      <div style={{position:"relative"}}>
+        <input value={globalQ} onChange={e=>setGlobalQ(e.target.value)} placeholder="🔍 Cerca…" style={{padding:"7px 12px",fontSize:12,border:"1px solid #000",background:"#fff",width:200}}/>
+        {gRes.length>0&&<div style={{position:"absolute",top:"100%",left:0,right:0,background:"#fff",border:"1px solid #000",zIndex:200,boxShadow:"0 4px 12px rgba(0,0,0,.15)"}}>
+          {gRes.map(r=><div key={r.id} onClick={()=>{setTab("iscritti");setGlobalQ("");}} style={{padding:"7px 10px",borderBottom:"0.5px solid #eee",cursor:"pointer",fontSize:12}} onMouseEnter={e=>e.currentTarget.style.background="#f5f5f3"} onMouseLeave={e=>e.currentTarget.style.background="#fff"}>
+            <span style={{fontWeight:700}}>{r.bambino}</span><span style={{color:"#888",marginLeft:8,fontSize:11}}>{r.citta} · {r.stato}</span>
+          </div>)}
+        </div>}
+      </div>
+    </div>
+    <SaveBar hasChanges={hasChanges} saving={saving} onSave={handleSave} onReset={handleReset} lastSaved={lastSaved} onLogout={handleLogout}/>
+    <div style={{display:"flex",gap:0,borderBottom:"2px solid #000",marginBottom:"1.25rem",overflowX:"auto"}}>
+      {TABS.map(t=><button key={t.id} onClick={()=>setTab(t.id)} style={tS(tab===t.id)}>{t.l}</button>)}
+    </div>
+    {tab==="import"       && <TabImport onSync={handleSync} existingData={data} showToast={showToast} onDraftReady={handleDraftReady} savedMappings={savedMappings} setSavedMappings={setSavedMappings}/>}
+    {tab==="iscritti"    && <TabIscritti data={data} setData={setData} showToast={showToast}/>}
+    {tab==="nav_contab"  && <TabNavetteContab data={data} giorniSett={5} showToast={showToast}/>}
+    {tab==="pasti_contab"&& <TabPastiContab data={data} giorniSett={5} showToast={showToast}/>}
+    {tab==="finanziario" && <TabFinanziario data={data} costs={costs} setCosts={setCosts} showToast={showToast}/>}
+    {tab==="costi"       && <TabCosti costs={costs} setCosts={setCosts}/>}
+    {tab==="navette"     && <TabNavette data={data}/>}
+    {tab==="export"      && <TabExport data={data}/>}
+  </div>);
+}
+
+/* ══ ROOT ════════════════════════════════════════════════════ */
+function Root(){
+  const[session,setSession]=useState(null);
+  const[checking,setChecking]=useState(true);
+  useEffect(()=>{
+    SB.auth.getSession().then(({data:{session}})=>{setSession(session);setChecking(false);});
+    const{data:{subscription}}=SB.auth.onAuthStateChange((_,s)=>setSession(s));
+    return()=>subscription.unsubscribe();
+  },[]);
+  if(checking)return(<div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh"}}><div style={{fontSize:14,color:"#666"}}>Verifica sessione…</div></div>);
+  if(!session)return<Login onLogin={()=>SB.auth.getSession().then(({data:{session}})=>setSession(session))}/>;
+  return<MainApp onLogout={()=>setSession(null)}/>;
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<Root/>);
+</script>
+</body>
+</html>
