@@ -59,58 +59,55 @@ const DEFAULT_COSTS={
   costoCucina:4800,
 };
 
-
 /* ══ UTILS ═══════════════════════════════════════════════════ */
 const uid=()=>Math.random().toString(36).slice(2,9);
 const INITIAL_DATA=[
-  {id:"qxgr6md",bambino:"Roberta Anna Amenduni",nato_il:"28/11/2015",eta:10,inizio:"08/06/2026",fine:"03/07/2026",sett:4,nav:false,pasto_casa:false,citta:"Ruvo di Puglia",quota:300,acconto:0,saldato:0,da_saldare:300,stato:"DA PAGARE",note_pag:"",note_bimbo:"",telefono:"3463088601",genitore:"Angela Amenduni"},
-  {id:"uijvdxa",bambino:"Vincenzo Ficco",nato_il:"02/02/2015",eta:11,inizio:"22/06/2026",fine:"17/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Terlizzi",quota:330,acconto:100,saldato:0,da_saldare:230,stato:"ACCONTO",note_pag:"Acconto €200 con Adriano",note_bimbo:"",telefono:"3471958825",genitore:"Angela D'Elia"},
-  {id:"67kbghz",bambino:"Adriano Ficco",nato_il:"20/08/2019",eta:6,inizio:"22/06/2026",fine:"17/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Terlizzi",quota:330,acconto:100,saldato:0,da_saldare:230,stato:"ACCONTO",note_pag:"Acconto €200 con Vincenzo",note_bimbo:"",telefono:"3471958825",genitore:"Angela D'Elia"},
-  {id:"j6f64ys",bambino:"Beatrice N. Tamborra",nato_il:"12/11/2016",eta:9,inizio:"29/06/2026",fine:"24/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Terlizzi",quota:355,acconto:125,saldato:0,da_saldare:230,stato:"ACCONTO",note_pag:"Acconto €250 con Lorenzo (01/04)",note_bimbo:"",telefono:"3927581223",genitore:"Angela De Nicolo"},
-  {id:"9f70sj3",bambino:"Lorenzo F. Tamborra",nato_il:"04/10/2019",eta:6,inizio:"29/06/2026",fine:"24/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Terlizzi",quota:355,acconto:125,saldato:0,da_saldare:230,stato:"ACCONTO",note_pag:"Acconto €250 con Beatrice (01/04)",note_bimbo:"",telefono:"3927581223",genitore:"Angela De Nicolo"},
-  {id:"dlnkjtn",bambino:"Matilde Digregorio",nato_il:"03/05/2017",eta:9,inizio:"08/06/2026",fine:"03/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Terlizzi",quota:330,acconto:100,saldato:0,da_saldare:230,stato:"ACCONTO",note_pag:"Acconto – Aniello",note_bimbo:"",telefono:"3470355091",genitore:"Anna Aniello"},
-  {id:"qzd5r3r",bambino:"Elena Musacchio",nato_il:"05/02/2014",eta:12,inizio:"29/06/2026",fine:"24/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Corato",quota:355,acconto:107,saldato:0,da_saldare:248,stato:"ACCONTO",note_pag:"Acconto €213 con Giuseppe (31/03)",note_bimbo:"",telefono:"3405668376",genitore:"Annamaria Portaccio"},
-  {id:"dtxc0hf",bambino:"Giuseppe Musacchio",nato_il:"11/03/2016",eta:10,inizio:"29/06/2026",fine:"24/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Corato",quota:355,acconto:106,saldato:0,da_saldare:249,stato:"ACCONTO",note_pag:"Acconto €213 con Elena (31/03)",note_bimbo:"",telefono:"3405668376",genitore:"Annamaria Portaccio"},
-  {id:"uudgxkj",bambino:"Gabriele Cagnetta",nato_il:"24/03/2020",eta:6,inizio:"22/06/2026",fine:"17/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Molfetta",quota:380,acconto:114,saldato:0,da_saldare:266,stato:"ACCONTO",note_pag:"Acconto – Cagnetta (31/03)",note_bimbo:"",telefono:"3497632126",genitore:"Francesco Cagnetta"},
-  {id:"lqk1qmi",bambino:"Francisco J. Gadaleta",nato_il:"28/04/2013",eta:13,inizio:"08/06/2026",fine:"03/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Ruvo di Puglia",quota:380,acconto:0,saldato:0,da_saldare:380,stato:"DA PAGARE",note_pag:"",note_bimbo:"Leggermente intollerante al lattosio",telefono:"3493763545",genitore:"Stefania Carbonara"},
-  {id:"a6a87l2",bambino:"Alessandro Carlucci",nato_il:"17/01/2014",eta:12,inizio:"08/06/2026",fine:"03/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Ruvo di Puglia",quota:330,acconto:0,saldato:330,da_saldare:0,stato:"SALDATO",note_pag:"Saldo completo (17/03)",note_bimbo:"",telefono:"3493428077",genitore:"Cinzia Ribatti"},
-  {id:"k75ezc8",bambino:"Andrea Dallafiore",nato_il:"10/09/2019",eta:6,inizio:"29/06/2026",fine:"24/07/2026",sett:4,nav:false,pasto_casa:false,citta:"Ruvo di Puglia",quota:260,acconto:0,saldato:0,da_saldare:260,stato:"DA PAGARE",note_pag:"",note_bimbo:"",telefono:"3498080711",genitore:"Francesca Di Gregorio"},
-  {id:"ivc3huz",bambino:"Mattia Dallafiore",nato_il:"10/09/2019",eta:6,inizio:"29/06/2026",fine:"24/07/2026",sett:4,nav:false,pasto_casa:false,citta:"Ruvo di Puglia",quota:260,acconto:0,saldato:0,da_saldare:260,stato:"DA PAGARE",note_pag:"",note_bimbo:"",telefono:"3498080711",genitore:"Francesca Di Gregorio"},
-  {id:"c6wlkui",bambino:"Michelangelo Gattulli",nato_il:"28/11/2013",eta:12,inizio:"08/06/2026",fine:"26/06/2026",sett:3,nav:false,pasto_casa:false,citta:"Ruvo di Puglia",quota:240,acconto:0,saldato:0,da_saldare:240,stato:"DA PAGARE",note_pag:"",note_bimbo:"",telefono:"3471855715",genitore:"Francesco Gattulli"},
-  {id:"n5q2bft",bambino:"Gabriel Formiglio",nato_il:"26/08/2016",eta:9,inizio:"08/06/2026",fine:"19/06/2026",sett:2,nav:false,pasto_casa:false,citta:"Roma",quota:160,acconto:0,saldato:160,da_saldare:0,stato:"SALDATO",note_pag:"Saldo completo (18/03)",note_bimbo:"",telefono:"3518102475",genitore:"Giovanni Formiglio"},
-  {id:"3q6sfpf",bambino:"Francesco G. De Noia",nato_il:"17/12/2017",eta:8,inizio:"08/06/2026",fine:"03/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Terlizzi",quota:330,acconto:0,saldato:330,da_saldare:0,stato:"SALDATO",note_pag:"Saldo completo (17/03)",note_bimbo:"",telefono:"3407443173",genitore:"Barbara de Robertis"},
-  {id:"u9oney0",bambino:"Antonio Altomare",nato_il:"14/10/2016",eta:9,inizio:"08/06/2026",fine:"19/06/2026",sett:2,nav:false,pasto_casa:false,citta:"Terlizzi",quota:150,acconto:0,saldato:0,da_saldare:150,stato:"DA PAGARE",note_pag:"",note_bimbo:"Allergia ulivi, polvere, gatto",telefono:"3805477973",genitore:"Valeria D'aniello"},
-  {id:"iu9dgdk",bambino:"Martina Altomare",nato_il:"01/08/2020",eta:5,inizio:"08/06/2026",fine:"19/06/2026",sett:2,nav:false,pasto_casa:false,citta:"Terlizzi",quota:150,acconto:0,saldato:0,da_saldare:150,stato:"DA PAGARE",note_pag:"",note_bimbo:"",telefono:"3805477973",genitore:"Valeria D'aniello"},
-  {id:"pxdhu4s",bambino:"Chiara Mastrorilli",nato_il:"20/08/2015",eta:10,inizio:"22/06/2026",fine:"17/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Terlizzi",quota:380,acconto:120,saldato:0,da_saldare:260,stato:"ACCONTO",note_pag:"Acconto – Mastrorilli (01/04)",note_bimbo:"",telefono:"3498721444",genitore:"Tommaso Mastrorilli"},
-  {id:"25n5h3f",bambino:"Adelina Burlan",nato_il:"18/10/2015",eta:10,inizio:"08/06/2026",fine:"03/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Ruvo di Puglia",quota:330,acconto:150,saldato:0,da_saldare:180,stato:"ACCONTO",note_pag:"Anticipo mar'26",note_bimbo:"Lattosio · FANS",telefono:"3485416308",genitore:"Larisa Burlan"},
-  {id:"o2rlvad",bambino:"Claudio Fontana",nato_il:"21/03/2018",eta:8,inizio:"20/07/2026",fine:"31/07/2026",sett:2,nav:false,pasto_casa:false,citta:"Torino",quota:150,acconto:175,saldato:0,da_saldare:0,stato:"SALDATO",note_pag:"Bonifico 350 diviso (24/03)",note_bimbo:"",telefono:"3478849913",genitore:"Tiziana Pellegrini"},
-  {id:"y0ktjxk",bambino:"Dario Di Liddo",nato_il:"05/06/2012",eta:14,inizio:"08/06/2026",fine:"03/07/2026",sett:4,nav:false,pasto_casa:false,citta:"Ruvo di Puglia",quota:260,acconto:78,saldato:0,da_saldare:182,stato:"ACCONTO",note_pag:"Acconto 156 con Luca (01/04)",note_bimbo:"Autistico",telefono:"3293058110",genitore:"Marina Cantatore"},
-  {id:"cskxvry",bambino:"Delia Calo",nato_il:"26/10/2013",eta:12,inizio:"29/06/2026",fine:"24/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Ruvo di Puglia",quota:355,acconto:250,saldato:0,da_saldare:105,stato:"ACCONTO",note_pag:"Acconto €500 con Marco (31/03)",note_bimbo:"",telefono:"3471200518",genitore:"Sara Cantatore"},
-  {id:"ig5j9z5",bambino:"Edoardo Di Michele",nato_il:"01/03/2016",eta:10,inizio:"15/06/2026",fine:"10/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Terlizzi",quota:330,acconto:100,saldato:0,da_saldare:230,stato:"ACCONTO",note_pag:"Acconto – Di Michele (17/03)",note_bimbo:"",telefono:"3476611586",genitore:"Stefano Di Michele"},
-  {id:"sfhlyzc",bambino:"Elisa Gesmundo",nato_il:"02/01/2015",eta:11,inizio:"08/06/2026",fine:"03/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Terlizzi",quota:330,acconto:110,saldato:0,da_saldare:220,stato:"ACCONTO",note_pag:"Acconto €220 con Ettore (01/04)",note_bimbo:"",telefono:"3498727654",genitore:"Marianna Pardini"},
-  {id:"tia1z54",bambino:"Ettore Gesmundo",nato_il:"04/09/2018",eta:7,inizio:"08/06/2026",fine:"03/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Terlizzi",quota:330,acconto:110,saldato:0,da_saldare:220,stato:"ACCONTO",note_pag:"Acconto €220 con Elisa (01/04)",note_bimbo:"",telefono:"3498727654",genitore:"Marianna Pardini"},
-  {id:"xqzkjrq",bambino:"Francesco Colasanto",nato_il:"17/05/2013",eta:13,inizio:"29/06/2026",fine:"24/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Terlizzi",quota:380,acconto:114,saldato:0,da_saldare:266,stato:"ACCONTO",note_pag:"Acconto – Colasanto (23/03)",note_bimbo:"",telefono:"3475162064",genitore:"Sara De Chirico"},
-  {id:"dc0znrz",bambino:"Giulio Fontana",nato_il:"29/12/2015",eta:10,inizio:"20/07/2026",fine:"31/07/2026",sett:2,nav:false,pasto_casa:false,citta:"Torino",quota:150,acconto:175,saldato:0,da_saldare:0,stato:"SALDATO",note_pag:"Bonifico 350 diviso (24/03)",note_bimbo:"",telefono:"3478849913",genitore:"Tiziana Pellegrini"},
-  {id:"ee0pzh1",bambino:"Giulio Vitale",nato_il:"11/12/2019",eta:6,inizio:"15/06/2026",fine:"10/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Terlizzi",quota:380,acconto:114,saldato:0,da_saldare:266,stato:"ACCONTO",note_pag:"Acconto – Gesmundo (16/03)",note_bimbo:"",telefono:"3495753007",genitore:"Maria Gesmundo"},
-  {id:"1zuxvul",bambino:"Joannis Montaruli",nato_il:"23/03/2019",eta:7,inizio:"08/06/2026",fine:"03/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Terlizzi",quota:380,acconto:90,saldato:0,da_saldare:290,stato:"ACCONTO",note_pag:"Acconto – Gadaleta (16/03)",note_bimbo:"",telefono:"3451137848",genitore:"Valeria Gadaleta"},
-  {id:"x9l1gsq",bambino:"Luca Di Liddo",nato_il:"27/06/2014",eta:11,inizio:"08/06/2026",fine:"03/07/2026",sett:4,nav:false,pasto_casa:false,citta:"Ruvo di Puglia",quota:260,acconto:78,saldato:0,da_saldare:182,stato:"ACCONTO",note_pag:"Acconto 156 con Dario (01/04)",note_bimbo:"",telefono:"3293058110",genitore:"Marina Cantatore"},
-  {id:"n6lal9r",bambino:"Luigi Sforza",nato_il:"22/11/2017",eta:8,inizio:"15/06/2026",fine:"10/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Terlizzi",quota:330,acconto:99,saldato:0,da_saldare:231,stato:"ACCONTO",note_pag:"Acconto 198 con Raffaele (18/03)",note_bimbo:"",telefono:"3497782136",genitore:"Maria Mariani"},
-  {id:"tz2zcww",bambino:"Marco Calo",nato_il:"06/08/2011",eta:14,inizio:"29/06/2026",fine:"24/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Ruvo di Puglia",quota:355,acconto:250,saldato:0,da_saldare:105,stato:"ACCONTO",note_pag:"Acconto €500 con Delia (31/03)",note_bimbo:"",telefono:"3471200518",genitore:"Sara Cantatore"},
-  {id:"s0s7c05",bambino:"Maria V. Decanio",nato_il:"18/07/2019",eta:6,inizio:"29/06/2026",fine:"24/07/2026",sett:4,nav:false,pasto_casa:false,citta:"Corato",quota:280,acconto:0,saldato:0,da_saldare:280,stato:"DA PAGARE",note_pag:"",note_bimbo:"",telefono:"3457119637",genitore:"Lucia Iannone"},
-  {id:"9a6pdts",bambino:"Pierluigi Decanio",nato_il:"18/07/2019",eta:6,inizio:"29/06/2026",fine:"24/07/2026",sett:4,nav:false,pasto_casa:false,citta:"Corato",quota:280,acconto:0,saldato:0,da_saldare:280,stato:"DA PAGARE",note_pag:"",note_bimbo:"",telefono:"3457119637",genitore:"Lucia Iannone"},
-  {id:"k8ivb27",bambino:"Raffaele Sforza",nato_il:"13/11/2019",eta:6,inizio:"15/06/2026",fine:"10/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Terlizzi",quota:330,acconto:99,saldato:0,da_saldare:231,stato:"ACCONTO",note_pag:"Acconto 198 con Luigi (18/03)",note_bimbo:"",telefono:"3497782136",genitore:"Maria Mariani"},
-  {id:"x99qvjg",bambino:"Rebecca Nardi",nato_il:"19/12/2012",eta:13,inizio:"06/07/2026",fine:"31/07/2026",sett:4,nav:false,pasto_casa:false,citta:"Ruvo di Puglia",quota:280,acconto:0,saldato:0,da_saldare:280,stato:"DA PAGARE",note_pag:"",note_bimbo:"",telefono:"3408605024",genitore:"Sabrina De Fronzo"},
-  {id:"z9p6r9v",bambino:"Salvatore Gattullo",nato_il:"07/05/2014",eta:12,inizio:"08/06/2026",fine:"03/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Ruvo di Puglia",quota:380,acconto:110,saldato:0,da_saldare:270,stato:"ACCONTO",note_pag:"Acconto – Gattullo (23/03)",note_bimbo:"Verifica n. sett.",telefono:"3206555738",genitore:"Maria Rutigliani"},
-  {id:"apm5wxy",bambino:"Geremia Pizzolorusso",nato_il:"18/05/2015",eta:11,inizio:"22/06/2026",fine:"17/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Terlizzi",quota:380,acconto:114,saldato:0,da_saldare:266,stato:"ACCONTO",note_pag:"Acconto €114 – Bisceglie (23/03)",note_bimbo:"",telefono:"3478557866",genitore:"Maria Bisceglie"},
-  {id:"0dbq6d1",bambino:"Gian Michele Livorti",nato_il:"12/09/2013",eta:12,inizio:"08/06/2026",fine:"03/07/2026",sett:4,nav:false,pasto_casa:false,citta:"Ruvo di Puglia",quota:260,acconto:180,saldato:0,da_saldare:80,stato:"ACCONTO",note_pag:"Acconto €360 con Miriam (24/03)",note_bimbo:"",telefono:"3452135453",genitore:"Antonia Rutigliani"},
-  {id:"vqilhc8",bambino:"Miriam Livorti",nato_il:"09/11/2014",eta:11,inizio:"08/06/2026",fine:"03/07/2026",sett:4,nav:false,pasto_casa:false,citta:"Ruvo di Puglia",quota:260,acconto:180,saldato:0,da_saldare:80,stato:"ACCONTO",note_pag:"Acconto €360 con Gian Michele (24/03)",note_bimbo:"",telefono:"3452135453",genitore:"Antonia Rutigliani"},
-  {id:"dr0in6k",bambino:"Francesco Scagliola",nato_il:"22/06/2017",eta:8,inizio:"22/06/2026",fine:"17/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Terlizzi",quota:380,acconto:0,saldato:380,da_saldare:0,stato:"SALDATO",note_pag:"Saldo completo (01/04)",note_bimbo:"⚠ Verifica tel. e data nascita",telefono:"3403740164",genitore:"Michele Scagliola"},
-  {id:"63seekj",bambino:"Giuseppe De Leo",nato_il:"01/01/2018",eta:8,inizio:"22/06/2026",fine:"17/07/2026",sett:4,nav:false,pasto_casa:false,citta:"Terlizzi",quota:280,acconto:114,saldato:0,da_saldare:166,stato:"ACCONTO",note_pag:"Acconto 114 (30/03) dal 22 giugno",note_bimbo:"",telefono:"3471234567",genitore:"Emiliano De Leo"}
-,
-  {id:"in3a40k",bambino:"Serena Quatela",nato_il:"",eta:0,inizio:"08/06/2026",fine:"03/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Ruvo di Puglia",quota:330,acconto:0,saldato:0,da_saldare:330,stato:"DA PAGARE",note_pag:"⚠ Dati da completare",note_bimbo:"",telefono:"",genitore:""},
-  {id:"4j4y663",bambino:"Nina Fabiano",nato_il:"",eta:0,inizio:"08/06/2026",fine:"03/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Ruvo di Puglia",quota:330,acconto:0,saldato:0,da_saldare:330,stato:"DA PAGARE",note_pag:"⚠ Dati da completare",note_bimbo:"",telefono:"",genitore:""}
+  {id:"qo8d4ip",bambino:"Roberta Anna Amenduni",nato_il:"28/11/2015",eta:10,inizio:"08/06/2026",fine:"03/07/2026",sett:4,nav:false,pasto_casa:false,citta:"Ruvo di Puglia",quota:300,acconto:0,saldato:0,da_saldare:300,stato:"DA PAGARE",note_pag:"",note_bimbo:"",telefono:"3463088601",genitore:"Angela Amenduni"},
+  {id:"hxp8a0h",bambino:"Vincenzo Ficco",nato_il:"02/02/2015",eta:11,inizio:"22/06/2026",fine:"17/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Terlizzi",quota:330,acconto:100,saldato:0,da_saldare:230,stato:"ACCONTO",note_pag:"Acconto €200 con Adriano",note_bimbo:"",telefono:"3471958825",genitore:"Angela D'Elia"},
+  {id:"tc50j86",bambino:"Adriano Ficco",nato_il:"20/08/2019",eta:6,inizio:"22/06/2026",fine:"17/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Terlizzi",quota:330,acconto:100,saldato:0,da_saldare:230,stato:"ACCONTO",note_pag:"Acconto €200 con Vincenzo",note_bimbo:"",telefono:"3471958825",genitore:"Angela D'Elia"},
+  {id:"vu9hrfi",bambino:"Beatrice N. Tamborra",nato_il:"12/11/2016",eta:9,inizio:"29/06/2026",fine:"24/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Terlizzi",quota:355,acconto:125,saldato:0,da_saldare:230,stato:"ACCONTO",note_pag:"Acconto €250 con Lorenzo (01/04)",note_bimbo:"",telefono:"3927581223",genitore:"Angela De Nicolo"},
+  {id:"kg56fdp",bambino:"Lorenzo F. Tamborra",nato_il:"04/10/2019",eta:6,inizio:"29/06/2026",fine:"24/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Terlizzi",quota:355,acconto:125,saldato:0,da_saldare:230,stato:"ACCONTO",note_pag:"Acconto €250 con Beatrice (01/04)",note_bimbo:"",telefono:"3927581223",genitore:"Angela De Nicolo"},
+  {id:"r3hjszk",bambino:"Matilde Digregorio",nato_il:"03/05/2017",eta:9,inizio:"08/06/2026",fine:"03/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Terlizzi",quota:330,acconto:100,saldato:0,da_saldare:230,stato:"ACCONTO",note_pag:"Acconto – Aniello",note_bimbo:"",telefono:"3470355091",genitore:"Anna Aniello"},
+  {id:"aoxvv4k",bambino:"Elena Musacchio",nato_il:"05/02/2014",eta:12,inizio:"29/06/2026",fine:"24/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Corato",quota:355,acconto:107,saldato:0,da_saldare:248,stato:"ACCONTO",note_pag:"Acconto €213 con Giuseppe (31/03)",note_bimbo:"",telefono:"3405668376",genitore:"Annamaria Portaccio"},
+  {id:"rpz1ay3",bambino:"Giuseppe Musacchio",nato_il:"11/03/2016",eta:10,inizio:"29/06/2026",fine:"24/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Corato",quota:355,acconto:106,saldato:0,da_saldare:249,stato:"ACCONTO",note_pag:"Acconto €213 con Elena (31/03)",note_bimbo:"",telefono:"3405668376",genitore:"Annamaria Portaccio"},
+  {id:"144b0lg",bambino:"Gabriele Cagnetta",nato_il:"24/03/2020",eta:6,inizio:"22/06/2026",fine:"17/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Molfetta",quota:380,acconto:114,saldato:0,da_saldare:266,stato:"ACCONTO",note_pag:"Acconto – Cagnetta (31/03)",note_bimbo:"",telefono:"3497632126",genitore:"Francesco Cagnetta"},
+  {id:"ew2qhf9",bambino:"Francisco J. Gadaleta",nato_il:"28/04/2013",eta:13,inizio:"08/06/2026",fine:"03/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Ruvo di Puglia",quota:380,acconto:0,saldato:0,da_saldare:380,stato:"DA PAGARE",note_pag:"",note_bimbo:"Leggermente intollerante al lattosio",telefono:"3493763545",genitore:"Stefania Carbonara"},
+  {id:"4t0m5hj",bambino:"Alessandro Carlucci",nato_il:"17/01/2014",eta:12,inizio:"08/06/2026",fine:"03/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Ruvo di Puglia",quota:330,acconto:0,saldato:330,da_saldare:0,stato:"SALDATO",note_pag:"Saldo completo (17/03)",note_bimbo:"",telefono:"3493428077",genitore:"Cinzia Ribatti"},
+  {id:"u8qur02",bambino:"Andrea Dallafiore",nato_il:"10/09/2019",eta:6,inizio:"29/06/2026",fine:"24/07/2026",sett:4,nav:false,pasto_casa:false,citta:"Ruvo di Puglia",quota:260,acconto:0,saldato:0,da_saldare:260,stato:"DA PAGARE",note_pag:"",note_bimbo:"",telefono:"3498080711",genitore:"Francesca Di Gregorio"},
+  {id:"mhlmohq",bambino:"Mattia Dallafiore",nato_il:"10/09/2019",eta:6,inizio:"29/06/2026",fine:"24/07/2026",sett:4,nav:false,pasto_casa:false,citta:"Ruvo di Puglia",quota:260,acconto:0,saldato:0,da_saldare:260,stato:"DA PAGARE",note_pag:"",note_bimbo:"",telefono:"3498080711",genitore:"Francesca Di Gregorio"},
+  {id:"68hsgl0",bambino:"Michelangelo Gattulli",nato_il:"28/11/2013",eta:12,inizio:"08/06/2026",fine:"26/06/2026",sett:3,nav:false,pasto_casa:false,citta:"Ruvo di Puglia",quota:240,acconto:0,saldato:0,da_saldare:240,stato:"DA PAGARE",note_pag:"",note_bimbo:"",telefono:"3471855715",genitore:"Francesco Gattulli"},
+  {id:"2dxp5vk",bambino:"Gabriel Formiglio",nato_il:"26/08/2016",eta:9,inizio:"08/06/2026",fine:"19/06/2026",sett:2,nav:false,pasto_casa:false,citta:"Roma",quota:160,acconto:0,saldato:160,da_saldare:0,stato:"SALDATO",note_pag:"Saldo completo (18/03)",note_bimbo:"",telefono:"3518102475",genitore:"Giovanni Formiglio"},
+  {id:"e6rsm0p",bambino:"Francesco G. De Noia",nato_il:"17/12/2017",eta:8,inizio:"08/06/2026",fine:"03/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Terlizzi",quota:330,acconto:0,saldato:330,da_saldare:0,stato:"SALDATO",note_pag:"Saldo completo (17/03)",note_bimbo:"",telefono:"3407443173",genitore:"Barbara de Robertis"},
+  {id:"2c6u0m0",bambino:"Antonio Altomare",nato_il:"14/10/2016",eta:9,inizio:"08/06/2026",fine:"19/06/2026",sett:2,nav:false,pasto_casa:false,citta:"Terlizzi",quota:150,acconto:0,saldato:0,da_saldare:150,stato:"DA PAGARE",note_pag:"",note_bimbo:"Allergia ulivi, polvere, gatto",telefono:"3805477973",genitore:"Valeria D'aniello"},
+  {id:"9szpdaq",bambino:"Martina Altomare",nato_il:"01/08/2020",eta:5,inizio:"08/06/2026",fine:"19/06/2026",sett:2,nav:false,pasto_casa:false,citta:"Terlizzi",quota:150,acconto:0,saldato:0,da_saldare:150,stato:"DA PAGARE",note_pag:"",note_bimbo:"",telefono:"3805477973",genitore:"Valeria D'aniello"},
+  {id:"phezlha",bambino:"Chiara Mastrorilli",nato_il:"20/08/2015",eta:10,inizio:"22/06/2026",fine:"17/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Terlizzi",quota:380,acconto:120,saldato:0,da_saldare:260,stato:"ACCONTO",note_pag:"Acconto – Mastrorilli (01/04)",note_bimbo:"",telefono:"3498721444",genitore:"Tommaso Mastrorilli"},
+  {id:"9njdx14",bambino:"Adelina Burlan",nato_il:"18/10/2015",eta:10,inizio:"08/06/2026",fine:"03/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Ruvo di Puglia",quota:330,acconto:150,saldato:0,da_saldare:180,stato:"ACCONTO",note_pag:"Anticipo mar'26",note_bimbo:"Lattosio · FANS",telefono:"3485416308",genitore:"Larisa Burlan"},
+  {id:"org2dmg",bambino:"Claudio Fontana",nato_il:"21/03/2018",eta:8,inizio:"20/07/2026",fine:"31/07/2026",sett:2,nav:false,pasto_casa:false,citta:"Torino",quota:150,acconto:175,saldato:0,da_saldare:0,stato:"SALDATO",note_pag:"Bonifico 350 diviso (24/03)",note_bimbo:"",telefono:"3478849913",genitore:"Tiziana Pellegrini"},
+  {id:"w2akqcc",bambino:"Dario Di Liddo",nato_il:"05/06/2012",eta:14,inizio:"08/06/2026",fine:"03/07/2026",sett:4,nav:false,pasto_casa:false,citta:"Ruvo di Puglia",quota:260,acconto:78,saldato:0,da_saldare:182,stato:"ACCONTO",note_pag:"Acconto 156 con Luca (01/04)",note_bimbo:"Autistico",telefono:"3293058110",genitore:"Marina Cantatore"},
+  {id:"7v7c8pk",bambino:"Delia Calo",nato_il:"26/10/2013",eta:12,inizio:"29/06/2026",fine:"24/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Ruvo di Puglia",quota:355,acconto:250,saldato:0,da_saldare:105,stato:"ACCONTO",note_pag:"Acconto €500 con Marco (31/03)",note_bimbo:"",telefono:"3471200518",genitore:"Sara Cantatore"},
+  {id:"tlt1tdl",bambino:"Edoardo Di Michele",nato_il:"01/03/2016",eta:10,inizio:"15/06/2026",fine:"10/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Terlizzi",quota:330,acconto:100,saldato:0,da_saldare:230,stato:"ACCONTO",note_pag:"Acconto – Di Michele (17/03)",note_bimbo:"",telefono:"3476611586",genitore:"Stefano Di Michele"},
+  {id:"mjun3j1",bambino:"Elisa Gesmundo",nato_il:"02/01/2015",eta:11,inizio:"08/06/2026",fine:"03/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Terlizzi",quota:330,acconto:110,saldato:0,da_saldare:220,stato:"ACCONTO",note_pag:"Acconto €220 con Ettore (01/04)",note_bimbo:"",telefono:"3498727654",genitore:"Marianna Pardini"},
+  {id:"3up5dqc",bambino:"Ettore Gesmundo",nato_il:"04/09/2018",eta:7,inizio:"08/06/2026",fine:"03/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Terlizzi",quota:330,acconto:110,saldato:0,da_saldare:220,stato:"ACCONTO",note_pag:"Acconto €220 con Elisa (01/04)",note_bimbo:"",telefono:"3498727654",genitore:"Marianna Pardini"},
+  {id:"11123uc",bambino:"Francesco Colasanto",nato_il:"17/05/2013",eta:13,inizio:"29/06/2026",fine:"24/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Terlizzi",quota:380,acconto:114,saldato:0,da_saldare:266,stato:"ACCONTO",note_pag:"Acconto – Colasanto (23/03)",note_bimbo:"",telefono:"3475162064",genitore:"Sara De Chirico"},
+  {id:"oms6chw",bambino:"Giulio Fontana",nato_il:"29/12/2015",eta:10,inizio:"20/07/2026",fine:"31/07/2026",sett:2,nav:false,pasto_casa:false,citta:"Torino",quota:150,acconto:175,saldato:0,da_saldare:0,stato:"SALDATO",note_pag:"Bonifico 350 diviso (24/03)",note_bimbo:"",telefono:"3478849913",genitore:"Tiziana Pellegrini"},
+  {id:"4awdg9d",bambino:"Giulio Vitale",nato_il:"11/12/2019",eta:6,inizio:"15/06/2026",fine:"10/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Terlizzi",quota:380,acconto:114,saldato:0,da_saldare:266,stato:"ACCONTO",note_pag:"Acconto – Gesmundo (16/03)",note_bimbo:"",telefono:"3495753007",genitore:"Maria Gesmundo"},
+  {id:"y98rc73",bambino:"Joannis Montaruli",nato_il:"23/03/2019",eta:7,inizio:"08/06/2026",fine:"03/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Terlizzi",quota:380,acconto:90,saldato:0,da_saldare:290,stato:"ACCONTO",note_pag:"Acconto – Gadaleta (16/03)",note_bimbo:"",telefono:"3451137848",genitore:"Valeria Gadaleta"},
+  {id:"rodn194",bambino:"Luca Di Liddo",nato_il:"27/06/2014",eta:11,inizio:"08/06/2026",fine:"03/07/2026",sett:4,nav:false,pasto_casa:false,citta:"Ruvo di Puglia",quota:260,acconto:78,saldato:0,da_saldare:182,stato:"ACCONTO",note_pag:"Acconto 156 con Dario (01/04)",note_bimbo:"",telefono:"3293058110",genitore:"Marina Cantatore"},
+  {id:"ltwvko2",bambino:"Luigi Sforza",nato_il:"22/11/2017",eta:8,inizio:"15/06/2026",fine:"10/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Terlizzi",quota:330,acconto:99,saldato:0,da_saldare:231,stato:"ACCONTO",note_pag:"Acconto 198 con Raffaele (18/03)",note_bimbo:"",telefono:"3497782136",genitore:"Maria Mariani"},
+  {id:"0qrkz4h",bambino:"Marco Calo",nato_il:"06/08/2011",eta:14,inizio:"29/06/2026",fine:"24/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Ruvo di Puglia",quota:355,acconto:250,saldato:0,da_saldare:105,stato:"ACCONTO",note_pag:"Acconto €500 con Delia (31/03)",note_bimbo:"",telefono:"3471200518",genitore:"Sara Cantatore"},
+  {id:"r756efu",bambino:"Maria V. Decanio",nato_il:"18/07/2019",eta:6,inizio:"29/06/2026",fine:"24/07/2026",sett:4,nav:false,pasto_casa:false,citta:"Corato",quota:280,acconto:0,saldato:0,da_saldare:280,stato:"DA PAGARE",note_pag:"",note_bimbo:"",telefono:"3457119637",genitore:"Lucia Iannone"},
+  {id:"utm0shr",bambino:"Pierluigi Decanio",nato_il:"18/07/2019",eta:6,inizio:"29/06/2026",fine:"24/07/2026",sett:4,nav:false,pasto_casa:false,citta:"Corato",quota:280,acconto:0,saldato:0,da_saldare:280,stato:"DA PAGARE",note_pag:"",note_bimbo:"",telefono:"3457119637",genitore:"Lucia Iannone"},
+  {id:"b5jezbq",bambino:"Raffaele Sforza",nato_il:"13/11/2019",eta:6,inizio:"15/06/2026",fine:"10/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Terlizzi",quota:330,acconto:99,saldato:0,da_saldare:231,stato:"ACCONTO",note_pag:"Acconto 198 con Luigi (18/03)",note_bimbo:"",telefono:"3497782136",genitore:"Maria Mariani"},
+  {id:"cignypj",bambino:"Rebecca Nardi",nato_il:"19/12/2012",eta:13,inizio:"06/07/2026",fine:"31/07/2026",sett:4,nav:false,pasto_casa:false,citta:"Ruvo di Puglia",quota:280,acconto:0,saldato:0,da_saldare:280,stato:"DA PAGARE",note_pag:"",note_bimbo:"",telefono:"3408605024",genitore:"Sabrina De Fronzo"},
+  {id:"bq88dxp",bambino:"Salvatore Gattullo",nato_il:"07/05/2014",eta:12,inizio:"08/06/2026",fine:"03/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Ruvo di Puglia",quota:380,acconto:110,saldato:0,da_saldare:270,stato:"ACCONTO",note_pag:"Acconto – Gattullo (23/03)",note_bimbo:"Verifica n. sett.",telefono:"3206555738",genitore:"Maria Rutigliani"},
+  {id:"rdzc19s",bambino:"Geremia Pizzolorusso",nato_il:"18/05/2015",eta:11,inizio:"22/06/2026",fine:"17/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Terlizzi",quota:380,acconto:114,saldato:0,da_saldare:266,stato:"ACCONTO",note_pag:"Acconto €114 – Bisceglie (23/03)",note_bimbo:"",telefono:"3478557866",genitore:"Maria Bisceglie"},
+  {id:"hrzjnkw",bambino:"Gian Michele Livorti",nato_il:"12/09/2013",eta:12,inizio:"08/06/2026",fine:"03/07/2026",sett:4,nav:false,pasto_casa:false,citta:"Ruvo di Puglia",quota:260,acconto:180,saldato:0,da_saldare:80,stato:"ACCONTO",note_pag:"Acconto €360 con Miriam (24/03)",note_bimbo:"",telefono:"3452135453",genitore:"Antonia Rutigliani"},
+  {id:"00j236q",bambino:"Miriam Livorti",nato_il:"09/11/2014",eta:11,inizio:"08/06/2026",fine:"03/07/2026",sett:4,nav:false,pasto_casa:false,citta:"Ruvo di Puglia",quota:260,acconto:180,saldato:0,da_saldare:80,stato:"ACCONTO",note_pag:"Acconto €360 con Gian Michele (24/03)",note_bimbo:"",telefono:"3452135453",genitore:"Antonia Rutigliani"},
+  {id:"h0vcrbw",bambino:"Francesco Scagliola",nato_il:"22/06/2017",eta:8,inizio:"22/06/2026",fine:"17/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Terlizzi",quota:380,acconto:0,saldato:380,da_saldare:0,stato:"SALDATO",note_pag:"Saldo completo (01/04)",note_bimbo:"⚠ Verifica tel. e data nascita",telefono:"3403740164",genitore:"Michele Scagliola"},
+  {id:"untg02y",bambino:"Giuseppe De Leo",nato_il:"01/01/2018",eta:8,inizio:"22/06/2026",fine:"17/07/2026",sett:4,nav:false,pasto_casa:false,citta:"Terlizzi",quota:280,acconto:114,saldato:0,da_saldare:166,stato:"ACCONTO",note_pag:"Acconto 114 (30/03) dal 22 giugno",note_bimbo:"",telefono:"3471234567",genitore:"Emiliano De Leo"},
+  {id:"x2a5vq7",bambino:"Serena Quatela",nato_il:"",eta:0,inizio:"08/06/2026",fine:"03/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Ruvo di Puglia",quota:330,acconto:0,saldato:0,da_saldare:330,stato:"DA PAGARE",note_pag:"⚠ Dati da completare",note_bimbo:"",telefono:"",genitore:""},
+  {id:"knvaza5",bambino:"Nina Fabiano",nato_il:"",eta:0,inizio:"08/06/2026",fine:"03/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Ruvo di Puglia",quota:330,acconto:0,saldato:0,da_saldare:330,stato:"DA PAGARE",note_pag:"⚠ Dati da completare",note_bimbo:"",telefono:"",genitore:""}
 ];
-
 const E=v=>Number(v||0).toLocaleString("it-IT",{style:"currency",currency:"EUR",maximumFractionDigits:0});
 const E2=v=>Number(v||0).toLocaleString("it-IT",{style:"currency",currency:"EUR",minimumFractionDigits:2,maximumFractionDigits:2});
 const calcWeeks=(inizio,sett)=>{const s=DAL_TO_SETT[inizio];if(!s)return[];return Array.from({length:sett},(_,i)=>s+i).filter(w=>w>=1&&w<=8);};
@@ -119,7 +116,7 @@ const autoStato=r=>{const res=calcResidue(r);if(res===0&&((r.saldato||0)>0||(r.a
 const AKW=["lattosio","glutin","celiac","allergi","latte","uova","pesce","noci","arachid","epipen","fans"];
 const MKW=["autist","epiless","diabeti","asma","cardiop","sindrome","disabilit","iperattiv","adhd"];
 const noteType=note=>{if(!note?.trim())return null;const l=note.toLowerCase();if(MKW.some(k=>l.includes(k)))return"medica";if(AKW.some(k=>l.includes(k)))return"allergia";return"nota";};
-const NST={allergia:{bg:"#fef2f2",border:"2px solid #dc2626",col:"#991b1b",icon:"🚨"},medica:{bg:"#fff7ed",border:"2px solid #ea580c",col:"#9a3412",icon:"⚕️"},nota:{bg:"#fefce8",border:"1px solid #ca8a04",col:"#854d0e",icon:"📋"}};
+const NST={allergia:{bg:"#fef2f2",border:"2px solid #dc2626",col:"#991b1b",icon:"🚨"},medica:{bg:"#fff7ed",border:"2px solid #ea580c",col:"#9a3412",icon:"⚕"},nota:{bg:"#fefce8",border:"1px solid #ca8a04",col:"#854d0e",icon:"📋"}};
 const isIncomplete=r=>!r.bambino?.trim()||!r.telefono?.trim()||!r.genitore?.trim();
 const SBG={SALDATO:"#dcfce7",ACCONTO:"#fef9c3","DA PAGARE":"#fee2e2"};
 const SCL={SALDATO:"#166534",ACCONTO:"#854d0e","DA PAGARE":"#991b1b"};
@@ -236,7 +233,7 @@ function ApiKeyBanner(){
 function SaveBar({hasChanges,saving,onSave,onReset,lastSaved,onLogout}){
   return(<div style={{position:"sticky",top:0,zIndex:100,display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 14px",background:hasChanges?"#fef3c7":"#f0fdf4",border:`1px solid ${hasChanges?"#d97706":"#16a34a"}`,marginBottom:12,gap:8,flexWrap:"wrap"}}>
     <span style={{fontSize:12,fontWeight:700,color:hasChanges?"#92400e":"#166534"}}>
-      {saving?"💾 Salvataggio su Supabase…":hasChanges?"⚠️  Modifiche non salvate — premi Salva":`✓  Salvato su database${lastSaved?" · "+lastSaved:""}`}
+      {saving?"💾 Salvataggio su Supabase…":hasChanges?"⚠  Modifiche non salvate — premi Salva":`✓  Salvato su database${lastSaved?" · "+lastSaved:""}`}
     </span>
     <div style={{display:"flex",gap:6,alignItems:"center"}}>
       {hasChanges&&<button onClick={onReset} style={{padding:"5px 12px",border:"1px solid #000",background:"#fff",fontSize:11,cursor:"pointer",fontWeight:600}}>Annulla</button>}
@@ -431,7 +428,7 @@ function DraftEditorPanel({draft,existingData,onCommit,onDiscard,showToast}){
               <div style={{display:"flex",gap:12}}>
                 <label style={{display:"flex",alignItems:"center",gap:6,cursor:"pointer",fontSize:12,fontWeight:600,userSelect:"none"}}>
                   <input type="checkbox" checked={r.nav} onChange={e=>upd("nav",e.target.checked)} style={{width:16,height:16,cursor:"pointer"}}/>
-                  <span style={{background:r.nav?"#1e40af":"#e5e7eb",color:r.nav?"#fff":"#888",padding:"2px 8px",fontWeight:r.nav?700:400}}>{"🚐"} Navetta</span>
+                  <span style={{background:r.nav?"#1e40af":"#e5e7eb",color:r.nav?"#fff":"#888",padding:"2px 8px",fontWeight:r.nav?700:400}}>🚐 Navetta</span>
                 </label>
                 <label style={{display:"flex",alignItems:"center",gap:6,cursor:"pointer",fontSize:12,fontWeight:600,userSelect:"none"}}>
                   <input type="checkbox" checked={r.pasto_casa} onChange={e=>upd("pasto_casa",e.target.checked)} style={{width:16,height:16,cursor:"pointer"}}/>
@@ -476,8 +473,8 @@ function DraftEditorPanel({draft,existingData,onCommit,onDiscard,showToast}){
             <div style={{fontWeight:700,marginBottom:6}}>✅ Effetti dopo "Applica e Salva"</div>
             <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
               <span>📋 Aggiunto a <strong>Tabella Iscritti</strong></span>
-              {r.nav&&<span style={{color:"#1e40af",fontWeight:600}}>{"🚐"} Aggiunto a <strong>Contabilità Navette</strong> · -1 posto disponibile</span>}
-              {!r.pasto_casa&&<span style={{color:"#166534",fontWeight:600}}>{"🍽️"} Aggiunto a <strong>Contabilità Pasti</strong></span>}
+              {r.nav&&<span style={{color:"#1e40af",fontWeight:600}}>🚐 Aggiunto a <strong>Contabilità Navette</strong> · -1 posto disponibile</span>}
+              {!r.pasto_casa&&<span style={{color:"#166534",fontWeight:600}}>🍽 Aggiunto a <strong>Contabilità Pasti</strong></span>}
               <span style={{color:"#185FA5",fontWeight:600}}>📐 BEP e Ricavi Extra aggiornati</span>
             </div>
           </div>
@@ -564,63 +561,27 @@ function TabImport({onSync,existingData,showToast,savedMappings,setSavedMappings
         }
         const b64=btoa(binary);
         addLog("Claude OCR PDF — estrazione in corso…");
-        const pdfPrompt="Analizza questo PDF di iscrizione Campi Natura Macaranga. IMPORTANTE: il PDF puo contenere 1 o 2 figli. Restituisci SOLO un array JSON puro senza backtick senza testo aggiuntivo. Ogni elemento rappresenta UN bambino. Campi per ogni bambino: bambino(Nome+Cognome figlio da Nome Figlio1/Cognome Figlio1 o Nome/cognome nel testo), nato_il(Data Nascita in dd/mm/yyyy), eta(int), inizio(Data Inizio Nature o data inizio in dd/mm/yyyy usa 08/06/2026 se mancante), fine(calcola da inizio+sett), sett(settimane int 1-8 dal costo o durata), nav(boolean true se trasferimento navetta bus), pasto_casa(false di default), citta(Residenza mappa Terlizzi->Terlizzi Molfetta->Molfetta Ruvo->Ruvo di Puglia Corato->Corato), quota(costo pacchetto diviso per numero figli numero), acconto(0), saldato(0), da_saldare(quota), stato(DA PAGARE), note_pag(sconto tipo tessaramento), note_bimbo(allergie intolleranze CAMPO CRITICO), telefono(genitore), genitore(Nome Cognome). Se ci sono 2 figli crea 2 elementi separati. Valori mancanti stringa vuota o 0.";
-        const pdfHeaders={"Content-Type":"application/json","anthropic-dangerous-direct-browser-access":"true","x-api-key":localStorage.getItem("mac_api_key")||window.__ANTHROPIC_KEY__||"","anthropic-version":"2023-06-01"};
+        const pdfPrompt="Analizza questo PDF di iscrizione Campi Natura Macaranga. IMPORTANTE: il PDF puo contenere 1 o 2 figli. Restituisci SOLO un array JSON valido senza backtick e senza testo aggiuntivo. Ogni elemento rappresenta UN bambino. Campi: bambino(Nome Cognome del figlio), nato_il(dd/mm/yyyy), eta(int), inizio(Data Inizio in dd/mm/yyyy, usa 08/06/2026 se mancante), fine(calcola da inizio+sett), sett(settimane int 1-8), nav(boolean true se navetta/trasferimento/bus), pasto_casa(false di default), citta(Residenza: Terlizzi/Molfetta/Ruvo di Puglia/Corato/Roma ecc), quota(costo diviso per numero figli), acconto(0), saldato(0), da_saldare(uguale a quota), stato(DA PAGARE), note_pag(tipo sconto), note_bimbo(allergie intolleranze patologie CRITICO), telefono(del genitore), genitore(Nome Cognome). Se ci sono 2 figli crea 2 elementi separati. Valori mancanti: stringa vuota o 0.";
         const pdfBody=JSON.stringify({model:"claude-sonnet-4-6",max_tokens:4000,messages:[{role:"user",content:[{type:"document",source:{type:"base64",media_type:"application/pdf",data:b64}},{type:"text",text:pdfPrompt}]}]});
+        const pdfHeaders={"Content-Type":"application/json","anthropic-dangerous-direct-browser-access":"true","x-api-key":localStorage.getItem("mac_api_key")||window.__ANTHROPIC_KEY__||"","anthropic-version":"2023-06-01"};
         const resp=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:pdfHeaders,body:pdfBody});
         const rawResp=await resp.json();
-        if(!rawResp||!rawResp.content){addLog("Errore API: "+(rawResp&&rawResp.error?rawResp.error.message:"errore sconosciuto"),"error");setUploading(false);return;}
+        if(!rawResp||!rawResp.content){addLog("Errore API: "+(rawResp&&rawResp.error?rawResp.error.message:"risposta vuota"),"error");setUploading(false);return;}
         const txt=rawResp.content.filter(b=>b.type==="text").map(b=>b.text).join("");
-        addLog("Claude risponde: "+txt.slice(0,80));
-        // Estrae array o oggetto JSON robusto
         let parsed;
         try{
           let clean=txt.replace(/```json|```/g,"").trim();
           const arrMatch=clean.match(/\[[\s\S]*\]/);
-          if(arrMatch){
-            parsed=JSON.parse(arrMatch[0]);
-          }else{
-            // Prova a trovare tutti gli oggetti {}
-            const objMatches=[...clean.matchAll(/{[^{}]*(?:{[^{}]*}[^{}]*)*}/g)].map(m=>m[0]);
-            if(objMatches.length>0)parsed=objMatches.map(s=>{try{return JSON.parse(s);}catch(e){return null;}}).filter(Boolean);
-            else{addLog("Nessun JSON trovato","error");setUploading(false);return;}
-          }
-        }catch(pe){addLog("Errore parsing JSON: "+pe.message,"error");setUploading(false);return;}
-        // Normalizza i record
-        const normRec=r=>({
-          id:uid(),
-          bambino:String(r.bambino||""),
-          nato_il:String(r.nato_il||""),
-          eta:Number(r.eta||0),
-          inizio:String(r.inizio||"08/06/2026"),
-          fine:String(r.fine||"03/07/2026"),
-          sett:Math.max(1,Number(r.sett||4)),
-          nav:r.nav===true||String(r.nav).toLowerCase()==="true",
-          pasto_casa:r.pasto_casa===true||String(r.pasto_casa).toLowerCase()==="true",
-          citta:String(r.citta||""),
-          quota:Number(r.quota||0),
-          acconto:Number(r.acconto||0),
-          saldato:Number(r.saldato||0),
-          note_pag:String(r.note_pag||""),
-          note_bimbo:String(r.note_bimbo||""),
-          telefono:String(r.telefono||"").replace(/'/g,""),
-          genitore:String(r.genitore||""),
-          da_saldare:0,stato:"DA PAGARE"
-        });
-        const records=(Array.isArray(parsed)?parsed:[parsed]).filter(r=>r&&r.bambino).map(normRec);
-        records.forEach(r=>{r.da_saldare=calcResidue(r);r.stato=autoStato(r);});
-        if(records.length===0){addLog("Nessun iscritto trovato nel PDF","warn");setUploading(false);return;}
-        // Check capienza navette
-        records.forEach(r=>{
-          if(r.nav&&r.citta){
-            const p=getPartenza(r.citta);const cap=NAV_CAP[p]??14;
-            calcWeeks(r.inizio,r.sett).forEach(s=>{
-              const used=existingData.filter(e=>e.nav&&getPartenza(e.citta)===p&&calcWeeks(e.inizio,e.sett).includes(s)).length;
-              if(used>=cap)addLog("⚠ Navetta "+p+" S"+s+" al completo ("+used+"/"+cap+")!","warn");
-            });
-          }
-        });
-        addLog("✓ "+records.length+" bambino/i estratti","ok");
+          if(arrMatch){try{parsed=JSON.parse(arrMatch[0]);}catch(e){parsed=null;}}
+          if(!parsed){const objMatches=[...clean.matchAll(/{[^{}]*(?:{[^{}]*}[^{}]*)*}/g)].map(m=>m[0]);
+            parsed=objMatches.map(s=>{try{return JSON.parse(s);}catch(e){return null;}}).filter(Boolean);}
+          if(!parsed||parsed.length===0){addLog("Nessun JSON trovato","error");setUploading(false);return;}
+        }catch(pe){addLog("JSON error: "+pe.message,"error");setUploading(false);return;}
+        const recs=(Array.isArray(parsed)?parsed:[parsed]).filter(r=>r&&r.bambino);
+        if(recs.length===0){addLog("Nessun iscritto trovato","warn");setUploading(false);return;}
+        const normR=r=>{const n={id:uid(),bambino:String(r.bambino||""),nato_il:String(r.nato_il||""),eta:Number(r.eta||0),inizio:String(r.inizio||"08/06/2026"),fine:String(r.fine||"03/07/2026"),sett:Math.max(1,Number(r.sett||4)),nav:r.nav===true||String(r.nav).toLowerCase()==="true",pasto_casa:r.pasto_casa===true,citta:String(r.citta||""),quota:Number(r.quota||0),acconto:Number(r.acconto||0),saldato:Number(r.saldato||0),note_pag:String(r.note_pag||""),note_bimbo:String(r.note_bimbo||""),telefono:String(r.telefono||""),genitore:String(r.genitore||""),da_saldare:0,stato:"DA PAGARE"};n.da_saldare=calcResidue(n);n.stato=autoStato(n);return n;};
+        const records=recs.map(normR);
+        addLog("OK: "+records.length+" bambino/i","ok");
         setUploading(false);
         if(records.length===1){onDraftReady(records[0]);}else{mergeAndPreview(records);}
         return;
@@ -730,11 +691,7 @@ function TabIscritti({data,setData,showToast}){
     if(["quota","acconto","saldato"].includes(k)){u.da_saldare=calcResidue(u);u.stato=autoStato(u);}
     return u;
   })),[setData]);
-  const add=()=>{
-    const r={id:uid(),bambino:"",nato_il:"",eta:0,inizio:"08/06/2026",fine:"03/07/2026",sett:1,nav:false,pasto_casa:false,citta:"",quota:70,acconto:0,saldato:0,da_saldare:70,stato:"DA PAGARE",note_pag:"",note_bimbo:"",telefono:"",genitore:""};
-    setData(p=>[r,...p]);
-    showToast("Iscritto aggiunto · imposta Nav=Sì e Città per vederlo in Navette","warn");
-  };
+  const add=()=>setData(p=>[{id:uid(),bambino:"",nato_il:"",eta:0,inizio:"08/06/2026",fine:"03/07/2026",sett:1,nav:false,pasto_casa:false,citta:"",quota:0,acconto:0,saldato:0,da_saldare:0,stato:"DA PAGARE",note_pag:"",note_bimbo:"",telefono:"",genitore:""},...p]);
   const TH={background:"#111",color:"#fff",padding:"7px 8px",border:"1px solid #000",textAlign:"center",fontWeight:600,fontSize:11,whiteSpace:"nowrap"};
   const TD=ex=>({border:"1px solid #000",padding:"5px 7px",textAlign:"center",fontSize:12,...ex});
   const iS={border:"none",background:"transparent",width:"100%",textAlign:"center",fontSize:12,color:"#1a1a1a",padding:0};
@@ -778,7 +735,7 @@ function TabIscritti({data,setData,showToast}){
     </div>
     {/* KPI */}
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(110px,1fr))",gap:8,marginBottom:12}}>
-      {[["Mostrati",sorted.length,"#111"],["🚐 Navetta",sorted.filter(r=>r.nav).length,"#1e40af"],["{"🍽️"} Pasti",sorted.filter(r=>!r.pasto_casa).length,"#166534"],["🥪 Sacco",sorted.filter(r=>r.pasto_casa).length,"#854d0e"],["Quote",E(tot.q),"#185FA5"],["Incassato",E(tot.inc),"#166534"]].map(([l,v,c])=>(
+      {[["Mostrati",sorted.length,"#111"],["🚐 Navetta",sorted.filter(r=>r.nav).length,"#1e40af"],["🍽 Pasti",sorted.filter(r=>!r.pasto_casa).length,"#166534"],["🥪 Sacco",sorted.filter(r=>r.pasto_casa).length,"#854d0e"],["Quote",E(tot.q),"#185FA5"],["Incassato",E(tot.inc),"#166534"]].map(([l,v,c])=>(
         <div key={l} style={{background:"#fff",border:"1px solid #000",padding:"9px 11px"}}><div style={{fontSize:10,color:"#666",marginBottom:2}}>{l}</div><div style={{fontSize:16,fontWeight:800,color:c}}>{v}</div></div>
       ))}
     </div>
@@ -822,7 +779,7 @@ function TabIscritti({data,setData,showToast}){
           <STH col="inizio" label="Inizio"/>
           <STH col="sett" label="S."/>
           <th style={TH}>🚐</th>
-          <th style={TH}>{"🍽️"}</th>
+          <th style={TH}>🍽</th>
           <STH col="citta" label="Città"/>
           <STH col="quota" label="Quota"/>
           <th style={{...TH,background:"#166534"}}>Acconto</th>
@@ -840,21 +797,21 @@ function TabIscritti({data,setData,showToast}){
             const inc=isIncomplete(r);const rbg=idx%2?"#fafafa":"#fff";
             return(<tr key={r.id} style={{outline:inc?"1.5px solid #d97706":"none",outlineOffset:-1}}>
               <td style={TD({background:rbg,width:26,color:"#888",fontSize:10})}>{inc&&<span style={{color:"#d97706",marginRight:2}}>●</span>}{idx+1}</td>
-              <td style={TD({background:rbg,minWidth:160,textAlign:"left"})}><input value={r.bambino||""} onChange={e=>upd(r.id,"bambino",e.target.value)} style={{...iS,textAlign:"left",fontWeight:700}}/></td>
+              <td style={TD({background:rbg,minWidth:120,textAlign:"left"})}><input value={r.bambino||""} onChange={e=>upd(r.id,"bambino",e.target.value)} style={{...iS,textAlign:"left",fontWeight:700}}/></td>
               <td style={TD({background:rbg,width:30})}><input type="number" value={r.eta||0} onChange={e=>upd(r.id,"eta",Number(e.target.value))} style={iS}/></td>
               <td style={TD({background:rbg,width:80})}><select value={r.inizio||"08/06/2026"} onChange={e=>upd(r.id,"inizio",e.target.value)} style={{...iS,cursor:"pointer",fontSize:11}}>{WEEKS.map(w=><option key={w.id} value={w.dal}>{w.dal}</option>)}</select></td>
               <td style={TD({background:rbg,width:28})}><input type="number" value={r.sett||1} min={1} max={8} onChange={e=>upd(r.id,"sett",Number(e.target.value))} style={iS}/></td>
               <td style={TD({background:r.nav?"#dbeafe":rbg,width:46})}><select value={r.nav?"si":"no"} onChange={e=>upd(r.id,"nav",e.target.value==="si")} style={{...iS,color:r.nav?"#1e40af":"#888",fontWeight:r.nav?700:400,cursor:"pointer"}}><option value="si">Sì</option><option value="no">No</option></select></td>
-              <td style={TD({background:r.pasto_casa?"#fef9c3":rbg,width:60})}><select value={r.pasto_casa?"s":"p"} onChange={e=>upd(r.id,"pasto_casa",e.target.value==="s")} style={{...iS,color:r.pasto_casa?"#854d0e":"#166534",fontWeight:600,cursor:"pointer",fontSize:10}}><option value="p">{"🍽️"}</option><option value="s">🥪</option></select></td>
-              <td style={TD({background:rbg,minWidth:110,textAlign:"left"})}><select value={r.citta||""} onChange={e=>upd(r.id,"citta",e.target.value)} style={{...iS,cursor:"pointer",fontSize:10,color:r.nav?"#1e40af":"inherit",fontWeight:r.nav?700:400}}>{CITTA_OPTIONS.map(c=><option key={c} value={c}>{c}</option>)}</select></td>
+              <td style={TD({background:r.pasto_casa?"#fef9c3":rbg,width:60})}><select value={r.pasto_casa?"s":"p"} onChange={e=>upd(r.id,"pasto_casa",e.target.value==="s")} style={{...iS,color:r.pasto_casa?"#854d0e":"#166534",fontWeight:600,cursor:"pointer",fontSize:10}}><option value="p">🍽</option><option value="s">🥪</option></select></td>
+              <td style={TD({background:rbg,minWidth:78,textAlign:"left"})}><select value={r.citta||""} onChange={e=>upd(r.id,"citta",e.target.value)} style={{...iS,cursor:"pointer",fontSize:10,color:r.nav?"#1e40af":"inherit",fontWeight:r.nav?700:400}}>{CITTA_OPTIONS.map(c=><option key={c} value={c}>{c}</option>)}</select></td>
               <td style={TD({background:rbg,width:60})}><input type="number" value={r.quota||0} onChange={e=>upd(r.id,"quota",Number(e.target.value))} style={{...iS,fontWeight:700}}/></td>
               <td style={TD({background:"#f0fdf4",width:66,borderLeft:"2px solid #16a34a"})}><input type="number" value={r.acconto||0} onChange={e=>upd(r.id,"acconto",Number(e.target.value))} style={{...iS,color:"#166534",fontWeight:700}}/></td>
               <td style={TD({background:"#f0fdf4",width:66,borderRight:"2px solid #16a34a"})}><input type="number" value={r.saldato||0} onChange={e=>upd(r.id,"saldato",Number(e.target.value))} style={{...iS,color:"#166534",fontWeight:700}}/></td>
               <td style={TD({background:(r.da_saldare||0)>0?"#fef2f2":"#dcfce7",width:64,fontWeight:800,color:(r.da_saldare||0)>0?"#dc2626":"#166534"})}>{E2(r.da_saldare||0)}</td>
               <td style={TD({background:SBG[r.stato]||rbg,width:80})}><select value={r.stato||"DA PAGARE"} onChange={e=>upd(r.id,"stato",e.target.value)} style={{...iS,fontWeight:700,color:SCL[r.stato],cursor:"pointer"}}><option value="SALDATO">Saldato</option><option value="ACCONTO">Acconto</option><option value="DA PAGARE">Da pagare</option></select></td>
-              <td style={TD({background:nt?ns.bg:rbg,border:nt?ns.border:"1px solid #000",minWidth:130,textAlign:"left"})}>{nt&&<span style={{marginRight:2}}>{ns.icon}</span>}<input value={r.note_bimbo||""} onChange={e=>upd(r.id,"note_bimbo",e.target.value)} style={{...iS,textAlign:"left",color:nt?ns.col:"#aaa",fontWeight:nt?700:400}} placeholder="nessuna"/></td>
+              <td style={TD({background:nt?ns.bg:rbg,border:nt?ns.border:"1px solid #000",minWidth:90,textAlign:"left"})}>{nt&&<span style={{marginRight:2}}>{ns.icon}</span>}<input value={r.note_bimbo||""} onChange={e=>upd(r.id,"note_bimbo",e.target.value)} style={{...iS,textAlign:"left",color:nt?ns.col:"#aaa",fontWeight:nt?700:400}} placeholder="nessuna"/></td>
               <td style={TD({background:!r.telefono?"#fef3c7":rbg,width:86})}><input value={r.telefono||""} onChange={e=>upd(r.id,"telefono",e.target.value)} style={{...iS,color:!r.telefono?"#d97706":"inherit"}} placeholder="mancante"/></td>
-              <td style={TD({background:!r.genitore?"#fef3c7":rbg,minWidth:130,textAlign:"left"})}><input value={r.genitore||""} onChange={e=>upd(r.id,"genitore",e.target.value)} style={{...iS,textAlign:"left",color:!r.genitore?"#d97706":"inherit"}} placeholder="mancante"/></td>
+              <td style={TD({background:!r.genitore?"#fef3c7":rbg,minWidth:90,textAlign:"left"})}><input value={r.genitore||""} onChange={e=>upd(r.id,"genitore",e.target.value)} style={{...iS,textAlign:"left",color:!r.genitore?"#d97706":"inherit"}} placeholder="mancante"/></td>
               <td style={TD({background:rbg,width:26})}><button onClick={()=>setConfirmDel(r)} style={{background:"none",border:"none",color:"#dc2626",fontSize:15,cursor:"pointer",fontWeight:900}}>×</button></td>
             </tr>);
           })}
@@ -890,7 +847,7 @@ function TabNavetteContab({data,giorniSett,showToast}){
   return(<div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:10,marginBottom:14}}>
       <div style={{background:"#1e40af",border:"1px solid #000",padding:14,color:"#fff"}}>
-        <div style={{fontSize:11,opacity:.8,marginBottom:4}}>{"🚐"} Totale ricavi navette (stagione)</div>
+        <div style={{fontSize:11,opacity:.8,marginBottom:4}}>🚐 Totale ricavi navette (stagione)</div>
         <div style={{fontSize:22,fontWeight:900}}>{E(totNav)}</div>
         <div style={{fontSize:11,opacity:.8,marginTop:4}}>{navRows.length} settimane-bambino · {NAV_RATE}€/giorno/bambino</div>
       </div>
@@ -976,7 +933,7 @@ function TabPastiContab({data,giorniSett,showToast}){
   return(<div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:10,marginBottom:14}}>
       <div style={{background:"#166534",border:"1px solid #000",padding:14,color:"#fff"}}>
-        <div style={{fontSize:11,opacity:.8,marginBottom:4}}>{"🍽️"} Totale ricavi pasti (stagione)</div>
+        <div style={{fontSize:11,opacity:.8,marginBottom:4}}>🍽 Totale ricavi pasti (stagione)</div>
         <div style={{fontSize:22,fontWeight:900}}>{E(totPasti)}</div>
         <div style={{fontSize:11,opacity:.8,marginTop:4}}>{pastiRows.length} settimane-bambino · {PASTI_RATE}€/giorno/bambino</div>
       </div>
@@ -1071,7 +1028,7 @@ function TabNavette({data,onAddNav}){
         const notaStyle=noteType(r.note_bimbo)?"background:#fef2f2;color:#991b1b;font-weight:bold;":"color:#aaa;";
         return "<tr><td>"+(i+1)+"</td><td><strong>"+r.bambino+"</strong></td><td>"+r.citta+"</td><td>"+r.eta+"</td><td>"+r.genitore+"</td><td>"+r.telefono+"</td><td style='"+notaStyle+"'>"+(r.note_bimbo||"—")+"</td></tr>";
       }).join("");
-      return "<h2 style='font-size:13px;margin:14px 0 4px;border-bottom:2px solid #000;padding-bottom:3px'>{"🚐"} "+p+" — "+list.length+"/"+cap+" posti ("+w.label+" · "+w.range+")</h2><table style='border-collapse:collapse;width:100%'><thead><tr><th>#</th><th>Bambino/a</th><th>Città</th><th>Età</th><th>Genitore</th><th>Telefono</th><th>Note mediche</th></tr></thead><tbody>"+trs+"</tbody></table>";
+      return "<h2 style='font-size:13px;margin:14px 0 4px;border-bottom:2px solid #000;padding-bottom:3px'>🚐 "+p+" — "+list.length+"/"+cap+" posti ("+w.label+" · "+w.range+")</h2><table style='border-collapse:collapse;width:100%'><thead><tr><th>#</th><th>Bambino/a</th><th>Città</th><th>Età</th><th>Genitore</th><th>Telefono</th><th>Note mediche</th></tr></thead><tbody>"+trs+"</tbody></table>";
     }).join("<br/>");
     const html="<!DOCTYPE html><html><head><meta charset='UTF-8'><style>body{font-family:Arial;font-size:12px;margin:16px}th{background:#111;color:#fff;padding:5px 8px;border:1px solid #000;font-size:11px}td{border:1px solid #000;padding:4px 7px;font-size:11px}</style></head><body><h1 style='font-size:15px'>Navette "+w.label+" · "+w.range+" · Macaranga 2026</h1><p style='font-size:10px;color:#666'>Stampato: "+new Date().toLocaleDateString("it-IT")+" · "+kids.length+" bambini totali</p>"+rowsHtml+"</body></html>";
     const pw=window.open("","_blank");pw.document.write(html);pw.document.close();pw.print();
@@ -1111,7 +1068,7 @@ function TabNavette({data,onAddNav}){
         return(<div key={p} style={{background:"#fff",border:`2px solid ${alert?"#dc2626":col}`,padding:12}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
             <div>
-              <div style={{fontWeight:700,fontSize:13,color:col}}>{"🚐"} {p}</div>
+              <div style={{fontWeight:700,fontSize:13,color:col}}>🚐 {p}</div>
               {p==="Terlizzi"&&<div style={{fontSize:10,color:"#888"}}>Comprende anche Molfetta</div>}
             </div>
             <div style={{fontWeight:900,fontSize:20,color:alert?"#dc2626":col}}>{used}<span style={{fontSize:12,fontWeight:400,color:"#888"}}>/{cap}</span></div>
@@ -1130,40 +1087,6 @@ function TabNavette({data,onAddNav}){
     {partenze.length===0&&<div style={{padding:32,color:"#aaa",textAlign:"center",border:"1px dashed #ccc",fontSize:14}}>
       Nessun bambino con navetta nella settimana {w.label} ({w.range})
     </div>}
-    {/* PANNELLO AGGIUNTA MANUALE */}
-    {addingTo&&<div style={{position:"fixed",inset:0,zIndex:9998,background:"rgba(0,0,0,.55)",display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
-      <div style={{background:"#fff",border:"2px solid #000",padding:24,maxWidth:480,width:"100%"}}>
-        <div style={{fontWeight:900,fontSize:15,marginBottom:4}}>{"🚐"} Aggiungi alla navetta {addingTo}</div>
-        <div style={{fontSize:12,color:"#666",marginBottom:14}}>Seleziona un iscritto senza navetta per {w.label} · {w.range}</div>
-        {senzaNav.length===0?<div style={{padding:16,color:"#888",textAlign:"center"}}>Tutti gli iscritti di questa settimana hanno già la navetta.</div>:
-        <div style={{maxHeight:300,overflowY:"auto"}}>
-          {senzaNav.map(r=>(
-            <div key={r.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 12px",borderBottom:"1px solid #f0f0f0",background:"#fff"}}
-              onMouseEnter={e=>e.currentTarget.style.background="#f0f9ff"} onMouseLeave={e=>e.currentTarget.style.background="#fff"}>
-              <div>
-                <div style={{fontWeight:700}}>{r.bambino}</div>
-                <div style={{fontSize:11,color:"#666"}}>{r.citta} · {r.eta}a · S{calcWeeks(r.inizio,r.sett).join("-S")}</div>
-              </div>
-              <button onClick={()=>{
-                const cap=NAV_CAP[addingTo]??14;
-                const used=data.filter(x=>x.nav&&getPartenza(x.citta)===addingTo&&calcWeeks(x.inizio,x.sett).includes(sel)).length;
-                if(used>=cap){alert("Navetta "+addingTo+" è al completo ("+used+"/"+cap+" posti)!");return;}
-                // Aggiorna iscritto: attiva navetta e imposta città corrispondente
-                const cittaTarget=addingTo==="Terlizzi"?"Terlizzi":addingTo==="Ruvo di Puglia"?"Ruvo di Puglia":"Corato";
-                // Usa setData tramite prop
-                if(onAddNav){onAddNav(r.id,cittaTarget);}
-                setAddingTo(null);
-              }} style={{padding:"5px 12px",background:"#16a34a",color:"#fff",border:"none",fontSize:12,cursor:"pointer",fontWeight:700}}>
-                + Aggiungi
-              </button>
-            </div>
-          ))}
-        </div>}
-        <div style={{display:"flex",justifyContent:"flex-end",marginTop:14}}>
-          <button onClick={()=>setAddingTo(null)} style={{padding:"7px 16px",border:"1px solid #000",background:"#fff",cursor:"pointer"}}>Chiudi</button>
-        </div>
-      </div>
-    </div>}
     {/* TABELLA PER OGNI NAVETTA */}
     {partenze.map(p=>{
       const cap=NAV_CAP[p]??14;
@@ -1176,7 +1099,7 @@ function TabNavette({data,onAddNav}){
         {/* Header navetta */}
         <div style={{padding:"8px 14px",background:alert?"#dc2626":col,color:"#fff",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <div>
-            <span style={{fontWeight:900,fontSize:15}}>{"🚐"} Navetta {p}</span>
+            <span style={{fontWeight:900,fontSize:15}}>🚐 Navetta {p}</span>
             {p==="Terlizzi"&&<span style={{fontSize:11,opacity:.8,marginLeft:8}}>(Terlizzi + Molfetta)</span>}
           </div>
           <div style={{display:"flex",alignItems:"center",gap:12}}>
@@ -1256,15 +1179,15 @@ function TabFinanziario({data,costs}){
     <div style={{background:"#fff",border:"2px solid #000",padding:16,marginBottom:14}}>
       <div style={{fontWeight:900,fontSize:14,marginBottom:12,borderBottom:"2px solid #000",paddingBottom:6}}>💰 Servizi Accessori</div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
-        <div style={{background:"#eff6ff",border:"1px solid #3b82f6",padding:14,textAlign:"center"}}><div style={{fontSize:13,color:"#1e40af"}}>{"🚐"} Ricavo Navette</div><div style={{fontSize:22,fontWeight:900,color:"#1e40af",marginTop:4}}>{E(sv.totNav)}</div></div>
-        <div style={{background:"#f0fdf4",border:"1px solid #16a34a",padding:14,textAlign:"center"}}><div style={{fontSize:13,color:"#166534"}}>{"🍽️"} Ricavo Pasti</div><div style={{fontSize:22,fontWeight:900,color:"#166534",marginTop:4}}>{E(sv.totPasti)}</div></div>
+        <div style={{background:"#eff6ff",border:"1px solid #3b82f6",padding:14,textAlign:"center"}}><div style={{fontSize:13,color:"#1e40af"}}>🚐 Ricavo Navette</div><div style={{fontSize:22,fontWeight:900,color:"#1e40af",marginTop:4}}>{E(sv.totNav)}</div></div>
+        <div style={{background:"#f0fdf4",border:"1px solid #16a34a",padding:14,textAlign:"center"}}><div style={{fontSize:13,color:"#166534"}}>🍽 Ricavo Pasti</div><div style={{fontSize:22,fontWeight:900,color:"#166534",marginTop:4}}>{E(sv.totPasti)}</div></div>
         <div style={{background:"#111",border:"1px solid #000",padding:14,textAlign:"center",color:"#fff"}}><div style={{fontSize:13,opacity:.8}}>💰 Totale Extra</div><div style={{fontSize:22,fontWeight:900,marginTop:4}}>{E(sv.totExtra)}</div></div>
       </div>
     </div>
     <div style={{background:"#fff",border:"2px solid #000",padding:16,marginBottom:14}}>
       <div style={{fontWeight:900,fontSize:14,marginBottom:12,borderBottom:"2px solid #000",paddingBottom:6}}>📊 Copertura Servizi</div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-        {[{l:"🚐 Navette",co:costs.costoNavette,ri:sv.totNav,p:pN,sc:scN,ec:ecN},{l:"{"🍽️"} Pasti",co:costs.costoCucina,ri:sv.totPasti,p:pP,sc:scP,ec:ecP}].map(({l,co,ri,p,sc,ec})=>{
+        {[{l:"🚐 Navette",co:costs.costoNavette,ri:sv.totNav,p:pN,sc:scN,ec:ecN},{l:"🍽 Pasti",co:costs.costoCucina,ri:sv.totPasti,p:pP,sc:scP,ec:ecP}].map(({l,co,ri,p,sc,ec})=>{
           const ok=p>=1;const warn=p>=0.75;const col=ok?"#166534":warn?"#d97706":"#dc2626";const bg=ok?"#f0fdf4":warn?"#fef3c7":"#fef2f2";
           return(<div key={l} style={{background:bg,border:`1px solid ${ok?"#16a34a":warn?"#d97706":"#dc2626"}`,padding:14}}>
             <div style={{fontWeight:700,fontSize:14,marginBottom:8}}>{l} — <span style={{color:col}}>{Pct(p)}</span></div>
@@ -1496,6 +1419,7 @@ function MainApp({onLogout}){
       setLoading(true);
       try{
         const{data:rows,error}=await SB.from("iscritti").select("*").order("bambino");
+        if(error)throw error;
         if(!error&&rows&&rows.length>0){
           const p=rows.map(r=>({...r,quota:Number(r.quota||0),acconto:Number(r.acconto||0),saldato:Number(r.saldato||0),da_saldare:Number(r.da_saldare||0),eta:Number(r.eta||0),sett:Number(r.sett||1),nav:!!r.nav,pasto_casa:!!r.pasto_casa}));
           setData(p);setSnap(JSON.stringify(p));
@@ -1550,7 +1474,7 @@ function MainApp({onLogout}){
     {id:"import",l:"🤖 Import Smart"},
     {id:"iscritti",l:"Iscritti & Pagamenti"},
     {id:"nav_contab",l:"🚐 Cont. Navette"},
-    {id:"pasti_contab",l:"{"🍽️"} Cont. Pasti"},
+    {id:"pasti_contab",l:"🍽 Cont. Pasti"},
     {id:"finanziario",l:"Finanziario & BEP"},
     {id:"costi",l:"Costi"},
     {id:"navette",l:"Navette"},
@@ -1568,11 +1492,11 @@ function MainApp({onLogout}){
     {draft&&<DraftEditorPanel draft={draft} existingData={data} onCommit={handleCommitDraft} onDiscard={()=>{setDraft(null);showToast("Bozza scartata","warn");}} showToast={showToast}/>}
     <div style={{marginBottom:"0.75rem",borderBottom:"2px solid #000",paddingBottom:10,display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:8}}>
       <div>
-        <h1 style={{fontSize:18,fontWeight:900,letterSpacing:"-0.02em",margin:"0 0 2px"}}>{"🌿"} Campi Natura Macaranga 2026</h1>
+        <h1 style={{fontSize:18,fontWeight:900,letterSpacing:"-0.02em",margin:"0 0 2px"}}>🌿 Campi Natura Macaranga 2026</h1>
         <div style={{fontSize:11,color:"#666",display:"flex",gap:10,flexWrap:"wrap"}}>
           <span>{data.length} iscritti</span>
-          <span style={{color:"#1e40af",fontWeight:600}}>{"🚐"} {E(sv.totNav)}</span>
-          <span style={{color:"#166534",fontWeight:600}}>{"🍽️"} {E(sv.totPasti)}</span>
+          <span style={{color:"#1e40af",fontWeight:600}}>🚐 {E(sv.totNav)}</span>
+          <span style={{color:"#166534",fontWeight:600}}>🍽 {E(sv.totPasti)}</span>
           <span style={{fontWeight:700}}>💰 {E(sv.totExtra)}</span>
           {incompleti>0&&<span style={{color:"#d97706",fontWeight:700}}>⚠ {incompleti} incompleti</span>}
           {allergici>0&&<span style={{color:"#dc2626",fontWeight:700}}>🚨 {allergici} allergie</span>}
