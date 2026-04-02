@@ -564,35 +564,66 @@ function TabImport({onSync,existingData,showToast,savedMappings,setSavedMappings
         }
         const b64=btoa(binary);
         addLog("Claude OCR PDF — estrazione in corso…");
-        const pdfPrompt="Estrai i dati di iscrizione da questo PDF. Restituisci SOLO un oggetto JSON valido senza backtick. Campi: bambino, nato_il(dd/mm/yyyy), eta(int), inizio(dd/mm/yyyy), fine(dd/mm/yyyy), sett(int 1-8), nav(bool), pasto_casa(bool), citta, quota(num), acconto(num), saldato(num), da_saldare(num), stato(SALDATO|ACCONTO|DA PAGARE), note_pag, note_bimbo, telefono, genitore. Valori mancanti: vuoto o 0.";
-        const pdfBody=JSON.stringify({model:"claude-sonnet-4-6",max_tokens:4000,messages:[{role:"user",content:[{type:"document",source:{type:"base64",media_type:"application/pdf",data:b64}},{type:"text",text:pdfPrompt}]}]});
+        const pdfPrompt="Analizza questo PDF di iscrizione Campi Natura Macaranga. IMPORTANTE: il PDF puo contenere 1 o 2 figli. Restituisci SOLO un array JSON puro senza backtick senza testo aggiuntivo. Ogni elemento rappresenta UN bambino. Campi per ogni bambino: bambino(Nome+Cognome figlio da Nome Figlio1/Cognome Figlio1 o Nome/cognome nel testo), nato_il(Data Nascita in dd/mm/yyyy), eta(int), inizio(Data Inizio Nature o data inizio in dd/mm/yyyy usa 08/06/2026 se mancante), fine(calcola da inizio+sett), sett(settimane int 1-8 dal costo o durata), nav(boolean true se trasferimento navetta bus), pasto_casa(false di default), citta(Residenza mappa Terlizzi->Terlizzi Molfetta->Molfetta Ruvo->Ruvo di Puglia Corato->Corato), quota(costo pacchetto diviso per numero figli numero), acconto(0), saldato(0), da_saldare(quota), stato(DA PAGARE), note_pag(sconto tipo tessaramento), note_bimbo(allergie intolleranze CAMPO CRITICO), telefono(genitore), genitore(Nome Cognome). Se ci sono 2 figli crea 2 elementi separati. Valori mancanti stringa vuota o 0.";
         const pdfHeaders={"Content-Type":"application/json","anthropic-dangerous-direct-browser-access":"true","x-api-key":localStorage.getItem("mac_api_key")||window.__ANTHROPIC_KEY__||"","anthropic-version":"2023-06-01"};
+        const pdfBody=JSON.stringify({model:"claude-sonnet-4-6",max_tokens:4000,messages:[{role:"user",content:[{type:"document",source:{type:"base64",media_type:"application/pdf",data:b64}},{type:"text",text:pdfPrompt}]}]});
         const resp=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:pdfHeaders,body:pdfBody});
         const rawResp=await resp.json();
-        if(!rawResp||!rawResp.content){addLog("Errore API: "+(rawResp&&rawResp.error?rawResp.error.message:"risposta vuota"),"error");setUploading(false);return;}
+        if(!rawResp||!rawResp.content){addLog("Errore API: "+(rawResp&&rawResp.error?rawResp.error.message:"errore sconosciuto"),"error");setUploading(false);return;}
         const txt=rawResp.content.filter(b=>b.type==="text").map(b=>b.text).join("");
+        addLog("Claude risponde: "+txt.slice(0,80));
+        // Estrae array o oggetto JSON robusto
         let parsed;
         try{
           let clean=txt.replace(/```json|```/g,"").trim();
-          // Estrae il primo array o oggetto JSON dalla risposta
-          let jsonStr=null;
-          const arrM=clean.match(/\[[\s\S]*?\](?=[^\]]*$)/);
-          const objM=clean.match(/{[^{}]*(?:{[^{}]*}[^{}]*)*}/);
-          if(arrM)jsonStr=arrM[0];
-          else if(objM)jsonStr="["+objM[0]+"]";
-          if(!jsonStr){addLog("Nessun JSON trovato nella risposta","error");setUploading(false);return;}
-          try{parsed=JSON.parse(jsonStr);}catch(e2){
-            // Fallback: prova a estrarre con regex semplice
-            const simple=clean.replace(/[\r\n]/g," ").match(/{[^}]+}/);
-            if(!simple)throw e2;
-            parsed=[JSON.parse(simple[0])];
+          const arrMatch=clean.match(/\[[\s\S]*\]/);
+          if(arrMatch){
+            parsed=JSON.parse(arrMatch[0]);
+          }else{
+            // Prova a trovare tutti gli oggetti {}
+            const objMatches=[...clean.matchAll(/{[^{}]*(?:{[^{}]*}[^{}]*)*}/g)].map(m=>m[0]);
+            if(objMatches.length>0)parsed=objMatches.map(s=>{try{return JSON.parse(s);}catch(e){return null;}}).filter(Boolean);
+            else{addLog("Nessun JSON trovato","error");setUploading(false);return;}
           }
-        }catch(pe){addLog("JSON error: "+pe.message,"error");setUploading(false);return;}
-        const single=Array.isArray(parsed)?parsed[0]:parsed;
-        if(!single||typeof single!=="object"){addLog("Risposta non valida","error");setUploading(false);return;}
-        const record={...single,id:uid(),da_saldare:calcResidue(single),stato:autoStato(single)};
-        addLog("PDF OK: "+(record.bambino||"—")+" nav:"+(record.nav?"Si":"No"),record.bambino?"ok":"warn");
-        onDraftReady(record);
+        }catch(pe){addLog("Errore parsing JSON: "+pe.message,"error");setUploading(false);return;}
+        // Normalizza i record
+        const normRec=r=>({
+          id:uid(),
+          bambino:String(r.bambino||""),
+          nato_il:String(r.nato_il||""),
+          eta:Number(r.eta||0),
+          inizio:String(r.inizio||"08/06/2026"),
+          fine:String(r.fine||"03/07/2026"),
+          sett:Math.max(1,Number(r.sett||4)),
+          nav:r.nav===true||String(r.nav).toLowerCase()==="true",
+          pasto_casa:r.pasto_casa===true||String(r.pasto_casa).toLowerCase()==="true",
+          citta:String(r.citta||""),
+          quota:Number(r.quota||0),
+          acconto:Number(r.acconto||0),
+          saldato:Number(r.saldato||0),
+          note_pag:String(r.note_pag||""),
+          note_bimbo:String(r.note_bimbo||""),
+          telefono:String(r.telefono||"").replace(/'/g,""),
+          genitore:String(r.genitore||""),
+          da_saldare:0,stato:"DA PAGARE"
+        });
+        const records=(Array.isArray(parsed)?parsed:[parsed]).filter(r=>r&&r.bambino).map(normRec);
+        records.forEach(r=>{r.da_saldare=calcResidue(r);r.stato=autoStato(r);});
+        if(records.length===0){addLog("Nessun iscritto trovato nel PDF","warn");setUploading(false);return;}
+        // Check capienza navette
+        records.forEach(r=>{
+          if(r.nav&&r.citta){
+            const p=getPartenza(r.citta);const cap=NAV_CAP[p]??14;
+            calcWeeks(r.inizio,r.sett).forEach(s=>{
+              const used=existingData.filter(e=>e.nav&&getPartenza(e.citta)===p&&calcWeeks(e.inizio,e.sett).includes(s)).length;
+              if(used>=cap)addLog("⚠ Navetta "+p+" S"+s+" al completo ("+used+"/"+cap+")!","warn");
+            });
+          }
+        });
+        addLog("✓ "+records.length+" bambino/i estratti","ok");
+        setUploading(false);
+        if(records.length===1){onDraftReady(records[0]);}else{mergeAndPreview(records);}
+        return;
       }else addLog(`Formato .${ext} non supportato`,"warn");
     }catch(e){addLog(`❌ ${e.message}`,"error");console.error(e);}
     setUploading(false);
@@ -699,7 +730,11 @@ function TabIscritti({data,setData,showToast}){
     if(["quota","acconto","saldato"].includes(k)){u.da_saldare=calcResidue(u);u.stato=autoStato(u);}
     return u;
   })),[setData]);
-  const add=()=>setData(p=>[{id:uid(),bambino:"",nato_il:"",eta:0,inizio:"08/06/2026",fine:"03/07/2026",sett:1,nav:false,pasto_casa:false,citta:"",quota:0,acconto:0,saldato:0,da_saldare:0,stato:"DA PAGARE",note_pag:"",note_bimbo:"",telefono:"",genitore:""},...p]);
+  const add=()=>{
+    const r={id:uid(),bambino:"",nato_il:"",eta:0,inizio:"08/06/2026",fine:"03/07/2026",sett:1,nav:false,pasto_casa:false,citta:"",quota:70,acconto:0,saldato:0,da_saldare:70,stato:"DA PAGARE",note_pag:"",note_bimbo:"",telefono:"",genitore:""};
+    setData(p=>[r,...p]);
+    showToast("Iscritto aggiunto · imposta Nav=Sì e Città per vederlo in Navette","warn");
+  };
   const TH={background:"#111",color:"#fff",padding:"7px 8px",border:"1px solid #000",textAlign:"center",fontWeight:600,fontSize:11,whiteSpace:"nowrap"};
   const TD=ex=>({border:"1px solid #000",padding:"5px 7px",textAlign:"center",fontSize:12,...ex});
   const iS={border:"none",background:"transparent",width:"100%",textAlign:"center",fontSize:12,color:"#1a1a1a",padding:0};
@@ -1552,39 +1587,4 @@ function MainApp({onLogout}){
         </div>}
       </div>
     </div>
-    <SaveBar hasChanges={hasChanges} saving={saving} onSave={handleSave} onReset={handleReset} lastSaved={lastSaved} onLogout={handleLogout}/>
-    <div style={{display:"flex",gap:0,borderBottom:"2px solid #000",marginBottom:"1.25rem",overflowX:"auto"}}>
-      {TABS.map(t=><button key={t.id} onClick={()=>setTab(t.id)} style={tS(tab===t.id)}>{t.l}</button>)}
-    </div>
-    {tab==="import"       && <TabImport onSync={handleSync} existingData={data} showToast={showToast} onDraftReady={handleDraftReady} savedMappings={savedMappings} setSavedMappings={setSavedMappings}/>}
-    {tab==="iscritti"    && <TabIscritti data={data} setData={setData} showToast={showToast}/>}
-    {tab==="nav_contab"  && <TabNavetteContab data={data} giorniSett={5} showToast={showToast}/>}
-    {tab==="pasti_contab"&& <TabPastiContab data={data} giorniSett={5} showToast={showToast}/>}
-    {tab==="finanziario" && <TabFinanziario data={data} costs={costs} setCosts={setCosts} showToast={showToast}/>}
-    {tab==="costi"       && <TabCosti costs={costs} setCosts={setCosts}/>}
-    {tab==="navette"     && <TabNavette data={data} onAddNav={(id,citta)=>{
-      setData(prev=>prev.map(r=>r.id===id?{...r,nav:true,citta:citta}:r));
-      showToast("Iscritto aggiunto alla navetta "+citta);
-    }}/>}
-    {tab==="export"      && <TabExport data={data}/>}
-  </div>);
-}
-
-/* ══ ROOT ════════════════════════════════════════════════════ */
-function Root(){
-  const[session,setSession]=useState(null);
-  const[checking,setChecking]=useState(true);
-  useEffect(()=>{
-    SB.auth.getSession().then(({data:{session}})=>{setSession(session);setChecking(false);});
-    const{data:{subscription}}=SB.auth.onAuthStateChange((_,s)=>setSession(s));
-    return()=>subscription.unsubscribe();
-  },[]);
-  if(checking)return(<div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh"}}><div style={{fontSize:14,color:"#666"}}>Verifica sessione…</div></div>);
-  if(!session)return<Login onLogin={()=>SB.auth.getSession().then(({data:{session}})=>setSession(session))}/>;
-  return<MainApp onLogout={()=>setSession(null)}/>;
-}
-
-ReactDOM.createRoot(document.getElementById("root")).render(<Root/>);
-</script>
-</body>
-</html>
+    <SaveBar hasChanges={hasChanges} saving={saving} onSave=
