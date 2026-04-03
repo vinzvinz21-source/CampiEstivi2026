@@ -417,7 +417,7 @@ function DraftEditorPanel({draft,existingData,onCommit,onDiscard,showToast}){
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 2fr",gap:12,marginBottom:12}}>
             <div>{lbl("Data di nascita")}<input value={r.nato_il} onChange={e=>upd("nato_il",e.target.value)} style={inpS} placeholder="dd/mm/yyyy"/></div>
             <div>{lbl("Età")}<input type="number" value={r.eta} min={0} max={18} onChange={e=>upd("eta",Number(e.target.value))} style={inpS}/></div>
-            <div>{lbl("Città")}<select value={r.citta||""} onChange={e=>upd(r.id,"citta",e.target.value)} style={{...inpS,cursor:"pointer",fontSize:11}}>{CITTA_OPTIONS.map(c=><option key={c} value={c}>{c}</option>)}</select></div>
+            <div>{lbl("Città")}<select value={r.citta||""} onChange={e=>upd("citta",e.target.value)} style={{...inpS,cursor:"pointer",fontSize:11}}>{CITTA_OPTIONS.map(c=><option key={c} value={c}>{c}</option>)}</select></div>
           </div>
           {/* RIGA 3: settimane */}
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:12}}>
@@ -563,7 +563,7 @@ function TabImport({onSync,existingData,showToast,savedMappings,setSavedMappings
         addLog("Claude OCR PDF — estrazione in corso…");
         const pdfPrompt="Analizza questo PDF di iscrizione Campi Natura Macaranga. IMPORTANTE: il PDF puo contenere 1 o 2 figli. Restituisci SOLO un array JSON valido senza backtick e senza testo aggiuntivo. Ogni elemento rappresenta UN bambino. Campi: bambino(Nome Cognome del figlio), nato_il(dd/mm/yyyy), eta(int), inizio(Data Inizio in dd/mm/yyyy, usa 08/06/2026 se mancante), fine(calcola da inizio+sett), sett(settimane int 1-8), nav(boolean true se navetta/trasferimento/bus), pasto_casa(false di default), citta(Residenza: Terlizzi/Molfetta/Ruvo di Puglia/Corato/Roma ecc), quota(costo diviso per numero figli), acconto(0), saldato(0), da_saldare(uguale a quota), stato(DA PAGARE), note_pag(tipo sconto), note_bimbo(allergie intolleranze patologie CRITICO), telefono(del genitore), genitore(Nome Cognome). Se ci sono 2 figli crea 2 elementi separati. Valori mancanti: stringa vuota o 0.";
         const pdfBody=JSON.stringify({model:"claude-sonnet-4-6",max_tokens:4000,messages:[{role:"user",content:[{type:"document",source:{type:"base64",media_type:"application/pdf",data:b64}},{type:"text",text:pdfPrompt}]}]});
-        const pdfHeaders={"Content-Type":"application/json","anthropic-dangerous-direct-browser-access":"true","x-api-key":localStorage.getItem("mac_api_key")||window.__ANTHROPIC_KEY__||"","anthropic-version":"2023-06-01"};
+        const pdfHeaders={"Content-Type":"application/json","anthropic-dangerous-direct-browser-access":"true","x-api-key":localStorage.getItem("mac_api_key")||window.__ANTHROPIC_KEY__||"","anthropic-version":"2023-06-01","anthropic-beta":"pdfs-2024-09-25"};
         const resp=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:pdfHeaders,body:pdfBody});
         const rawResp=await resp.json();
         if(!rawResp||!rawResp.content){addLog("Errore API: "+(rawResp&&rawResp.error?rawResp.error.message:"risposta vuota"),"error");setUploading(false);return;}
@@ -693,8 +693,8 @@ function TabIscritti({data,setData,showToast}){
   })),[setData]);
   const add=()=>setData(p=>[{id:uid(),bambino:"",nato_il:"",eta:0,inizio:"08/06/2026",fine:"03/07/2026",sett:1,nav:false,pasto_casa:false,citta:"",quota:0,acconto:0,saldato:0,da_saldare:0,stato:"DA PAGARE",note_pag:"",note_bimbo:"",telefono:"",genitore:""},...p]);
   const TH={background:"#111",color:"#fff",padding:"7px 8px",border:"1px solid #000",textAlign:"center",fontWeight:600,fontSize:11,whiteSpace:"nowrap"};
-  const TD=ex=>({border:"1px solid #000",padding:"5px 7px",textAlign:"center",fontSize:12,...ex});
-  const iS={border:"none",background:"transparent",width:"100%",textAlign:"center",fontSize:12,color:"#1a1a1a",padding:0};
+  const TD=ex=>({border:"1px solid #000",padding:"5px 7px",textAlign:"center",fontSize:12,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",...ex});
+  const iS={border:"none",background:"transparent",width:"100%",textAlign:"center",fontSize:12,color:"#1a1a1a",padding:0,overflow:"hidden",textOverflow:"ellipsis"};
   const lista=data.filter(r=>{
     if(cerca.trim()&&![r.bambino,r.genitore,r.citta,r.note_bimbo].some(v=>String(v||"").toLowerCase().includes(cerca.toLowerCase())))return false;
     if(fS!==0&&!calcWeeks(r.inizio,r.sett).includes(fS))return false;
@@ -770,11 +770,30 @@ function TabIscritti({data,setData,showToast}){
       })}
     </div>}
     {/* VISTA TABELLA */}
-    {view==="table"&&<div style={{overflowX:"auto",border:"2px solid #000"}}>
-      <table style={{borderCollapse:"collapse",width:"100%",fontSize:12}}>
+    {view==="table"&&<div style={{overflowX:"auto",border:"2px solid #000",WebkitOverflowScrolling:"touch"}}>
+      <table style={{borderCollapse:"collapse",minWidth:1280,width:"100%",fontSize:12,tableLayout:"fixed"}}>
+        <colgroup>
+          <col style={{width:32}}/>
+          <col style={{width:160}}/>
+          <col style={{width:38}}/>
+          <col style={{width:88}}/>
+          <col style={{width:32}}/>
+          <col style={{width:42}}/>
+          <col style={{width:42}}/>
+          <col style={{width:110}}/>
+          <col style={{width:68}}/>
+          <col style={{width:72}}/>
+          <col style={{width:72}}/>
+          <col style={{width:72}}/>
+          <col style={{width:88}}/>
+          <col style={{width:140}}/>
+          <col style={{width:96}}/>
+          <col style={{width:120}}/>
+          <col style={{width:28}}/>
+        </colgroup>
         <thead><tr>
           <th style={TH}>#</th>
-          <STH col="bambino" label="Nome" style={{textAlign:"left",minWidth:120}}/>
+          <STH col="bambino" label="Nome" style={{textAlign:"left"}}/>
           <STH col="eta" label="Età"/>
           <STH col="inizio" label="Inizio"/>
           <STH col="sett" label="S."/>
@@ -796,23 +815,23 @@ function TabIscritti({data,setData,showToast}){
             const nt=noteType(r.note_bimbo);const ns=nt?NST[nt]:null;
             const inc=isIncomplete(r);const rbg=idx%2?"#fafafa":"#fff";
             return(<tr key={r.id} style={{outline:inc?"1.5px solid #d97706":"none",outlineOffset:-1}}>
-              <td style={TD({background:rbg,width:26,color:"#888",fontSize:10})}>{inc&&<span style={{color:"#d97706",marginRight:2}}>●</span>}{idx+1}</td>
-              <td style={TD({background:rbg,minWidth:120,textAlign:"left"})}><input value={r.bambino||""} onChange={e=>upd(r.id,"bambino",e.target.value)} style={{...iS,textAlign:"left",fontWeight:700}}/></td>
-              <td style={TD({background:rbg,width:30})}><input type="number" value={r.eta||0} onChange={e=>upd(r.id,"eta",Number(e.target.value))} style={iS}/></td>
-              <td style={TD({background:rbg,width:80})}><select value={r.inizio||"08/06/2026"} onChange={e=>upd(r.id,"inizio",e.target.value)} style={{...iS,cursor:"pointer",fontSize:11}}>{WEEKS.map(w=><option key={w.id} value={w.dal}>{w.dal}</option>)}</select></td>
-              <td style={TD({background:rbg,width:28})}><input type="number" value={r.sett||1} min={1} max={8} onChange={e=>upd(r.id,"sett",Number(e.target.value))} style={iS}/></td>
-              <td style={TD({background:r.nav?"#dbeafe":rbg,width:46})}><select value={r.nav?"si":"no"} onChange={e=>upd(r.id,"nav",e.target.value==="si")} style={{...iS,color:r.nav?"#1e40af":"#888",fontWeight:r.nav?700:400,cursor:"pointer"}}><option value="si">Sì</option><option value="no">No</option></select></td>
-              <td style={TD({background:r.pasto_casa?"#fef9c3":rbg,width:60})}><select value={r.pasto_casa?"s":"p"} onChange={e=>upd(r.id,"pasto_casa",e.target.value==="s")} style={{...iS,color:r.pasto_casa?"#854d0e":"#166534",fontWeight:600,cursor:"pointer",fontSize:10}}><option value="p">🍽</option><option value="s">🥪</option></select></td>
-              <td style={TD({background:rbg,minWidth:78,textAlign:"left"})}><select value={r.citta||""} onChange={e=>upd(r.id,"citta",e.target.value)} style={{...iS,cursor:"pointer",fontSize:10,color:r.nav?"#1e40af":"inherit",fontWeight:r.nav?700:400}}>{CITTA_OPTIONS.map(c=><option key={c} value={c}>{c}</option>)}</select></td>
-              <td style={TD({background:rbg,width:60})}><input type="number" value={r.quota||0} onChange={e=>upd(r.id,"quota",Number(e.target.value))} style={{...iS,fontWeight:700}}/></td>
-              <td style={TD({background:"#f0fdf4",width:66,borderLeft:"2px solid #16a34a"})}><input type="number" value={r.acconto||0} onChange={e=>upd(r.id,"acconto",Number(e.target.value))} style={{...iS,color:"#166534",fontWeight:700}}/></td>
-              <td style={TD({background:"#f0fdf4",width:66,borderRight:"2px solid #16a34a"})}><input type="number" value={r.saldato||0} onChange={e=>upd(r.id,"saldato",Number(e.target.value))} style={{...iS,color:"#166534",fontWeight:700}}/></td>
-              <td style={TD({background:(r.da_saldare||0)>0?"#fef2f2":"#dcfce7",width:64,fontWeight:800,color:(r.da_saldare||0)>0?"#dc2626":"#166534"})}>{E2(r.da_saldare||0)}</td>
-              <td style={TD({background:SBG[r.stato]||rbg,width:80})}><select value={r.stato||"DA PAGARE"} onChange={e=>upd(r.id,"stato",e.target.value)} style={{...iS,fontWeight:700,color:SCL[r.stato],cursor:"pointer"}}><option value="SALDATO">Saldato</option><option value="ACCONTO">Acconto</option><option value="DA PAGARE">Da pagare</option></select></td>
-              <td style={TD({background:nt?ns.bg:rbg,border:nt?ns.border:"1px solid #000",minWidth:90,textAlign:"left"})}>{nt&&<span style={{marginRight:2}}>{ns.icon}</span>}<input value={r.note_bimbo||""} onChange={e=>upd(r.id,"note_bimbo",e.target.value)} style={{...iS,textAlign:"left",color:nt?ns.col:"#aaa",fontWeight:nt?700:400}} placeholder="nessuna"/></td>
-              <td style={TD({background:!r.telefono?"#fef3c7":rbg,width:86})}><input value={r.telefono||""} onChange={e=>upd(r.id,"telefono",e.target.value)} style={{...iS,color:!r.telefono?"#d97706":"inherit"}} placeholder="mancante"/></td>
-              <td style={TD({background:!r.genitore?"#fef3c7":rbg,minWidth:90,textAlign:"left"})}><input value={r.genitore||""} onChange={e=>upd(r.id,"genitore",e.target.value)} style={{...iS,textAlign:"left",color:!r.genitore?"#d97706":"inherit"}} placeholder="mancante"/></td>
-              <td style={TD({background:rbg,width:26})}><button onClick={()=>setConfirmDel(r)} style={{background:"none",border:"none",color:"#dc2626",fontSize:15,cursor:"pointer",fontWeight:900}}>×</button></td>
+              <td style={TD({background:rbg,color:"#888",fontSize:10})}>{inc&&<span style={{color:"#d97706",marginRight:2}}>●</span>}{idx+1}</td>
+              <td style={TD({background:rbg,textAlign:"left"})}><input value={r.bambino||""} onChange={e=>upd(r.id,"bambino",e.target.value)} style={{...iS,textAlign:"left",fontWeight:700}}/></td>
+              <td style={TD({background:rbg})}><input type="number" value={r.eta||0} onChange={e=>upd(r.id,"eta",Number(e.target.value))} style={iS}/></td>
+              <td style={TD({background:rbg})}><select value={r.inizio||"08/06/2026"} onChange={e=>upd(r.id,"inizio",e.target.value)} style={{...iS,cursor:"pointer",fontSize:11}}>{WEEKS.map(w=><option key={w.id} value={w.dal}>{w.dal}</option>)}</select></td>
+              <td style={TD({background:rbg})}><input type="number" value={r.sett||1} min={1} max={8} onChange={e=>upd(r.id,"sett",Number(e.target.value))} style={iS}/></td>
+              <td style={TD({background:r.nav?"#dbeafe":rbg})}><select value={r.nav?"si":"no"} onChange={e=>upd(r.id,"nav",e.target.value==="si")} style={{...iS,color:r.nav?"#1e40af":"#888",fontWeight:r.nav?700:400,cursor:"pointer"}}><option value="si">Sì</option><option value="no">No</option></select></td>
+              <td style={TD({background:r.pasto_casa?"#fef9c3":rbg})}><select value={r.pasto_casa?"s":"p"} onChange={e=>upd(r.id,"pasto_casa",e.target.value==="s")} style={{...iS,color:r.pasto_casa?"#854d0e":"#166534",fontWeight:600,cursor:"pointer",fontSize:10}}><option value="p">🍽</option><option value="s">🥪</option></select></td>
+              <td style={TD({background:rbg,textAlign:"left"})}><select value={r.citta||""} onChange={e=>upd(r.id,"citta",e.target.value)} style={{...iS,cursor:"pointer",fontSize:10,color:r.nav?"#1e40af":"inherit",fontWeight:r.nav?700:400}}>{CITTA_OPTIONS.map(c=><option key={c} value={c}>{c}</option>)}</select></td>
+              <td style={TD({background:rbg})}><input type="number" value={r.quota||0} onChange={e=>upd(r.id,"quota",Number(e.target.value))} style={{...iS,fontWeight:700}}/></td>
+              <td style={TD({background:"#f0fdf4",borderLeft:"2px solid #16a34a"})}><input type="number" value={r.acconto||0} onChange={e=>upd(r.id,"acconto",Number(e.target.value))} style={{...iS,color:"#166534",fontWeight:700}}/></td>
+              <td style={TD({background:"#f0fdf4",borderRight:"2px solid #16a34a"})}><input type="number" value={r.saldato||0} onChange={e=>upd(r.id,"saldato",Number(e.target.value))} style={{...iS,color:"#166534",fontWeight:700}}/></td>
+              <td style={TD({background:(r.da_saldare||0)>0?"#fef2f2":"#dcfce7",fontWeight:800,color:(r.da_saldare||0)>0?"#dc2626":"#166534"})}>{E2(r.da_saldare||0)}</td>
+              <td style={TD({background:SBG[r.stato]||rbg})}><select value={r.stato||"DA PAGARE"} onChange={e=>upd(r.id,"stato",e.target.value)} style={{...iS,fontWeight:700,color:SCL[r.stato],cursor:"pointer"}}><option value="SALDATO">Saldato</option><option value="ACCONTO">Acconto</option><option value="DA PAGARE">Da pagare</option></select></td>
+              <td style={TD({background:nt?ns.bg:rbg,border:nt?ns.border:"1px solid #000",textAlign:"left"})}>{nt&&<span style={{marginRight:2}}>{ns.icon}</span>}<input value={r.note_bimbo||""} onChange={e=>upd(r.id,"note_bimbo",e.target.value)} style={{...iS,textAlign:"left",color:nt?ns.col:"#aaa",fontWeight:nt?700:400}} placeholder="nessuna"/></td>
+              <td style={TD({background:!r.telefono?"#fef3c7":rbg})}><input value={r.telefono||""} onChange={e=>upd(r.id,"telefono",e.target.value)} style={{...iS,color:!r.telefono?"#d97706":"inherit"}} placeholder="mancante"/></td>
+              <td style={TD({background:!r.genitore?"#fef3c7":rbg,textAlign:"left"})}><input value={r.genitore||""} onChange={e=>upd(r.id,"genitore",e.target.value)} style={{...iS,textAlign:"left",color:!r.genitore?"#d97706":"inherit"}} placeholder="mancante"/></td>
+              <td style={TD({background:rbg})}><button onClick={()=>setConfirmDel(r)} style={{background:"none",border:"none",color:"#dc2626",fontSize:15,cursor:"pointer",fontWeight:900}}>×</button></td>
             </tr>);
           })}
         </tbody>
