@@ -15,7 +15,7 @@
 <body>
 <div id="root"></div>
 <script type="text/babel" data-presets="react">
-const{useState,useMemo,useEffect,useCallback}=React;
+const{useState,useMemo,useEffect,useCallback,useRef}=React;
 
 /* ══ SUPABASE ══════════════════════════════════════════════════ */
 const{createClient}=supabase;
@@ -59,7 +59,8 @@ const DEFAULT_COSTS={
 };
 
 /* ══ UTILS ═══════════════════════════════════════════════════ */
-const uid=()=>Math.random().toString(36).slice(2,9);
+const uid=()=>typeof crypto!=="undefined"&&crypto.randomUUID?crypto.randomUUID().slice(0,12):(Math.random().toString(36).slice(2)+Math.random().toString(36).slice(2)).slice(0,12);
+const esc=s=>String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 const INITIAL_DATA=[
   {id:"qo8d4ip",bambino:"Roberta Anna Amenduni",nato_il:"28/11/2015",eta:10,inizio:"08/06/2026",fine:"03/07/2026",sett:4,nav:false,pasto_casa:false,citta:"Ruvo di Puglia",quota:300,acconto:0,saldato:0,da_saldare:300,stato:"DA PAGARE",note_pag:"",note_bimbo:"",telefono:"3463088601",genitore:"Angela Amenduni"},
   {id:"hxp8a0h",bambino:"Vincenzo Ficco",nato_il:"02/02/2015",eta:11,inizio:"22/06/2026",fine:"17/07/2026",sett:4,nav:true,pasto_casa:false,citta:"Terlizzi",quota:330,acconto:100,saldato:0,da_saldare:230,stato:"ACCONTO",note_pag:"Acconto €200 con Adriano",note_bimbo:"",telefono:"3471958825",genitore:"Angela D'Elia"},
@@ -118,18 +119,18 @@ const AKW=["lattosio","glutin","celiac","allergi","latte","uova","pesce","noci",
 const MKW=["autist","epiless","diabeti","asma","cardiop","sindrome","disabilit","iperattiv","adhd"];
 const noteType=note=>{if(!note?.trim())return null;const l=note.toLowerCase();if(MKW.some(k=>l.includes(k)))return"medica";if(AKW.some(k=>l.includes(k)))return"allergia";return"nota";};
 const NST={allergia:{bg:"#fef2f2",border:"2px solid #dc2626",col:"#991b1b",icon:"🚨"},medica:{bg:"#fff7ed",border:"2px solid #ea580c",col:"#9a3412",icon:"⚕"},nota:{bg:"#fefce8",border:"1px solid #ca8a04",col:"#854d0e",icon:"📋"}};
-const isIncomplete=r=>!r.bambino?.trim()||!r.telefono?.trim()||!r.genitore?.trim();
+const isIncomplete=r=>!r.bambino?.trim()||!r.telefono?.trim()||!r.genitore?.trim()||!r.nato_il?.trim()||!r.citta?.trim();
 const SBG={SALDATO:"#dcfce7",ACCONTO:"#fef9c3","DA PAGARE":"#fee2e2"};
 const SCL={SALDATO:"#166534",ACCONTO:"#854d0e","DA PAGARE":"#991b1b"};
 
-function calcServizi(data){
+function calcServizi(data,giorniSett=GIORNI_SETT){
   const nR=[];const pR=[];
   data.forEach(r=>{
     if(!r.bambino?.trim())return;
     calcWeeks(r.inizio,r.sett).forEach(sid=>{
       const w=WEEKS.find(x=>x.id===sid);
-      if(r.nav)nR.push({id:r.id,bambino:r.bambino,citta:r.citta,settimana:w?.label||"—",settRange:w?.range||"—",giorni:GIORNI_SETT,totale:GIORNI_SETT*NAV_RATE});
-      if(!r.pasto_casa)pR.push({id:r.id,bambino:r.bambino,citta:r.citta,settimana:w?.label||"—",settRange:w?.range||"—",giorni:GIORNI_SETT,totale:GIORNI_SETT*PASTI_RATE});
+      if(r.nav)nR.push({id:r.id,bambino:r.bambino,citta:r.citta,settimana:w?.label||"—",settRange:w?.range||"—",giorni:giorniSett,totale:giorniSett*NAV_RATE});
+      if(!r.pasto_casa)pR.push({id:r.id,bambino:r.bambino,citta:r.citta,settimana:w?.label||"—",settRange:w?.range||"—",giorni:giorniSett,totale:giorniSett*PASTI_RATE});
     });
   });
   const tN=nR.reduce((s,r)=>s+r.totale,0);const tP=pR.reduce((s,r)=>s+r.totale,0);
@@ -208,7 +209,7 @@ function Modal({title,children,onClose}){
 function SaveBar({hasChanges,saving,onSave,onReset,lastSaved,onLogout}){
   return(<div style={{position:"sticky",top:0,zIndex:100,display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 14px",background:hasChanges?"#fef3c7":"#f0fdf4",border:`1px solid ${hasChanges?"#d97706":"#16a34a"}`,marginBottom:12,gap:8,flexWrap:"wrap"}}>
     <span style={{fontSize:12,fontWeight:700,color:hasChanges?"#92400e":"#166534"}}>
-      {saving?"💾 Salvataggio su Supabase…":hasChanges?"⚠  Modifiche non salvate — premi Salva":`✓  Salvato su database${lastSaved?" · "+lastSaved:""}`}
+      {saving?"💾 Salvataggio su Supabase…":hasChanges?"⚠  Modifiche non salvate — Ctrl+S o premi Salva (auto-save 30s)":`✓  Salvato su database${lastSaved?" · "+lastSaved:""}`}
     </span>
     <div style={{display:"flex",gap:6,alignItems:"center"}}>
       {hasChanges&&<button onClick={onReset} style={{padding:"5px 12px",border:"1px solid #000",background:"#fff",fontSize:11,cursor:"pointer",fontWeight:600}}>Annulla</button>}
@@ -392,7 +393,7 @@ function DraftEditorPanel({draft,existingData,onCommit,onDiscard,showToast}){
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 2fr",gap:12,marginBottom:12}}>
             <div>{lbl("Data di nascita")}<input value={r.nato_il} onChange={e=>upd("nato_il",e.target.value)} style={inpS} placeholder="dd/mm/yyyy"/></div>
             <div>{lbl("Età")}<input type="number" value={r.eta} min={0} max={18} onChange={e=>upd("eta",Number(e.target.value))} style={inpS}/></div>
-            <div>{lbl("Città")}<select value={r.citta||""} onChange={e=>upd("citta",e.target.value)} style={{...inpS,cursor:"pointer",fontSize:11}}>{CITTA_OPTIONS.map(c=><option key={c} value={c}>{c}</option>)}</select></div>
+            <div>{lbl("Città")}<select value={r.citta||""} onChange={e=>upd("citta",e.target.value)} style={{...inpS,cursor:"pointer",fontSize:11}}><option value="">— Seleziona —</option>{CITTA_OPTIONS.map(c=><option key={c} value={c}>{c}</option>)}</select></div>
           </div>
           {/* RIGA 3: settimane */}
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:12}}>
@@ -471,7 +472,11 @@ function DraftEditorPanel({draft,existingData,onCommit,onDiscard,showToast}){
 function TabImport({onSync,existingData,showToast,savedMappings,setSavedMappings,onDraftReady}){
   const[log,setLog]=useState([]);const[uploading,setUploading]=useState(false);
   const[mappingState,setMappingState]=useState(null);
-  const[previewData,setPreviewData]=useState(null); // {toAdd, toUpdate, conflicts}
+  const[previewData,setPreviewData]=useState(null);
+  const[showApiKey,setShowApiKey]=useState(false);
+  const[apiKey,setApiKey]=useState(()=>localStorage.getItem("mac_api_key")||"");
+  const hasApiKey=apiKey&&apiKey.startsWith("sk-ant-");
+  const saveApiKey=()=>{localStorage.setItem("mac_api_key",apiKey.trim());setShowApiKey(false);showToast("Chiave API salvata");};
   const addLog=(msg,type="info")=>setLog(p=>[{msg,type,ts:new Date().toLocaleTimeString()},...p.slice(0,29)]);
 
   function mergeAndPreview(incoming){
@@ -614,11 +619,28 @@ function TabImport({onSync,existingData,showToast,savedMappings,setSavedMappings
         <strong>Campi estratti:</strong> Nome · Cognome · Città · Data nascita · Età · Inizio/Fine campo · N° settimane · Navetta (+ trasferimento) · Pranzo al sacco · Quota · Acconto · Saldo · Allergie/Note mediche · Telefono · Genitore · Stato pagamento — <strong>dopo "Salva le Modifiche" tutto si aggiorna: BEP · Navette · Pasti · Saldi</strong>
       </div>
     </div>
+    {/* API KEY per PDF/Word */}
+    <div style={{marginBottom:10}}>
+      {!hasApiKey&&!showApiKey&&<div style={{padding:"8px 12px",background:"#fef2f2",border:"1px solid #dc2626",fontSize:12,display:"flex",alignItems:"center",gap:8}}>
+        <span style={{color:"#991b1b",fontWeight:700}}>Chiave API Anthropic mancante — necessaria per import PDF e Word</span>
+        <button onClick={()=>setShowApiKey(true)} style={{padding:"4px 10px",border:"1px solid #000",background:"#fff",fontSize:11,cursor:"pointer",fontWeight:600,marginLeft:"auto"}}>Configura</button>
+      </div>}
+      {hasApiKey&&!showApiKey&&<div style={{padding:"6px 12px",background:"#f0fdf4",border:"1px solid #16a34a",fontSize:11,display:"flex",alignItems:"center",gap:8}}>
+        <span style={{color:"#166534",fontWeight:600}}>Chiave API attiva</span>
+        <button onClick={()=>setShowApiKey(true)} style={{padding:"2px 8px",border:"1px solid #ccc",background:"#fff",fontSize:10,cursor:"pointer",marginLeft:"auto"}}>Modifica</button>
+      </div>}
+      {showApiKey&&<div style={{padding:"10px 14px",background:"#fff",border:"1px solid #000",display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+        <span style={{fontSize:11,fontWeight:700,whiteSpace:"nowrap"}}>Chiave API Anthropic:</span>
+        <input value={apiKey} onChange={e=>setApiKey(e.target.value)} type="password" placeholder="sk-ant-api03-..." style={{flex:1,minWidth:200,padding:"5px 8px",fontSize:12,border:"1px solid #000",fontFamily:"monospace"}}/>
+        <button onClick={saveApiKey} style={{padding:"5px 12px",background:"#111",color:"#fff",border:"none",fontSize:11,cursor:"pointer",fontWeight:700}}>Salva</button>
+        <button onClick={()=>setShowApiKey(false)} style={{padding:"5px 8px",border:"1px solid #ccc",background:"#fff",fontSize:11,cursor:"pointer"}}>Chiudi</button>
+      </div>}
+    </div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:12,marginBottom:14}}>
       {[
         {ext:"Excel .xlsx",icon:"📊",desc:"Auto-mapping + sync immediato verso tutte le tabelle",types:".xlsx,.xls"},
-        {ext:"Word .docx",icon:"📄",desc:"Claude AI estrae struttura dati e popola tutte le colonne",types:".docx"},
-        {ext:"PDF modulo",icon:"📋",desc:"Claude OCR → Draft Editor → revisione → salvataggio definitivo",types:".pdf"}
+        {ext:"Word .docx",icon:"📄",desc:"Claude AI — richiede chiave API",types:".docx"},
+        {ext:"PDF modulo",icon:"📋",desc:"Claude OCR — richiede chiave API",types:".pdf"}
       ].map(f=>(
         <div key={f.ext} style={{background:"#fff",border:"1px solid #000",padding:16,textAlign:"center"}}>
           <div style={{fontSize:26,marginBottom:4}}>{f.icon}</div>
@@ -654,13 +676,13 @@ function TabImport({onSync,existingData,showToast,savedMappings,setSavedMappings
 
 /* ══ TAB ISCRITTI ════════════════════════════════════════════ */
 function TabIscritti({data,setData,showToast,extCerca="",onExtCercaUsed}){
-  const[view,setView]=useState("table");
-  const[fS,setFS]=useState(0);const[fSt,setFSt]=useState("tutti");
+  const[view,setView]=useState(()=>window.innerWidth<768?"card":"table");
+  const[fS,setFS]=useState(0);const[fSt,setFSt]=useState("tutti");const[fC,setFC]=useState("tutti");
   const[fA,setFA]=useState(false);const[fI,setFI]=useState(false);
   const[cerca,setCerca]=useState("");const[confirmDel,setConfirmDel]=useState(null);
   useEffect(()=>{if(extCerca){setCerca(extCerca);if(onExtCercaUsed)onExtCercaUsed();}},[extCerca]);
-  const nF=[fS!==0,fSt!=="tutti",fA,fI,cerca.trim()!==""].filter(Boolean).length;
-  const resetF=()=>{setFS(0);setFSt("tutti");setFA(false);setFI(false);setCerca("");};
+  const nF=[fS!==0,fSt!=="tutti",fC!=="tutti",fA,fI,cerca.trim()!==""].filter(Boolean).length;
+  const resetF=()=>{setFS(0);setFSt("tutti");setFC("tutti");setFA(false);setFI(false);setCerca("");};
   const upd=useCallback((id,k,v)=>setData(prev=>prev.map(r=>{
     if(r.id!==id)return r;
     const u={...r,[k]:v};
@@ -677,6 +699,7 @@ function TabIscritti({data,setData,showToast,extCerca="",onExtCercaUsed}){
     if(cerca.trim()&&![r.bambino,r.genitore,r.citta,r.note_bimbo].some(v=>String(v||"").toLowerCase().includes(cerca.toLowerCase())))return false;
     if(fS!==0&&!calcWeeks(r.inizio,r.sett).includes(fS))return false;
     if(fSt!=="tutti"&&r.stato!==fSt)return false;
+    if(fC!=="tutti"&&r.citta!==fC)return false;
     if(fA&&!noteType(r.note_bimbo))return false;
     if(fI&&!isIncomplete(r))return false;
     return true;
@@ -703,6 +726,10 @@ function TabIscritti({data,setData,showToast,extCerca="",onExtCercaUsed}){
       <select value={fSt} onChange={e=>setFSt(e.target.value)} style={{padding:"6px 8px",fontSize:12,border:"1px solid #000"}}>
         <option value="tutti">Tutti gli stati</option>
         <option value="SALDATO">Saldato</option><option value="ACCONTO">Acconto</option><option value="DA PAGARE">Da pagare</option>
+      </select>
+      <select value={fC} onChange={e=>setFC(e.target.value)} style={{padding:"6px 8px",fontSize:12,border:"1px solid #000"}}>
+        <option value="tutti">Tutte le città</option>
+        {CITTA_OPTIONS.map(c=><option key={c} value={c}>{c}</option>)}
       </select>
       <button onClick={()=>setFA(!fA)} style={{padding:"5px 9px",fontSize:11,border:`1px solid ${fA?"#dc2626":"#ccc"}`,background:fA?"#fee2e2":"#fff",cursor:"pointer"}}>🚨 Allergie</button>
       <button onClick={()=>setFI(!fI)} style={{padding:"5px 9px",fontSize:11,border:`1px solid ${fI?"#d97706":"#ccc"}`,background:fI?"#fef3c7":"#fff",cursor:"pointer"}}>⚠ Incompleti</button>
@@ -803,7 +830,7 @@ function TabIscritti({data,setData,showToast,extCerca="",onExtCercaUsed}){
               <td style={TD({background:rbg})} title={calcWeeks(r.inizio,r.sett).map(id=>{const w=WEEKS.find(x=>x.id===id);return w?`${w.label} ${w.range}`:""}).join(", ")}><input type="number" value={r.sett||1} min={1} max={8} onChange={e=>upd(r.id,"sett",Number(e.target.value))} style={iS}/></td>
               <td style={TD({background:r.nav?"#dbeafe":rbg})}><select value={r.nav?"si":"no"} onChange={e=>upd(r.id,"nav",e.target.value==="si")} style={{...iS,color:r.nav?"#1e40af":"#888",fontWeight:r.nav?700:400,cursor:"pointer"}}><option value="si">Sì</option><option value="no">No</option></select></td>
               <td style={TD({background:r.pasto_casa?"#fef9c3":rbg})}><select value={r.pasto_casa?"s":"p"} onChange={e=>upd(r.id,"pasto_casa",e.target.value==="s")} style={{...iS,color:r.pasto_casa?"#854d0e":"#166534",fontWeight:600,cursor:"pointer",fontSize:11}}><option value="p">Mensa</option><option value="s">Sacco</option></select></td>
-              <td style={TD({background:rbg,textAlign:"left"})}><select value={r.citta||""} onChange={e=>upd(r.id,"citta",e.target.value)} style={{...iS,cursor:"pointer",fontSize:10,color:r.nav?"#1e40af":"inherit",fontWeight:r.nav?700:400}}>{CITTA_OPTIONS.map(c=><option key={c} value={c}>{c}</option>)}</select></td>
+              <td style={TD({background:rbg,textAlign:"left"})}><select value={r.citta||""} onChange={e=>upd(r.id,"citta",e.target.value)} style={{...iS,cursor:"pointer",fontSize:10,color:r.nav?"#1e40af":"inherit",fontWeight:r.nav?700:400}}><option value="">—</option>{CITTA_OPTIONS.map(c=><option key={c} value={c}>{c}</option>)}</select></td>
               <td style={TD({background:rbg})}><input type="number" value={r.quota||0} onChange={e=>upd(r.id,"quota",Number(e.target.value))} style={{...iS,fontWeight:700}}/></td>
               <td style={TD({background:"#f0fdf4",borderLeft:"2px solid #16a34a"})}><input type="number" value={r.acconto||0} onChange={e=>upd(r.id,"acconto",Number(e.target.value))} style={{...iS,color:"#166534",fontWeight:700}}/></td>
               <td style={TD({background:"#f0fdf4",borderRight:"2px solid #16a34a"})}><input type="number" value={r.saldato||0} onChange={e=>upd(r.id,"saldato",Number(e.target.value))} style={{...iS,color:"#166534",fontWeight:700}}/></td>
@@ -1027,7 +1054,7 @@ function TabNavette({data,onAddNav}){
       const list=byPartenza[p]||[];
       const trs=list.map((r,i)=>{
         const notaStyle=noteType(r.note_bimbo)?"background:#fef2f2;color:#991b1b;font-weight:bold;":"color:#aaa;";
-        return "<tr><td>"+(i+1)+"</td><td><strong>"+r.bambino+"</strong></td><td>"+r.citta+"</td><td>"+r.eta+"</td><td>"+r.genitore+"</td><td>"+r.telefono+"</td><td style='"+notaStyle+"'>"+(r.note_bimbo||"—")+"</td></tr>";
+        return "<tr><td>"+(i+1)+"</td><td><strong>"+esc(r.bambino)+"</strong></td><td>"+esc(r.citta)+"</td><td>"+r.eta+"</td><td>"+esc(r.genitore)+"</td><td>"+esc(r.telefono)+"</td><td style='"+notaStyle+"'>"+esc(r.note_bimbo||"—")+"</td></tr>";
       }).join("");
       return "<h2 style='font-size:13px;margin:14px 0 4px;border-bottom:2px solid #000;padding-bottom:3px'>🚐 "+p+" — "+list.length+"/"+cap+" posti ("+w.label+" · "+w.range+")</h2><table style='border-collapse:collapse;width:100%'><thead><tr><th>#</th><th>Bambino/a</th><th>Città</th><th>Età</th><th>Genitore</th><th>Telefono</th><th>Note mediche</th></tr></thead><tbody>"+trs+"</tbody></table>";
     }).join("<br/>");
@@ -1053,7 +1080,20 @@ function TabNavette({data,onAddNav}){
           </button>);
         })}
       </div>
-      <button onClick={doPrint} style={{padding:"7px 14px",fontSize:12,border:"1px solid #000",background:"#185FA5",color:"#fff",cursor:"pointer",fontWeight:700}}>🖨 Stampa lista</button>
+      <button onClick={doPrint} style={{padding:"7px 14px",fontSize:12,border:"1px solid #000",background:"#185FA5",color:"#fff",cursor:"pointer",fontWeight:700}}>🖨 Stampa {w.label}</button>
+      <button onClick={()=>{
+        const allHtml=WEEKS.map(wk=>{
+          const wKids=data.filter(r=>r.nav&&calcWeeks(r.inizio,r.sett).includes(wk.id));
+          if(wKids.length===0)return"";
+          const byP=wKids.reduce((acc,r)=>{const p=getPartenza(r.citta)||r.citta||"Altro";if(!acc[p])acc[p]=[];acc[p].push(r);return acc;},{});
+          return NAVETTE_ORD.filter(p=>byP[p]).map(p=>{const cap=NAV_CAP[p]??14;const list=byP[p]||[];
+            const trs=list.map((r,i)=>{const ns=noteType(r.note_bimbo)?"background:#fef2f2;color:#991b1b;font-weight:bold":"color:#aaa";return`<tr><td>${i+1}</td><td><strong>${esc(r.bambino)}</strong></td><td>${esc(r.citta)}</td><td>${r.eta}</td><td>${esc(r.genitore)}</td><td>${esc(r.telefono)}</td><td style="${ns}">${esc(r.note_bimbo||"—")}</td></tr>`;}).join("");
+            return`<h2 style="font-size:13px;margin:14px 0 4px;border-bottom:2px solid #000;padding-bottom:3px">🚐 ${p} — ${list.length}/${cap} (${wk.label} · ${wk.range})</h2><table style="border-collapse:collapse;width:100%"><thead><tr><th>#</th><th>Bambino/a</th><th>Città</th><th>Età</th><th>Genitore</th><th>Telefono</th><th>Note med.</th></tr></thead><tbody>${trs}</tbody></table>`;
+          }).join("");
+        }).filter(Boolean).join('<div style="page-break-before:always"></div>');
+        const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:Arial;font-size:12px;margin:16px}th{background:#111;color:#fff;padding:5px 8px;border:1px solid #000;font-size:11px}td{border:1px solid #000;padding:4px 7px;font-size:11px}@media print{div[style*="page-break"]{page-break-before:always}}</style></head><body><h1 style="font-size:15px">Navette Tutte le Settimane — Macaranga 2026</h1><p style="font-size:10px;color:#666">Stampato: ${new Date().toLocaleDateString("it-IT")}</p>${allHtml}</body></html>`;
+        const pw=window.open("","_blank");if(pw){pw.document.write(html);pw.document.close();pw.onload=()=>pw.print();}
+      }} style={{padding:"7px 14px",fontSize:12,border:"1px solid #000",background:"#111",color:"#fff",cursor:"pointer",fontWeight:700}}>🖨 Tutte le settimane</button>
     </div>
     {/* HEADER SETTIMANA */}
     <div style={{padding:"8px 14px",background:"#111",color:"#fff",fontWeight:700,fontSize:13,marginBottom:12,display:"flex",justifyContent:"space-between"}}>
@@ -1200,55 +1240,6 @@ function TabFinanziario({data,costs}){
         })}
       </div>
     </div>
-    <div style={{background:"#fff",border:`2px solid ${bOk?"#16a34a":"#d97706"}`,padding:18,marginBottom:14}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
-        <div>
-          <div style={{fontWeight:900,fontSize:14,marginBottom:2}}>📐 Break-Even Point — tempo reale</div>
-          <div style={{fontSize:11,color:"#666"}}>= ({E(tF)} + {E(tSc)}) ÷ {E(qM)}/bambino-sett. = <strong>{bP} presenze</strong></div>
-        </div>
-        <div style={{textAlign:"right"}}>
-          <div style={{fontWeight:900,fontSize:16,color:bOk?"#16a34a":"#d97706"}}>{bOk?"✓ BEP RAGGIUNTO":"⚡ NON RAGGIUNTO"}</div>
-          <div style={{fontSize:11,color:"#666"}}>{pTot}/{bP} presenze</div>
-        </div>
-      </div>
-      <div style={{position:"relative",height:32,background:"#f0f0f0",marginBottom:6,overflow:"hidden"}}>
-        <div style={{position:"absolute",left:0,top:0,height:"100%",width:`${bW}%`,background:bOk?"#16a34a":"#d97706",display:"flex",alignItems:"center",justifyContent:"center",transition:"width .4s"}}>
-          {bW>8&&<span style={{color:"#fff",fontWeight:800,fontSize:12}}>{bW}%</span>}
-        </div>
-        {bOk&&uN>0&&<div style={{position:"absolute",left:`${bW}%`,top:0,height:"100%",width:`${Math.min(100-bW,20)}%`,background:"#059669",display:"flex",alignItems:"center",justifyContent:"center"}}>
-          <span style={{color:"#fff",fontWeight:800,fontSize:11,padding:"0 4px",whiteSpace:"nowrap"}}>{E(uN)}</span>
-        </div>}
-        <div style={{position:"absolute",top:0,left:`${Math.min(98,bP>0?Math.round(bP/Math.max(pTot,bP)*100):100)}%`,height:"100%",borderLeft:"3px dashed #000",zIndex:2}}>
-          <span style={{position:"absolute",top:2,left:4,fontSize:9,fontWeight:700,color:"#000",whiteSpace:"nowrap"}}>BEP</span>
-        </div>
-      </div>
-      <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"#888",marginBottom:12}}>
-        <span>0</span>
-        <span style={{color:bOk?"#16a34a":"#d97706",fontWeight:700}}>{bOk?`✓ Superato di ${pTot-bP} presenze`:`Mancano ${bP-pTot} presenze`}</span>
-        <span>{pTot} presenze attuali</span>
-      </div>
-      {bOk?<div style={{background:"#f0fdf4",border:"2px solid #16a34a",padding:12,marginBottom:12,display:"flex",gap:14,flexWrap:"wrap",alignItems:"center"}}>
-        <div style={{flex:1}}>
-          <div style={{fontWeight:700,fontSize:13,color:"#166534",marginBottom:3}}>💰 Sei in zona utile!</div>
-          <div style={{fontSize:12,color:"#166534"}}>Ogni iscrizione aggiuntiva genera ~<strong>{E(qM)}</strong> di margine.</div>
-          <div style={{fontSize:12,color:"#166534",marginTop:2}}>Superato il BEP di <strong>{pTot-bP} presenze-sett.</strong></div>
-        </div>
-        <div style={{textAlign:"center",background:"#16a34a",color:"#fff",padding:"10px 18px"}}>
-          <div style={{fontSize:11,opacity:.8}}>Utile netto attuale</div>
-          <div style={{fontSize:24,fontWeight:900}}>{E(uN)}</div>
-          <div style={{fontSize:11,opacity:.7}}>Potenziale: {E(uP)}</div>
-        </div>
-      </div>:<div style={{background:"#fef3c7",border:"2px solid #d97706",padding:12,marginBottom:12}}>
-        <div style={{fontWeight:700,fontSize:13,color:"#92400e",marginBottom:3}}>⚡ In zona investimento</div>
-        <div style={{fontSize:12,color:"#92400e"}}>Mancano <strong>{bP-pTot} presenze</strong> · Perdita stimata: <strong>{E(Math.abs(uN))}</strong></div>
-        <div style={{fontSize:12,color:"#92400e",marginTop:2}}>Servono ~<strong>{Math.ceil((bP-pTot)/4)} bambini in più per 4 settimane</strong>.</div>
-      </div>}
-    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(120px,1fr))",gap:8}}>
-        {[["Costi fissi",E(tF),"#dc2626"],["Scoperta serv.",E(tSc),"#d97706"],["BEP presenze",bP+" pres.","#000"],["Utile attuale",E(uN),uN>=0?"#166534":"#dc2626"],["Utile potenziale",E(uP),uP>=0?"#166534":"#dc2626"]].map(([l,v,c])=>(
-          <div key={l} style={{background:"#f5f5f3",border:"1px solid #000",padding:"9px 11px"}}><div style={{fontSize:10,color:"#666",marginBottom:2}}>{l}</div><div style={{fontSize:13,fontWeight:800,color:c}}>{v}</div></div>
-        ))}
-      </div>
-    </div>
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
       <div style={{background:"#fff",border:"1px solid #000",padding:14}}>
         <div style={{fontWeight:800,fontSize:13,marginBottom:8,borderBottom:"2px solid #000",paddingBottom:5}}>💰 Entrate</div>
@@ -1369,12 +1360,12 @@ function TabCosti({costs,setCosts}){
 }
 
 /* ══ TAB EXPORT ═════════════════════════════════════════════ */
-function TabExport({data}){
+function TabExport({data,costs,showToast,setData,setCosts}){
   const sv=useMemo(()=>calcServizi(data),[data]);
   const printLista=()=>{
-    const rows=data.map((r,i)=>`<tr style="background:${i%2?"#f9f9f9":"#fff"}"><td>${i+1}</td><td style="text-align:left;font-weight:700">${r.bambino||""}</td><td>${r.eta||0}</td><td>${r.inizio||""}</td><td style="text-align:center">${r.sett||1}</td><td>${r.nav?"Sì":"No"}</td><td style="text-align:left">${r.citta||""}</td><td style="font-weight:700">${Number(r.quota||0).toLocaleString("it-IT",{style:"currency",currency:"EUR",maximumFractionDigits:0})}</td><td style="color:${(r.da_saldare||0)>0?"#dc2626":"#166534"};font-weight:700">${Number(r.da_saldare||0).toLocaleString("it-IT",{style:"currency",currency:"EUR",maximumFractionDigits:0})}</td><td>${r.stato||""}</td><td style="text-align:left;font-size:10px">${r.note_pag||""}</td><td style="text-align:left;font-size:10px;color:${r.note_bimbo?"#991b1b":"#888"}">${r.note_bimbo||""}</td><td>${r.telefono||""}</td><td style="text-align:left">${r.genitore||""}</td></tr>`).join("");
+    const rows=data.map((r,i)=>`<tr style="background:${i%2?"#f9f9f9":"#fff"}"><td>${i+1}</td><td style="text-align:left;font-weight:700">${esc(r.bambino)}</td><td>${r.eta||0}</td><td>${esc(r.inizio)}</td><td style="text-align:center">${r.sett||1}</td><td>${r.nav?"Sì":"No"}</td><td style="text-align:left">${esc(r.citta)}</td><td style="font-weight:700">${E(r.quota||0)}</td><td style="color:${(r.da_saldare||0)>0?"#dc2626":"#166534"};font-weight:700">${E(r.da_saldare||0)}</td><td>${esc(r.stato)}</td><td style="text-align:left;font-size:10px">${esc(r.note_pag)}</td><td style="text-align:left;font-size:10px;color:${r.note_bimbo?"#991b1b":"#888"}">${esc(r.note_bimbo)}</td><td>${esc(r.telefono)}</td><td style="text-align:left">${esc(r.genitore)}</td></tr>`).join("");
     const tot=data.reduce((a,r)=>({q:a.q+(r.quota||0),res:a.res+(r.da_saldare||0)}),{q:0,res:0});
-    const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Lista Iscritti Macaranga 2026</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:11px;padding:16px}h1{font-size:15px;margin-bottom:4px}h2{font-size:11px;color:#666;margin-bottom:12px;font-weight:400}table{border-collapse:collapse;width:100%}th{background:#111;color:#fff;padding:5px 6px;text-align:center;font-size:10px;border:1px solid #000}td{border:1px solid #ccc;padding:4px 6px;font-size:10px;text-align:center}tfoot th{background:#333;color:#fff;padding:5px 6px;border:1px solid #000;font-size:10px}@media print{body{padding:6px}}</style></head><body><h1>Lista Iscritti — Campi Natura Macaranga 2026</h1><h2>Stampato il ${new Date().toLocaleDateString("it-IT")} · ${data.length} iscritti</h2><table><thead><tr><th>#</th><th style="text-align:left">Nome</th><th>Età</th><th>Inizio</th><th>S.</th><th>Nav.</th><th style="text-align:left">Città</th><th>Quota</th><th>Residuo</th><th>Stato</th><th style="text-align:left">Note pag.</th><th style="text-align:left">Note med.</th><th>Telefono</th><th style="text-align:left">Genitore</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><th colspan="7">TOTALI — ${data.length} iscritti</th><th>${Number(tot.q).toLocaleString("it-IT",{style:"currency",currency:"EUR",maximumFractionDigits:0})}</th><th>${Number(tot.res).toLocaleString("it-IT",{style:"currency",currency:"EUR",maximumFractionDigits:0})}</th><th colspan="5"></th></tr></tfoot></table></body></html>`;
+    const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Lista Iscritti Macaranga 2026</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:11px;padding:16px}h1{font-size:15px;margin-bottom:4px}h2{font-size:11px;color:#666;margin-bottom:12px;font-weight:400}table{border-collapse:collapse;width:100%}th{background:#111;color:#fff;padding:5px 6px;text-align:center;font-size:10px;border:1px solid #000}td{border:1px solid #ccc;padding:4px 6px;font-size:10px;text-align:center}tfoot th{background:#333;color:#fff;padding:5px 6px;border:1px solid #000;font-size:10px}@media print{body{padding:6px}}</style></head><body><h1>Lista Iscritti — Campi Natura Macaranga 2026</h1><h2>Stampato il ${new Date().toLocaleDateString("it-IT")} · ${data.length} iscritti</h2><table><thead><tr><th>#</th><th style="text-align:left">Nome</th><th>Età</th><th>Inizio</th><th>S.</th><th>Nav.</th><th style="text-align:left">Città</th><th>Quota</th><th>Residuo</th><th>Stato</th><th style="text-align:left">Note pag.</th><th style="text-align:left">Note med.</th><th>Telefono</th><th style="text-align:left">Genitore</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><th colspan="7">TOTALI — ${data.length} iscritti</th><th>${E(tot.q)}</th><th>${E(tot.res)}</th><th colspan="5"></th></tr></tfoot></table></body></html>`;
     const w=window.open("","_blank","width=1100,height=700");
     if(!w)return;
     w.document.write(html);w.document.close();
@@ -1385,10 +1376,34 @@ function TabExport({data}){
     XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([["Bambino/a","Nato il","Età","Inizio","Fine","Sett.","Navetta","Sacco","Città","Quota","Acconto","Saldato","Residuo","Stato","Note pag.","Note med.","Telefono","Genitore"],...data.map(r=>[r.bambino,r.nato_il,r.eta,r.inizio,r.fine,r.sett,r.nav?"Sì":"No",r.pasto_casa?"Sì":"No",r.citta,r.quota,r.acconto,r.saldato,r.da_saldare,r.stato,r.note_pag,r.note_bimbo,r.telefono,r.genitore])]),"Iscritti 2026");
     XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([["Nome","Città","Settimana","Giorni","Tariffa","Totale"],...sv.navRows.map(r=>[r.bambino,r.citta,r.settimana,r.giorni,NAV_RATE,r.totale]),["","","","","TOTALE",sv.totNav]]),"Navette");
     XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([["Nome","Città","Settimana","Giorni","Tariffa","Totale"],...sv.pastiRows.map(r=>[r.bambino,r.citta,r.settimana,r.giorni,PASTI_RATE,r.totale]),["","","","","TOTALE",sv.totPasti]]),"Pasti");
+    const tF=costs.voci.reduce((s,v)=>s+v.importo,0);
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([["Categoria","Voce","Importo","Note"],...costs.voci.map(v=>[v.cat,v.label,v.importo,v.note]),["","TOTALE COSTI FISSI",tF,""],["","Costo Navette",costs.costoNavette,""],["","Costo Cucina",costs.costoCucina,""],["","Ricavo Navette",sv.totNav,""],["","Ricavo Pasti",sv.totPasti,""],["","UTILE NETTO",data.reduce((s,r)=>s+(r.stato==="SALDATO"?r.quota||0:r.stato==="ACCONTO"?(r.acconto||0)+(r.saldato||0):0),0)-tF-Math.max(0,costs.costoNavette-sv.totNav)-Math.max(0,costs.costoCucina-sv.totPasti)+Math.max(0,sv.totNav-costs.costoNavette)+Math.max(0,sv.totPasti-costs.costoCucina),""]]),"Finanziario");
     XLSX.writeFile(wb,`Macaranga_2026_${new Date().toISOString().slice(0,10)}.xlsx`);
   };
+  const backup=()=>{
+    const blob=new Blob([JSON.stringify({data,costs,exportDate:new Date().toISOString()},null,2)],{type:"application/json"});
+    const url=URL.createObjectURL(blob);const a=document.createElement("a");
+    a.href=url;a.download=`Macaranga_backup_${new Date().toISOString().slice(0,10)}.json`;a.click();
+    URL.revokeObjectURL(url);showToast("Backup JSON scaricato");
+  };
+  const fileRef=useRef(null);
+  const restore=e=>{
+    const file=e.target.files[0];if(!file)return;
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      try{
+        const d=JSON.parse(ev.target.result);
+        if(!d.data||!Array.isArray(d.data)){showToast("File non valido","error");return;}
+        if(!window.confirm(`Ripristinare ${d.data.length} iscritti dal backup del ${d.exportDate?new Date(d.exportDate).toLocaleDateString("it-IT"):"?"}? I dati attuali verranno sovrascritti.`))return;
+        setData(d.data);
+        if(d.costs)setCosts(d.costs);
+        showToast(`Backup ripristinato: ${d.data.length} iscritti — premi Salva per confermare su DB`,"warn");
+      }catch(err){showToast("Errore lettura JSON: "+err.message,"error");}
+    };
+    reader.readAsText(file);e.target.value="";
+  };
   return(<div>
-    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:14}}>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:14}}>
       <div style={{background:"#fff",border:"1px solid #000",padding:20}}>
         <div style={{fontSize:28,marginBottom:8}}>📊</div>
         <div style={{fontWeight:800,fontSize:14,marginBottom:8}}>Excel completo (.xlsx)</div>
@@ -1409,6 +1424,16 @@ function TabExport({data}){
             <div key={l} style={{padding:"8px 10px",background:"#f5f5f3",border:"1px solid #e0e0e0"}}><div style={{fontSize:10,color:"#888"}}>{l}</div><div style={{fontSize:16,fontWeight:800}}>{v}</div></div>
           ))}
         </div>
+      </div>
+      <div style={{background:"#fff",border:"1px solid #000",padding:20}}>
+        <div style={{fontSize:28,marginBottom:8}}>💾</div>
+        <div style={{fontWeight:800,fontSize:14,marginBottom:8}}>Backup JSON</div>
+        <div style={{fontSize:12,color:"#666",marginBottom:16,lineHeight:1.5}}>Scarica un backup completo (iscritti + costi) in formato JSON. Puoi ripristinarlo in caso di problemi.</div>
+        <button onClick={backup} style={{padding:10,border:"1px solid #000",background:"#166534",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer",width:"100%",marginBottom:8}}>⬇ Scarica Backup</button>
+        <label style={{display:"block",padding:10,border:"1px dashed #000",background:"#fafafa",fontSize:12,fontWeight:600,cursor:"pointer",textAlign:"center",color:"#666"}}>
+          ⬆ Ripristina da backup
+          <input ref={fileRef} type="file" accept=".json" onChange={restore} style={{display:"none"}}/>
+        </label>
       </div>
     </div>
   </div>);
@@ -1469,7 +1494,11 @@ function MainApp({onLogout}){
     setSaving(false);
   },[data,costs,showToast]);
 
-  useEffect(()=>{if(!hasChanges||saving)return;const t=setTimeout(()=>handleSave(),30000);return()=>clearTimeout(t);},[data,costs]);
+  const savingRef=useRef(false);
+  useEffect(()=>{savingRef.current=saving;},[saving]);
+  useEffect(()=>{if(!hasChanges)return;const t=setTimeout(()=>{if(!savingRef.current)handleSave();},30000);return()=>clearTimeout(t);},[data,costs,hasChanges,handleSave]);
+  useEffect(()=>{const h=e=>{if(hasChanges){e.preventDefault();e.returnValue="";}};window.addEventListener("beforeunload",h);return()=>window.removeEventListener("beforeunload",h);},[hasChanges]);
+  useEffect(()=>{const h=e=>{if((e.ctrlKey||e.metaKey)&&e.key==="s"){e.preventDefault();handleSave();}};window.addEventListener("keydown",h);return()=>window.removeEventListener("keydown",h);},[handleSave]);
   const handleReset=()=>{if(window.confirm("Annullare le modifiche?"))setData(JSON.parse(snap));};
   const handleLogout=async()=>{await SB.auth.signOut();onLogout();};
   const handleSync=useCallback(records=>{
@@ -1542,7 +1571,7 @@ function MainApp({onLogout}){
       setData(prev=>prev.map(r=>r.id===id?{...r,nav:true,citta:citta}:r));
       showToast("Iscritto aggiunto alla navetta "+citta);
     }}/>}
-    {tab==="export"      && <TabExport data={data}/>}
+    {tab==="export"      && <TabExport data={data} costs={costs} showToast={showToast} setData={setData} setCosts={setCosts}/>}
   </div>);
 }
 
