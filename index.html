@@ -771,7 +771,7 @@ function TabIscritti({data,setData,showToast}){
     </div>}
     {/* VISTA TABELLA */}
     {view==="table"&&<div style={{overflowX:"auto",border:"2px solid #000",WebkitOverflowScrolling:"touch"}}>
-      <table style={{borderCollapse:"collapse",minWidth:1280,width:"100%",fontSize:12,tableLayout:"fixed"}}>
+      <table style={{borderCollapse:"collapse",minWidth:1360,width:"100%",fontSize:12,tableLayout:"fixed"}}>
         <colgroup>
           <col style={{width:32}}/>
           <col style={{width:160}}/>
@@ -786,7 +786,7 @@ function TabIscritti({data,setData,showToast}){
           <col style={{width:72}}/>
           <col style={{width:72}}/>
           <col style={{width:88}}/>
-          <col style={{width:140}}/>
+          <col style={{width:210}}/>
           <col style={{width:96}}/>
           <col style={{width:120}}/>
           <col style={{width:28}}/>
@@ -828,7 +828,7 @@ function TabIscritti({data,setData,showToast}){
               <td style={TD({background:"#f0fdf4",borderRight:"2px solid #16a34a"})}><input type="number" value={r.saldato||0} onChange={e=>upd(r.id,"saldato",Number(e.target.value))} style={{...iS,color:"#166534",fontWeight:700}}/></td>
               <td style={TD({background:(r.da_saldare||0)>0?"#fef2f2":"#dcfce7",fontWeight:800,color:(r.da_saldare||0)>0?"#dc2626":"#166534"})}>{E2(r.da_saldare||0)}</td>
               <td style={TD({background:SBG[r.stato]||rbg})}><select value={r.stato||"DA PAGARE"} onChange={e=>upd(r.id,"stato",e.target.value)} style={{...iS,fontWeight:700,color:SCL[r.stato],cursor:"pointer"}}><option value="SALDATO">Saldato</option><option value="ACCONTO">Acconto</option><option value="DA PAGARE">Da pagare</option></select></td>
-              <td style={TD({background:nt?ns.bg:rbg,border:nt?ns.border:"1px solid #000",textAlign:"left"})}>{nt&&<span style={{marginRight:2}}>{ns.icon}</span>}<input value={r.note_bimbo||""} onChange={e=>upd(r.id,"note_bimbo",e.target.value)} style={{...iS,textAlign:"left",color:nt?ns.col:"#aaa",fontWeight:nt?700:400}} placeholder="nessuna"/></td>
+              <td style={TD({background:nt?ns.bg:rbg,border:nt?ns.border:"1px solid #000",textAlign:"left",whiteSpace:"normal",overflow:"visible"})}>{nt&&<span style={{marginRight:2}}>{ns.icon}</span>}<input value={r.note_bimbo||""} onChange={e=>upd(r.id,"note_bimbo",e.target.value)} style={{...iS,textAlign:"left",color:nt?ns.col:"#aaa",fontWeight:nt?700:400,whiteSpace:"normal",wordBreak:"break-word"}} placeholder="nessuna"/></td>
               <td style={TD({background:!r.telefono?"#fef3c7":rbg})}><input value={r.telefono||""} onChange={e=>upd(r.id,"telefono",e.target.value)} style={{...iS,color:!r.telefono?"#d97706":"inherit"}} placeholder="mancante"/></td>
               <td style={TD({background:!r.genitore?"#fef3c7":rbg,textAlign:"left"})}><input value={r.genitore||""} onChange={e=>upd(r.id,"genitore",e.target.value)} style={{...iS,textAlign:"left",color:!r.genitore?"#d97706":"inherit"}} placeholder="mancante"/></td>
               <td style={TD({background:rbg})}><button onClick={()=>setConfirmDel(r)} style={{background:"none",border:"none",color:"#dc2626",fontSize:15,cursor:"pointer",fontWeight:900}}>×</button></td>
