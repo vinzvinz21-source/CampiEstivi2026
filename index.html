@@ -796,16 +796,16 @@ function TabIscritti({data,setData,showToast}){
           <STH col="bambino" label="Nome" style={{textAlign:"left"}}/>
           <STH col="eta" label="Età"/>
           <STH col="inizio" label="Inizio"/>
-          <STH col="sett" label="S."/>
-          <th style={TH}>🚐</th>
-          <th style={TH}>🍽</th>
+          <STH col="sett" label="Sett."/>
+          <th style={TH}>Nav.</th>
+          <th style={TH}>Pasto</th>
           <STH col="citta" label="Città"/>
           <STH col="quota" label="Quota"/>
           <th style={{...TH,background:"#166534"}}>Acconto</th>
           <th style={{...TH,background:"#166534"}}>Saldo</th>
           <STH col="da_saldare" label="Residuo"/>
           <STH col="stato" label="Stato"/>
-          <th style={TH}>🚨 Note</th>
+          <th style={TH}>Note mediche</th>
           <th style={TH}>Telefono</th>
           <th style={TH}>Genitore</th>
           <th style={TH}></th>
@@ -821,7 +821,7 @@ function TabIscritti({data,setData,showToast}){
               <td style={TD({background:rbg})}><select value={r.inizio||"08/06/2026"} onChange={e=>upd(r.id,"inizio",e.target.value)} style={{...iS,cursor:"pointer",fontSize:11}}>{WEEKS.map(w=><option key={w.id} value={w.dal}>{w.dal}</option>)}</select></td>
               <td style={TD({background:rbg})}><input type="number" value={r.sett||1} min={1} max={8} onChange={e=>upd(r.id,"sett",Number(e.target.value))} style={iS}/></td>
               <td style={TD({background:r.nav?"#dbeafe":rbg})}><select value={r.nav?"si":"no"} onChange={e=>upd(r.id,"nav",e.target.value==="si")} style={{...iS,color:r.nav?"#1e40af":"#888",fontWeight:r.nav?700:400,cursor:"pointer"}}><option value="si">Sì</option><option value="no">No</option></select></td>
-              <td style={TD({background:r.pasto_casa?"#fef9c3":rbg})}><select value={r.pasto_casa?"s":"p"} onChange={e=>upd(r.id,"pasto_casa",e.target.value==="s")} style={{...iS,color:r.pasto_casa?"#854d0e":"#166534",fontWeight:600,cursor:"pointer",fontSize:10}}><option value="p">🍽</option><option value="s">🥪</option></select></td>
+              <td style={TD({background:r.pasto_casa?"#fef9c3":rbg})}><select value={r.pasto_casa?"s":"p"} onChange={e=>upd(r.id,"pasto_casa",e.target.value==="s")} style={{...iS,color:r.pasto_casa?"#854d0e":"#166534",fontWeight:600,cursor:"pointer",fontSize:11}}><option value="p">Mensa</option><option value="s">Sacco</option></select></td>
               <td style={TD({background:rbg,textAlign:"left"})}><select value={r.citta||""} onChange={e=>upd(r.id,"citta",e.target.value)} style={{...iS,cursor:"pointer",fontSize:10,color:r.nav?"#1e40af":"inherit",fontWeight:r.nav?700:400}}>{CITTA_OPTIONS.map(c=><option key={c} value={c}>{c}</option>)}</select></td>
               <td style={TD({background:rbg})}><input type="number" value={r.quota||0} onChange={e=>upd(r.id,"quota",Number(e.target.value))} style={{...iS,fontWeight:700}}/></td>
               <td style={TD({background:"#f0fdf4",borderLeft:"2px solid #16a34a"})}><input type="number" value={r.acconto||0} onChange={e=>upd(r.id,"acconto",Number(e.target.value))} style={{...iS,color:"#166534",fontWeight:700}}/></td>
