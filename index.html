@@ -15,7 +15,6 @@
 <body>
 <div id="root"></div>
 <script type="text/babel" data-presets="react">
-window.__ANTHROPIC_KEY__="";
 const{useState,useMemo,useEffect,useCallback}=React;
 
 /* ══ SUPABASE ══════════════════════════════════════════════════ */
@@ -149,14 +148,11 @@ function useSorted(data){
 function Login({onLogin}){
   const[email,setEmail]=useState("");
   const[pass,setPass]=useState("");
-  const[apiKey,setApiKey]=useState(()=>localStorage.getItem("mac_api_key")||"");
   const[err,setErr]=useState("");const[loading,setLoading]=useState(false);
   const submit=async()=>{
-    if(!apiKey.trim()){setErr("Inserisci la chiave API Anthropic.");return;}
     setLoading(true);setErr("");
     const{error}=await SB.auth.signInWithPassword({email,password:pass});
     if(error){setErr("Email o password errati.");setLoading(false);return;}
-    localStorage.setItem("mac_api_key",apiKey.trim());
     onLogin();
     setLoading(false);
   };
@@ -177,11 +173,6 @@ function Login({onLogin}){
           <input value={pass} onChange={e=>setPass(e.target.value)} type="password" style={{width:"100%",padding:"9px 12px",fontSize:14,border:"1px solid #000"}} onKeyDown={e=>e.key==="Enter"&&submit()}/>
         </div>
         {err&&<div style={{padding:"8px 12px",background:"#fee2e2",border:"1px solid #fca5a5",fontSize:12,color:"#991b1b",marginBottom:14}}>{err}</div>}
-        <div style={{marginBottom:16}}>
-        <label style={{fontSize:12,fontWeight:600,display:"block",marginBottom:5}}>🔑 Chiave API Anthropic</label>
-        <div style={{fontSize:11,color:"#888",marginBottom:5}}>Necessaria per importare PDF · <a href="https://console.anthropic.com" target="_blank" style={{color:"#185FA5"}}>Ottieni qui</a></div>
-        <input value={apiKey} onChange={e=>setApiKey(e.target.value)} type="password" placeholder="sk-ant-api03-..." style={{width:"100%",padding:"9px 12px",fontSize:12,border:"1px solid #000",fontFamily:"monospace"}} onKeyDown={e=>e.key==="Enter"&&submit()}/>
-      </div>
       <button onClick={submit} disabled={loading} style={{width:"100%",padding:11,background:loading?"#ccc":"#111",color:"#fff",border:"none",fontSize:14,fontWeight:700,cursor:loading?"not-allowed":"pointer"}}>
           {loading?"Accesso in corso…":"Accedi →"}
         </button>
@@ -213,24 +204,6 @@ function Modal({title,children,onClose}){
 
 /* ══ SAVE BAR ════════════════════════════════════════════════ */
 
-function ApiKeyBanner(){
-  const[key,setKey]=useState(()=>localStorage.getItem("mac_api_key")||"");
-  const[show,setShow]=useState(false);
-  const hasKey=key&&key.startsWith("sk-ant-");
-  const save=()=>{localStorage.setItem("mac_api_key",key.trim());window.location.reload();};
-  if(hasKey&&!show)return null;
-  return(<div style={{background:hasKey?"#f0fdf4":"#fef2f2",border:`1px solid ${hasKey?"#16a34a":"#dc2626"}`,padding:"10px 14px",marginBottom:8,display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
-    <span style={{fontSize:12,fontWeight:700,color:hasKey?"#166534":"#991b1b",whiteSpace:"nowrap"}}>
-      {hasKey?"✓ Chiave API attiva":"🔑 Inserisci chiave API Anthropic (per PDF e Word)"}
-    </span>
-    <input value={key} onChange={e=>setKey(e.target.value)} type="password" placeholder="sk-ant-api03-..." 
-      style={{flex:1,minWidth:200,padding:"5px 10px",fontSize:12,border:"1px solid #000",fontFamily:"monospace"}}/>
-    <button onClick={save} style={{padding:"5px 14px",background:"#111",color:"#fff",border:"none",fontSize:12,cursor:"pointer",fontWeight:700,whiteSpace:"nowrap"}}>
-      Salva e ricarica
-    </button>
-    {hasKey&&<button onClick={()=>setShow(false)} style={{padding:"5px 10px",background:"none",border:"1px solid #ccc",fontSize:11,cursor:"pointer"}}>✕</button>}
-  </div>);
-}
 
 function SaveBar({hasChanges,saving,onSave,onReset,lastSaved,onLogout}){
   return(<div style={{position:"sticky",top:0,zIndex:100,display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 14px",background:hasChanges?"#fef3c7":"#f0fdf4",border:`1px solid ${hasChanges?"#d97706":"#16a34a"}`,marginBottom:12,gap:8,flexWrap:"wrap"}}>
@@ -550,7 +523,7 @@ function TabImport({onSync,existingData,showToast,savedMappings,setSavedMappings
       }else if(ext==="docx"){
         const buf=await file.arrayBuffer();const res=await mammoth.extractRawText({arrayBuffer:buf});
         addLog("Analisi AI Word…");
-        const resp=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","anthropic-dangerous-direct-browser-access":"true","x-api-key":localStorage.getItem("mac_api_key")||window.__ANTHROPIC_KEY__||"","anthropic-version":"2023-06-01"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:3000,system:`Estrai iscrizioni. SOLO JSON array senza backtick. Campi: bambino,nato_il(dd/mm/yyyy),eta,inizio(dd/mm/yyyy),fine(dd/mm/yyyy),sett,nav(bool—true se navetta/trasferimento/bus),pasto_casa(bool—true se pranzo al sacco),citta,quota,acconto,saldato,da_saldare,stato(SALDATO|ACCONTO|DA PAGARE),note_pag,note_bimbo,telefono,genitore.`,messages:[{role:"user",content:res.value}]})});
+        const resp=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","anthropic-dangerous-direct-browser-access":"true","x-api-key":localStorage.getItem("mac_api_key")||"","anthropic-version":"2023-06-01"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:3000,system:`Estrai iscrizioni. SOLO JSON array senza backtick. Campi: bambino,nato_il(dd/mm/yyyy),eta,inizio(dd/mm/yyyy),fine(dd/mm/yyyy),sett,nav(bool—true se navetta/trasferimento/bus),pasto_casa(bool—true se pranzo al sacco),citta,quota,acconto,saldato,da_saldare,stato(SALDATO|ACCONTO|DA PAGARE),note_pag,note_bimbo,telefono,genitore.`,messages:[{role:"user",content:res.value}]})});
         const d=await resp.json();const txt=d.content.filter(b=>b.type==="text").map(b=>b.text).join("");
         const parsed=JSON.parse(txt.replace(/```json|```/g,"").trim());addLog(`Claude Word: ${parsed.length} iscritti`);
         mergeAndPreview(parsed.map(r=>({...r,id:uid(),da_saldare:calcResidue(r),stato:autoStato(r)})));
@@ -565,7 +538,7 @@ function TabImport({onSync,existingData,showToast,savedMappings,setSavedMappings
         addLog("Claude OCR PDF — estrazione in corso…");
         const pdfPrompt="Analizza questo PDF di iscrizione Campi Natura Macaranga. IMPORTANTE: il PDF puo contenere 1 o 2 figli. Restituisci SOLO un array JSON valido senza backtick e senza testo aggiuntivo. Ogni elemento rappresenta UN bambino. Campi: bambino(Nome Cognome del figlio), nato_il(dd/mm/yyyy), eta(int), inizio(Data Inizio in dd/mm/yyyy, usa 08/06/2026 se mancante), fine(calcola da inizio+sett), sett(settimane int 1-8), nav(boolean true se navetta/trasferimento/bus), pasto_casa(false di default), citta(Residenza: Terlizzi/Molfetta/Ruvo di Puglia/Corato/Roma ecc), quota(costo diviso per numero figli), acconto(0), saldato(0), da_saldare(uguale a quota), stato(DA PAGARE), note_pag(tipo sconto), note_bimbo(allergie intolleranze patologie CRITICO), telefono(del genitore), genitore(Nome Cognome). Se ci sono 2 figli crea 2 elementi separati. Valori mancanti: stringa vuota o 0.";
         const pdfBody=JSON.stringify({model:"claude-sonnet-4-6",max_tokens:4000,messages:[{role:"user",content:[{type:"document",source:{type:"base64",media_type:"application/pdf",data:b64}},{type:"text",text:pdfPrompt}]}]});
-        const pdfHeaders={"Content-Type":"application/json","anthropic-dangerous-direct-browser-access":"true","x-api-key":localStorage.getItem("mac_api_key")||window.__ANTHROPIC_KEY__||"","anthropic-version":"2023-06-01","anthropic-beta":"pdfs-2024-09-25"};
+        const pdfHeaders={"Content-Type":"application/json","anthropic-dangerous-direct-browser-access":"true","x-api-key":localStorage.getItem("mac_api_key")||"","anthropic-version":"2023-06-01","anthropic-beta":"pdfs-2024-09-25"};
         const resp=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:pdfHeaders,body:pdfBody});
         const rawResp=await resp.json();
         if(!rawResp||!rawResp.content){addLog("Errore API: "+(rawResp&&rawResp.error?rawResp.error.message:"risposta vuota"),"error");setUploading(false);return;}
@@ -1533,7 +1506,6 @@ function MainApp({onLogout}){
 
   return(<div style={{fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",padding:"1rem",background:"#fafafa",minHeight:"100vh"}}>
     {toast&&<Toast msg={toast.msg} type={toast.type||"ok"} onDone={()=>setToast(null)}/>}
-    <ApiKeyBanner/>
     {draft&&<DraftEditorPanel draft={draft} existingData={data} onCommit={handleCommitDraft} onDiscard={()=>{setDraft(null);showToast("Bozza scartata","warn");}} showToast={showToast}/>}
     <div style={{marginBottom:"0.75rem",borderBottom:"2px solid #000",paddingBottom:10,display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:8}}>
       <div>
