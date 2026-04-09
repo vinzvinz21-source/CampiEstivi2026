@@ -695,23 +695,25 @@ function SchedaPersonale({record,onUpdate,onClose,navCap}){
   const presCount=Object.values(r.presenze||{}).filter(Boolean).length;
   const totalDays=weeks.length*GIORNI_SETT;
   const pastiCount=Object.values(r.pasti_log||{}).filter(Boolean).length;
+  const pastiNonCons=totalDays-pastiCount;
   const pastiTotale=pastiCount*PASTI_RATE;
+  const navGiorni=r.nav?weeks.length*GIORNI_SETT:0;
+  const navTotale=navGiorni*NAV_RATE;
+  const quotaTotDovuto=(r.quota||0)+pastiTotale+navTotale;
   const nt=noteType(r.note_bimbo);const ns=nt?NST[nt]:null;
   const inpS={padding:"7px 10px",fontSize:13,border:"1px solid #000",background:"#fff",width:"100%"};
   const lbl=t=><label style={{fontSize:11,fontWeight:600,color:"#555",display:"block",marginBottom:4}}>{t}</label>;
   const save=()=>{const updated={...r,n_pasti:pastiCount};onUpdate(updated);onClose();};
+  const wkData=weeks.map(wId=>{
+    const wk=WEEKS.find(x=>x.id===wId);
+    const days=GIORNI_NOMI.map((_,di)=>r.pasti_log?.[`${wId}_${di}`]?"✓":"—");
+    const wP=days.filter(d=>d==="✓").length;
+    const presD=GIORNI_NOMI.map((_,di)=>r.presenze?.[`${wId}_${di}`]?"✓":"—");
+    const wPr=presD.filter(d=>d==="✓").length;
+    return{wId,label:wk?.label||"",range:wk?.range||"",days,wP,presD,wPr};
+  });
   const exportPDF=()=>{
-    const navWeeks=weeks.filter(()=>r.nav);
-    const navTot=navWeeks.length*GIORNI_SETT*NAV_RATE;
     const pw=window.open("","_blank","width=800,height=900");
-    const wkRows=weeks.map(wId=>{
-      const wk=WEEKS.find(x=>x.id===wId);
-      const days=GIORNI_NOMI.map((_,di)=>r.pasti_log?.[`${wId}_${di}`]?"✓":"—");
-      const wP=days.filter(d=>d==="✓").length;
-      const presD=GIORNI_NOMI.map((_,di)=>r.presenze?.[`${wId}_${di}`]?"✓":"—");
-      const wPr=presD.filter(d=>d==="✓").length;
-      return{label:wk?.label||"",range:wk?.range||"",days,wP,presD,wPr};
-    });
     const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Scheda ${r.bambino}</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}body{font-family:Arial,sans-serif;padding:30px;font-size:13px;color:#111}
@@ -749,39 +751,39 @@ th,td{border:1px solid #333;padding:5px 8px;text-align:center}th{background:#222
 <div><span class="lbl">Allergie / Note</span><span class="val">${r.note_bimbo||"—"}</span></div>
 </div>
 
-<h2>🍽 Registro Pasti</h2>
+<h2>🍽 Registro Pasti — ${pastiCount} consumati / ${pastiNonCons} non consumati</h2>
 <table>
 <tr><th>Settimana</th>${GIORNI_NOMI.map(g=>"<th>"+g+"</th>").join("")}<th>Tot</th><th>Costo</th></tr>
-${wkRows.map(w=>"<tr><td style='text-align:left;font-weight:700'>"+w.label+"<br><span style='font-size:10px;color:#888'>"+w.range+"</span></td>"+w.days.map(d=>"<td class='"+(d==="✓"?"check":"miss")+"'>"+d+"</td>").join("")+"<td style='font-weight:700'>"+w.wP+"</td><td style='font-weight:700'>€ "+(w.wP*PASTI_RATE)+"</td></tr>").join("")}
+${wkData.map(w=>"<tr><td style='text-align:left;font-weight:700'>"+w.label+"<br><span style='font-size:10px;color:#888'>"+w.range+"</span></td>"+w.days.map(d=>"<td class='"+(d==="✓"?"check":"miss")+"'>"+d+"</td>").join("")+"<td style='font-weight:700'>"+w.wP+"</td><td style='font-weight:700'>€ "+(w.wP*PASTI_RATE)+"</td></tr>").join("")}
 <tr style="font-weight:800;background:#f0fdf4"><td colspan="${GIORNI_NOMI.length+1}" style="text-align:right">TOTALE PASTI</td><td>${pastiCount} gg</td><td>€ ${pastiTotale}</td></tr>
 </table>
 
-${r.nav?`<h2>🚐 Navette</h2>
+${r.nav?`<h2>🚐 Navette — ${navGiorni} giorni · € ${navTotale}</h2>
 <div class="info">
 <div><span class="lbl">Tratta</span><span class="val">${r.citta||"—"}</span></div>
 <div><span class="lbl">Settimane</span><span class="val">${weeks.length}</span></div>
-<div><span class="lbl">Giorni totale</span><span class="val">${weeks.length*GIORNI_SETT}</span></div>
+<div><span class="lbl">Giorni totale</span><span class="val">${navGiorni}</span></div>
 <div><span class="lbl">Costo/giorno</span><span class="val">€ ${NAV_RATE}</span></div>
-<div><span class="lbl">Totale navette</span><span class="val">€ ${navTot}</span></div>
+<div><span class="lbl">Totale navette</span><span class="val">€ ${navTotale}</span></div>
 </div>`:""}
 
-<h2>✅ Registro Presenze</h2>
+<h2>✅ Registro Presenze — ${presCount}/${totalDays}</h2>
 <table>
 <tr><th>Settimana</th>${GIORNI_NOMI.map(g=>"<th>"+g+"</th>").join("")}<th>Tot</th></tr>
-${wkRows.map(w=>"<tr><td style='text-align:left;font-weight:700'>"+w.label+"<br><span style='font-size:10px;color:#888'>"+w.range+"</span></td>"+w.presD.map(d=>"<td class='"+(d==="✓"?"check":"miss")+"'>"+d+"</td>").join("")+"<td style='font-weight:700'>"+w.wPr+"/"+GIORNI_SETT+"</td></tr>").join("")}
+${wkData.map(w=>"<tr><td style='text-align:left;font-weight:700'>"+w.label+"<br><span style='font-size:10px;color:#888'>"+w.range+"</span></td>"+w.presD.map(d=>"<td class='"+(d==="✓"?"check":"miss")+"'>"+d+"</td>").join("")+"<td style='font-weight:700'>"+w.wPr+"/"+GIORNI_SETT+"</td></tr>").join("")}
 <tr style="font-weight:800;background:#f0fdf4"><td colspan="${GIORNI_NOMI.length+1}" style="text-align:right">TOTALE PRESENZE</td><td>${presCount}/${totalDays}</td></tr>
 </table>
 
 <h2>💰 Riepilogo Economico</h2>
 <table>
-<tr><th>Voce</th><th>Importo</th></tr>
-<tr><td style="text-align:left">Quota iscrizione</td><td style="font-weight:700">€ ${r.quota||0}</td></tr>
-<tr><td style="text-align:left">Pasti (${pastiCount} giorni × € ${PASTI_RATE})</td><td style="font-weight:700">€ ${pastiTotale}</td></tr>
-${r.nav?`<tr><td style="text-align:left">Navette (${weeks.length*GIORNI_SETT} giorni × € ${NAV_RATE})</td><td style="font-weight:700">€ ${navTot}</td></tr>`:""}
-<tr style="font-weight:800;background:#eee"><td style="text-align:left">TOTALE DOVUTO</td><td>€ ${(r.quota||0)+pastiTotale+(r.nav?navTot:0)}</td></tr>
-<tr><td style="text-align:left;color:#16a34a">Acconto versato</td><td style="color:#16a34a;font-weight:700">€ ${r.acconto||0}</td></tr>
-<tr><td style="text-align:left;color:#16a34a">Saldo versato</td><td style="color:#16a34a;font-weight:700">€ ${r.saldato||0}</td></tr>
-<tr style="font-weight:800;background:${(r.da_saldare||0)>0?"#fee2e2":"#dcfce7"}"><td style="text-align:left">RESIDUO</td><td>€ ${r.da_saldare||0}</td></tr>
+<tr><th>Voce</th><th>Dettaglio</th><th>Importo</th></tr>
+<tr><td style="text-align:left">Quota iscrizione</td><td>—</td><td style="font-weight:700">€ ${r.quota||0}</td></tr>
+<tr><td style="text-align:left">Pasti mensa</td><td>${pastiCount} giorni × € ${PASTI_RATE}</td><td style="font-weight:700">€ ${pastiTotale}</td></tr>
+${r.nav?`<tr><td style="text-align:left">Navette</td><td>${navGiorni} giorni × € ${NAV_RATE}</td><td style="font-weight:700">€ ${navTotale}</td></tr>`:""}
+<tr style="font-weight:800;background:#eee"><td style="text-align:left">TOTALE DOVUTO</td><td></td><td>€ ${quotaTotDovuto}</td></tr>
+<tr><td style="text-align:left;color:#16a34a">Acconto versato</td><td></td><td style="color:#16a34a;font-weight:700">− € ${r.acconto||0}</td></tr>
+<tr><td style="text-align:left;color:#16a34a">Saldo versato</td><td></td><td style="color:#16a34a;font-weight:700">− € ${r.saldato||0}</td></tr>
+<tr style="font-weight:800;background:${(r.da_saldare||0)>0?"#fee2e2":"#dcfce7"}"><td style="text-align:left">RESIDUO DA SALDARE</td><td></td><td>€ ${r.da_saldare||0}</td></tr>
 </table>
 <div class="tot" style="background:${(r.da_saldare||0)>0?"#fee2e2":"#dcfce7"};border-color:${(r.da_saldare||0)>0?"#dc2626":"#16a34a"};color:${(r.da_saldare||0)>0?"#991b1b":"#166534"}">
 STATO: ${r.stato||"—"} — Residuo: € ${r.da_saldare||0}
@@ -789,9 +791,44 @@ STATO: ${r.stato||"—"} — Residuo: € ${r.da_saldare||0}
 
 ${r.note_pag?`<h2>📝 Note Pagamento</h2><p>${r.note_pag}</p>`:""}
 
-<div style="margin-top:30px;text-align:center"><button onclick="window.print()" style="padding:10px 30px;font-size:14px;font-weight:700;border:2px solid #000;background:#16a34a;color:#fff;cursor:pointer">🖨 Stampa / Salva PDF</button></div>
+<div style="margin-top:30px;text-align:center"><button onclick="window.print()" style="padding:10px 30px;font-size:14px;font-weight:700;border:2px solid #000;background:#7c3aed;color:#fff;cursor:pointer">🖨 Stampa / Salva PDF</button></div>
 </body></html>`;
     pw.document.write(html);pw.document.close();
+  };
+  const exportExcel=()=>{
+    const rows=[
+      ["SCHEDA PERSONALE — "+r.bambino],
+      ["Campi Natura Macaranga 2026"],
+      [],
+      ["DATI ANAGRAFICI"],
+      ["Nome",r.bambino||""],["Data nascita",r.nato_il||""],["Età",r.eta||""],["Città",r.citta||""],["Genitore",r.genitore||""],["Telefono",r.telefono||""],
+      [],
+      ["PERIODO"],
+      ["Inizio",r.inizio||""],["Fine",r.fine||""],["Settimane",r.sett||0],["Navetta",r.nav?"Sì":"No"],["Pasto",r.pasto_casa?"Pranzo al sacco":"Mensa"],
+      [],
+      ["REGISTRO PASTI","Lun","Mar","Mer","Gio","Ven","Tot","Costo €"],
+      ...wkData.map(w=>[w.label+" "+w.range,...w.days,w.wP,w.wP*PASTI_RATE]),
+      ["TOTALE","","","","","",pastiCount,pastiTotale],
+      [],
+      ["REGISTRO PRESENZE","Lun","Mar","Mer","Gio","Ven","Tot"],
+      ...wkData.map(w=>[w.label+" "+w.range,...w.presD,w.wPr+"/"+GIORNI_SETT]),
+      ["TOTALE","","","","","",presCount+"/"+totalDays],
+      [],
+      ["RIEPILOGO ECONOMICO","Dettaglio","Importo €"],
+      ["Quota iscrizione","",r.quota||0],
+      ["Pasti mensa",pastiCount+" gg × €"+PASTI_RATE,pastiTotale],
+      ...(r.nav?[["Navette",navGiorni+" gg × €"+NAV_RATE,navTotale]]:[]),
+      ["TOTALE DOVUTO","",quotaTotDovuto],
+      ["Acconto versato","",r.acconto||0],
+      ["Saldo versato","",r.saldato||0],
+      ["RESIDUO DA SALDARE","",r.da_saldare||0],
+      [],
+      ["STATO",r.stato||""],
+      ...(r.note_pag?[["Note pagamento",r.note_pag]]:[]),
+      ...(r.note_bimbo?[["Allergie/Note",r.note_bimbo]]:[])
+    ];
+    const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),"Scheda");
+    XLSX.writeFile(wb,`Scheda_${(r.bambino||"bambino").replace(/\s+/g,"_")}.xlsx`);
   };
   return(
     <div style={{position:"fixed",inset:0,zIndex:9998,background:"rgba(0,0,0,.55)",display:"flex",alignItems:"flex-start",justifyContent:"center",padding:16,overflowY:"auto"}}>
@@ -861,18 +898,71 @@ ${r.note_pag?`<h2>📝 Note Pagamento</h2><p>${r.note_pag}</p>`:""}
             })}
           </div>}
           {/* Rendiconto pasti */}
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:16}}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:8,marginBottom:16}}>
             <div style={{background:"#f0fdf4",border:"1px solid #16a34a",padding:"8px 10px",textAlign:"center"}}>
-              <div style={{fontSize:10,color:"#166534"}}>Giorni pasto</div>
+              <div style={{fontSize:10,color:"#166534"}}>Consumati</div>
               <div style={{fontSize:18,fontWeight:900,color:"#166534"}}>{pastiCount}<span style={{fontSize:11,fontWeight:400}}>/{totalDays}</span></div>
+            </div>
+            <div style={{background:"#fef9c3",border:"1px solid #d97706",padding:"8px 10px",textAlign:"center"}}>
+              <div style={{fontSize:10,color:"#854d0e"}}>Non consumati</div>
+              <div style={{fontSize:18,fontWeight:900,color:"#854d0e"}}>{pastiNonCons}</div>
             </div>
             <div style={{background:"#f0fdf4",border:"1px solid #16a34a",padding:"8px 10px",textAlign:"center"}}>
               <div style={{fontSize:10,color:"#166534"}}>Costo unitario</div>
-              <div style={{fontSize:18,fontWeight:900,color:"#166534"}}>{E2(PASTI_RATE)}<span style={{fontSize:11,fontWeight:400}}>/giorno</span></div>
+              <div style={{fontSize:18,fontWeight:900,color:"#166534"}}>{E2(PASTI_RATE)}<span style={{fontSize:11,fontWeight:400}}>/gg</span></div>
             </div>
             <div style={{background:"#166534",border:"1px solid #000",padding:"8px 10px",textAlign:"center",color:"#fff"}}>
               <div style={{fontSize:10,opacity:.8}}>Totale pasti</div>
               <div style={{fontSize:18,fontWeight:900}}>{E(pastiTotale)}</div>
+            </div>
+          </div>
+
+          {/* NAVETTE */}
+          {r.nav&&<>
+          <div style={{fontWeight:800,fontSize:13,marginBottom:10,borderBottom:"2px solid #1e40af",paddingBottom:5,color:"#1e40af"}}>🚐 Navette <span style={{fontWeight:400,fontSize:11,color:"#666"}}>({navGiorni} giorni · {E(navTotale)})</span></div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:8,marginBottom:16}}>
+            <div style={{background:"#dbeafe",border:"1px solid #3b82f6",padding:"8px 10px",textAlign:"center"}}>
+              <div style={{fontSize:10,color:"#1e40af"}}>Tratta</div>
+              <div style={{fontSize:14,fontWeight:900,color:"#1e40af"}}>{r.citta||"—"}</div>
+            </div>
+            <div style={{background:"#dbeafe",border:"1px solid #3b82f6",padding:"8px 10px",textAlign:"center"}}>
+              <div style={{fontSize:10,color:"#1e40af"}}>Settimane</div>
+              <div style={{fontSize:18,fontWeight:900,color:"#1e40af"}}>{weeks.length}</div>
+            </div>
+            <div style={{background:"#dbeafe",border:"1px solid #3b82f6",padding:"8px 10px",textAlign:"center"}}>
+              <div style={{fontSize:10,color:"#1e40af"}}>Giorni × tariffa</div>
+              <div style={{fontSize:14,fontWeight:900,color:"#1e40af"}}>{navGiorni} × {E2(NAV_RATE)}</div>
+            </div>
+            <div style={{background:"#1e40af",border:"1px solid #000",padding:"8px 10px",textAlign:"center",color:"#fff"}}>
+              <div style={{fontSize:10,opacity:.8}}>Totale navette</div>
+              <div style={{fontSize:18,fontWeight:900}}>{E(navTotale)}</div>
+            </div>
+          </div>
+          </>}
+
+          {/* RIEPILOGO COSTI */}
+          <div style={{fontWeight:800,fontSize:13,marginBottom:10,borderBottom:"2px solid #7c3aed",paddingBottom:5,color:"#7c3aed"}}>📊 Riepilogo Costi Totale</div>
+          <div style={{border:"2px solid #000",marginBottom:16,fontSize:12}}>
+            <div style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",background:"#fafafa",borderBottom:"1px solid #ddd"}}>
+              <span>Quota iscrizione</span><span style={{fontWeight:700}}>{E(r.quota||0)}</span>
+            </div>
+            <div style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",background:"#f0fdf4",borderBottom:"1px solid #ddd"}}>
+              <span>🍽 Pasti ({pastiCount} gg × {E2(PASTI_RATE)})</span><span style={{fontWeight:700,color:"#166534"}}>{E(pastiTotale)}</span>
+            </div>
+            {r.nav&&<div style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",background:"#dbeafe",borderBottom:"1px solid #ddd"}}>
+              <span>🚐 Navette ({navGiorni} gg × {E2(NAV_RATE)})</span><span style={{fontWeight:700,color:"#1e40af"}}>{E(navTotale)}</span>
+            </div>}
+            <div style={{display:"flex",justifyContent:"space-between",padding:"10px 12px",background:"#111",color:"#fff",fontWeight:800,fontSize:14}}>
+              <span>TOTALE DOVUTO</span><span>{E(quotaTotDovuto)}</span>
+            </div>
+            <div style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",background:"#dcfce7",borderBottom:"1px solid #ddd"}}>
+              <span>Acconto versato</span><span style={{fontWeight:700,color:"#166534"}}>− {E(r.acconto||0)}</span>
+            </div>
+            <div style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",background:"#dcfce7",borderBottom:"1px solid #ddd"}}>
+              <span>Saldo versato</span><span style={{fontWeight:700,color:"#166534"}}>− {E(r.saldato||0)}</span>
+            </div>
+            <div style={{display:"flex",justifyContent:"space-between",padding:"10px 12px",background:(r.da_saldare||0)>0?"#fee2e2":"#dcfce7",fontWeight:800,fontSize:14,color:(r.da_saldare||0)>0?"#dc2626":"#166534"}}>
+              <span>RESIDUO</span><span>{E(r.da_saldare||0)}</span>
             </div>
           </div>
 
@@ -918,8 +1008,10 @@ ${r.note_pag?`<h2>📝 Note Pagamento</h2><p>${r.note_pag}</p>`:""}
           </div>}
 
           {/* BOTTONI */}
-          <div style={{display:"flex",gap:10,justifyContent:"flex-end",borderTop:"2px solid #000",paddingTop:14}}>
-            <button onClick={exportPDF} style={{padding:"10px 20px",border:"1px solid #000",background:"#1e40af",color:"#fff",fontSize:13,cursor:"pointer",fontWeight:600}}>🖨 Esporta PDF</button>
+          <div style={{display:"flex",gap:10,justifyContent:"flex-end",borderTop:"2px solid #000",paddingTop:14,flexWrap:"wrap"}}>
+            <button onClick={exportExcel} style={{padding:"10px 20px",border:"2px solid #7c3aed",background:"#7c3aed",color:"#fff",fontSize:13,cursor:"pointer",fontWeight:700}}>⬇ Scarica Excel</button>
+            <button onClick={exportPDF} style={{padding:"10px 20px",border:"2px solid #7c3aed",background:"#ede9fe",color:"#7c3aed",fontSize:13,cursor:"pointer",fontWeight:700}}>🖨 Stampa PDF</button>
+            <div style={{flex:1}}/>
             <button onClick={onClose} style={{padding:"10px 20px",border:"1px solid #000",background:"#fff",fontSize:13,cursor:"pointer",fontWeight:600}}>Annulla</button>
             <button onClick={save} style={{padding:"10px 28px",border:"2px solid #000",background:"#16a34a",color:"#fff",fontSize:14,cursor:"pointer",fontWeight:800}}>✓ Salva e Chiudi</button>
           </div>
