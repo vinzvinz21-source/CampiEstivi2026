@@ -37,6 +37,7 @@ const WEEKS=[
 ];
 const DAL_TO_SETT=Object.fromEntries(WEEKS.map(w=>[w.dal,w.id]));
 const NAV_RATE=4;const PASTI_RATE=5;const GIORNI_SETT=5;
+const GIORNI_NOMI=["Lun","Mar","Mer","Gio","Ven"];
 const NAV_CAP={"Ruvo di Puglia":8,"Terlizzi":16,"Molfetta":16,"Corato":4};
 const getCap=c=>NAV_CAP[c]??14;
 const NAVETTA_PARTENZA={"Terlizzi":"Terlizzi","Molfetta":"Terlizzi","Ruvo di Puglia":"Ruvo di Puglia","Corato":"Corato"};
@@ -130,8 +131,13 @@ function calcServizi(data,giorniSett=GIORNI_SETT){
     if(!r.bambino?.trim())return;
     calcWeeks(r.inizio,r.sett).forEach(sid=>{
       const w=WEEKS.find(x=>x.id===sid);
-      if(r.nav)nR.push({id:r.id,bambino:r.bambino,citta:r.citta,settimana:w?.label||"—",settRange:w?.range||"—",giorni:giorniSett,totale:giorniSett*NAV_RATE});
-      if(!r.pasto_casa)pR.push({id:r.id,bambino:r.bambino,citta:r.citta,settimana:w?.label||"—",settRange:w?.range||"—",giorni:giorniSett,totale:giorniSett*PASTI_RATE});
+      if(r.nav)nR.push({id:r.id,bambino:r.bambino,citta:r.citta,settimana:w?.label||"—",settId:sid,settRange:w?.range||"—",giorni:giorniSett,totale:giorniSett*NAV_RATE});
+      if(!r.pasto_casa){
+        const pl=r.pasti_log||{};
+        const consumed=GIORNI_NOMI.reduce((c,_,di)=>c+(pl[`${sid}_${di}`]?1:0),0);
+        const g=consumed>0?consumed:giorniSett;
+        pR.push({id:r.id,bambino:r.bambino,citta:r.citta,settimana:w?.label||"—",settId:sid,settRange:w?.range||"—",giorni:g,totale:g*PASTI_RATE});
+      }
     });
   });
   const tN=nR.reduce((s,r)=>s+r.totale,0);const tP=pR.reduce((s,r)=>s+r.totale,0);
@@ -676,7 +682,6 @@ function TabImport({onSync,existingData,showToast,savedMappings,setSavedMappings
 
 
 /* ══ SCHEDA PERSONALE ════════════════════════════════════════ */
-const GIORNI_NOMI=["Lun","Mar","Mer","Gio","Ven"];
 function SchedaPersonale({record,onUpdate,onClose,navCap}){
   const[r,setR]=useState(()=>({...record,presenze:record.presenze||{},pasti_log:record.pasti_log||{}}));
   const upd=(k,v)=>setR(prev=>{
@@ -695,6 +700,99 @@ function SchedaPersonale({record,onUpdate,onClose,navCap}){
   const inpS={padding:"7px 10px",fontSize:13,border:"1px solid #000",background:"#fff",width:"100%"};
   const lbl=t=><label style={{fontSize:11,fontWeight:600,color:"#555",display:"block",marginBottom:4}}>{t}</label>;
   const save=()=>{const updated={...r,n_pasti:pastiCount};onUpdate(updated);onClose();};
+  const exportPDF=()=>{
+    const navWeeks=weeks.filter(()=>r.nav);
+    const navTot=navWeeks.length*GIORNI_SETT*NAV_RATE;
+    const pw=window.open("","_blank","width=800,height=900");
+    const wkRows=weeks.map(wId=>{
+      const wk=WEEKS.find(x=>x.id===wId);
+      const days=GIORNI_NOMI.map((_,di)=>r.pasti_log?.[`${wId}_${di}`]?"✓":"—");
+      const wP=days.filter(d=>d==="✓").length;
+      const presD=GIORNI_NOMI.map((_,di)=>r.presenze?.[`${wId}_${di}`]?"✓":"—");
+      const wPr=presD.filter(d=>d==="✓").length;
+      return{label:wk?.label||"",range:wk?.range||"",days,wP,presD,wPr};
+    });
+    const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Scheda ${r.bambino}</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}body{font-family:Arial,sans-serif;padding:30px;font-size:13px;color:#111}
+h1{font-size:20px;margin-bottom:4px}h2{font-size:14px;margin:18px 0 8px;border-bottom:2px solid #000;padding-bottom:4px}
+.sub{color:#555;font-size:12px;margin-bottom:16px}
+table{width:100%;border-collapse:collapse;margin-bottom:12px;font-size:12px}
+th,td{border:1px solid #333;padding:5px 8px;text-align:center}th{background:#222;color:#fff;font-weight:700}
+.info{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px}
+.info div{padding:6px 10px;background:#f5f5f5;border:1px solid #ddd}
+.info .lbl{font-size:10px;color:#888;display:block}.info .val{font-weight:700}
+.tot{background:#f0fdf4;border:1px solid #16a34a;padding:10px;text-align:center;font-weight:800;font-size:16px;margin:10px 0}
+.check{color:#16a34a;font-weight:700}.miss{color:#ccc}
+@media print{body{padding:15px}button{display:none!important}}
+</style></head><body>
+<h1>📋 Scheda Personale — ${r.bambino||"—"}</h1>
+<div class="sub">Campi Natura Macaranga 2026 · Stampato il ${new Date().toLocaleDateString("it-IT")}</div>
+
+<h2>👤 Dati Anagrafici</h2>
+<div class="info">
+<div><span class="lbl">Nome</span><span class="val">${r.bambino||"—"}</span></div>
+<div><span class="lbl">Data di nascita</span><span class="val">${r.nato_il||"—"}</span></div>
+<div><span class="lbl">Età</span><span class="val">${r.eta||"—"}</span></div>
+<div><span class="lbl">Città</span><span class="val">${r.citta||"—"}</span></div>
+<div><span class="lbl">Genitore</span><span class="val">${r.genitore||"—"}</span></div>
+<div><span class="lbl">Telefono</span><span class="val">${r.telefono||"—"}</span></div>
+</div>
+
+<h2>📅 Periodo e Servizi</h2>
+<div class="info">
+<div><span class="lbl">Inizio</span><span class="val">${r.inizio||"—"}</span></div>
+<div><span class="lbl">Fine</span><span class="val">${r.fine||"—"}</span></div>
+<div><span class="lbl">Settimane</span><span class="val">${r.sett||0}</span></div>
+<div><span class="lbl">Navetta</span><span class="val">${r.nav?"Sì":"No"}${r.nav&&r.citta?" ("+r.citta+")":""}</span></div>
+<div><span class="lbl">Pasto</span><span class="val">${r.pasto_casa?"Pranzo al sacco":"Mensa"}</span></div>
+<div><span class="lbl">Allergie / Note</span><span class="val">${r.note_bimbo||"—"}</span></div>
+</div>
+
+<h2>🍽 Registro Pasti</h2>
+<table>
+<tr><th>Settimana</th>${GIORNI_NOMI.map(g=>"<th>"+g+"</th>").join("")}<th>Tot</th><th>Costo</th></tr>
+${wkRows.map(w=>"<tr><td style='text-align:left;font-weight:700'>"+w.label+"<br><span style='font-size:10px;color:#888'>"+w.range+"</span></td>"+w.days.map(d=>"<td class='"+(d==="✓"?"check":"miss")+"'>"+d+"</td>").join("")+"<td style='font-weight:700'>"+w.wP+"</td><td style='font-weight:700'>€ "+(w.wP*PASTI_RATE)+"</td></tr>").join("")}
+<tr style="font-weight:800;background:#f0fdf4"><td colspan="${GIORNI_NOMI.length+1}" style="text-align:right">TOTALE PASTI</td><td>${pastiCount} gg</td><td>€ ${pastiTotale}</td></tr>
+</table>
+
+${r.nav?`<h2>🚐 Navette</h2>
+<div class="info">
+<div><span class="lbl">Tratta</span><span class="val">${r.citta||"—"}</span></div>
+<div><span class="lbl">Settimane</span><span class="val">${weeks.length}</span></div>
+<div><span class="lbl">Giorni totale</span><span class="val">${weeks.length*GIORNI_SETT}</span></div>
+<div><span class="lbl">Costo/giorno</span><span class="val">€ ${NAV_RATE}</span></div>
+<div><span class="lbl">Totale navette</span><span class="val">€ ${navTot}</span></div>
+</div>`:""}
+
+<h2>✅ Registro Presenze</h2>
+<table>
+<tr><th>Settimana</th>${GIORNI_NOMI.map(g=>"<th>"+g+"</th>").join("")}<th>Tot</th></tr>
+${wkRows.map(w=>"<tr><td style='text-align:left;font-weight:700'>"+w.label+"<br><span style='font-size:10px;color:#888'>"+w.range+"</span></td>"+w.presD.map(d=>"<td class='"+(d==="✓"?"check":"miss")+"'>"+d+"</td>").join("")+"<td style='font-weight:700'>"+w.wPr+"/"+GIORNI_SETT+"</td></tr>").join("")}
+<tr style="font-weight:800;background:#f0fdf4"><td colspan="${GIORNI_NOMI.length+1}" style="text-align:right">TOTALE PRESENZE</td><td>${presCount}/${totalDays}</td></tr>
+</table>
+
+<h2>💰 Riepilogo Economico</h2>
+<table>
+<tr><th>Voce</th><th>Importo</th></tr>
+<tr><td style="text-align:left">Quota iscrizione</td><td style="font-weight:700">€ ${r.quota||0}</td></tr>
+<tr><td style="text-align:left">Pasti (${pastiCount} giorni × € ${PASTI_RATE})</td><td style="font-weight:700">€ ${pastiTotale}</td></tr>
+${r.nav?`<tr><td style="text-align:left">Navette (${weeks.length*GIORNI_SETT} giorni × € ${NAV_RATE})</td><td style="font-weight:700">€ ${navTot}</td></tr>`:""}
+<tr style="font-weight:800;background:#eee"><td style="text-align:left">TOTALE DOVUTO</td><td>€ ${(r.quota||0)+pastiTotale+(r.nav?navTot:0)}</td></tr>
+<tr><td style="text-align:left;color:#16a34a">Acconto versato</td><td style="color:#16a34a;font-weight:700">€ ${r.acconto||0}</td></tr>
+<tr><td style="text-align:left;color:#16a34a">Saldo versato</td><td style="color:#16a34a;font-weight:700">€ ${r.saldato||0}</td></tr>
+<tr style="font-weight:800;background:${(r.da_saldare||0)>0?"#fee2e2":"#dcfce7"}"><td style="text-align:left">RESIDUO</td><td>€ ${r.da_saldare||0}</td></tr>
+</table>
+<div class="tot" style="background:${(r.da_saldare||0)>0?"#fee2e2":"#dcfce7"};border-color:${(r.da_saldare||0)>0?"#dc2626":"#16a34a"};color:${(r.da_saldare||0)>0?"#991b1b":"#166534"}">
+STATO: ${r.stato||"—"} — Residuo: € ${r.da_saldare||0}
+</div>
+
+${r.note_pag?`<h2>📝 Note Pagamento</h2><p>${r.note_pag}</p>`:""}
+
+<div style="margin-top:30px;text-align:center"><button onclick="window.print()" style="padding:10px 30px;font-size:14px;font-weight:700;border:2px solid #000;background:#16a34a;color:#fff;cursor:pointer">🖨 Stampa / Salva PDF</button></div>
+</body></html>`;
+    pw.document.write(html);pw.document.close();
+  };
   return(
     <div style={{position:"fixed",inset:0,zIndex:9998,background:"rgba(0,0,0,.55)",display:"flex",alignItems:"flex-start",justifyContent:"center",padding:16,overflowY:"auto"}}>
       <div style={{background:"#fff",border:"2px solid #000",maxWidth:760,width:"100%",marginBottom:16}}>
@@ -821,6 +919,7 @@ function SchedaPersonale({record,onUpdate,onClose,navCap}){
 
           {/* BOTTONI */}
           <div style={{display:"flex",gap:10,justifyContent:"flex-end",borderTop:"2px solid #000",paddingTop:14}}>
+            <button onClick={exportPDF} style={{padding:"10px 20px",border:"1px solid #000",background:"#1e40af",color:"#fff",fontSize:13,cursor:"pointer",fontWeight:600}}>🖨 Esporta PDF</button>
             <button onClick={onClose} style={{padding:"10px 20px",border:"1px solid #000",background:"#fff",fontSize:13,cursor:"pointer",fontWeight:600}}>Annulla</button>
             <button onClick={save} style={{padding:"10px 28px",border:"2px solid #000",background:"#16a34a",color:"#fff",fontSize:14,cursor:"pointer",fontWeight:800}}>✓ Salva e Chiudi</button>
           </div>
@@ -1113,20 +1212,33 @@ function TabNavetteContab({data,giorniSett,showToast}){
 
 
 /* ══ TAB CONTABILITÀ PASTI ══════════════════════════════════════ */
-function TabPastiContab({data,giorniSett,showToast}){
+function TabPastiContab({data,setData,giorniSett,showToast}){
   const{pastiRows,totPasti}=useMemo(()=>calcServizi(data,giorniSett),[data,giorniSett]);
   const[fSett,setFSett]=useState(0);
   const lista=fSett===0?pastiRows:pastiRows.filter(r=>r.settimana===`S${fSett}`);
   const totFiltro=lista.reduce((s,r)=>s+r.totale,0);
+  const totGiorni=lista.reduce((s,r)=>s+r.giorni,0);
   const nPastoCasa=data.filter(r=>r.pasto_casa).length;
+  const nPastiManc=lista.reduce((s,r)=>s+(giorniSett-r.giorni),0);
+  const adjGiorni=(id,settId,delta)=>{
+    setData(prev=>prev.map(r=>{
+      if(r.id!==id)return r;
+      const pl={...(r.pasti_log||{})};
+      const current=GIORNI_NOMI.reduce((c,_,di)=>c+(pl[`${settId}_${di}`]?1:0),0);
+      const actual=current>0?current:giorniSett;
+      const newVal=Math.max(0,Math.min(giorniSett,actual+delta));
+      GIORNI_NOMI.forEach((_,di)=>{pl[`${settId}_${di}`]=di<newVal;});
+      return{...r,pasti_log:pl,n_pasti:Object.values(pl).filter(Boolean).length};
+    }));
+  };
   const TH={background:"#111",color:"#fff",padding:"7px 9px",border:"1px solid #000",textAlign:"center",fontWeight:600,fontSize:11};
   const TD={border:"1px solid #000",padding:"6px 9px",fontSize:12};
   return(<div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:10,marginBottom:14}}>
       <div style={{background:"#166534",border:"1px solid #000",padding:14,color:"#fff"}}>
-        <div style={{fontSize:11,opacity:.8,marginBottom:4}}>🍽 Totale ricavi pasti (stagione)</div>
+        <div style={{fontSize:11,opacity:.8,marginBottom:4}}>🍽 Totale costo pasti (stagione)</div>
         <div style={{fontSize:22,fontWeight:900}}>{E(totPasti)}</div>
-        <div style={{fontSize:11,opacity:.8,marginTop:4}}>{pastiRows.length} settimane-bambino · {PASTI_RATE}€/giorno/bambino</div>
+        <div style={{fontSize:11,opacity:.8,marginTop:4}}>{totGiorni} pasti consumati · {PASTI_RATE}€/pasto</div>
       </div>
       <div style={{background:"#fff",border:"1px solid #000",padding:14}}>
         <div style={{fontSize:11,color:"#666",marginBottom:4}}>Bambini con pasti</div>
@@ -1136,12 +1248,12 @@ function TabPastiContab({data,giorniSett,showToast}){
       <div style={{background:"#fff",border:"1px solid #000",padding:14}}>
         <div style={{fontSize:11,color:"#666",marginBottom:4}}>Ricavo medio per bambino</div>
         <div style={{fontSize:22,fontWeight:900,color:"#166534"}}>{E(pastiRows.length>0?totPasti/[...new Set(pastiRows.map(r=>r.id))].length:0)}</div>
-        <div style={{fontSize:11,color:"#888",marginTop:4}}>{giorniSett} giorni × {PASTI_RATE}€/sett.</div>
+        <div style={{fontSize:11,color:"#888",marginTop:4}}>{PASTI_RATE}€/pasto</div>
       </div>
-      <div style={{background:"#fef9c3",border:"1px solid #000",padding:14}}>
-        <div style={{fontSize:11,color:"#666",marginBottom:4}}>🥪 Pranzo al sacco (esclusi)</div>
-        <div style={{fontSize:22,fontWeight:900,color:"#854d0e"}}>{nPastoCasa}</div>
-        <div style={{fontSize:11,color:"#888",marginTop:4}}>non conteggiati nella tabella</div>
+      <div style={{background:nPastiManc>0?"#fef3c7":"#fef9c3",border:"1px solid #000",padding:14}}>
+        <div style={{fontSize:11,color:"#666",marginBottom:4}}>🍽 Pasti al sacco / non consumati</div>
+        <div style={{fontSize:22,fontWeight:900,color:"#854d0e"}}>{nPastiManc+nPastoCasa*giorniSett}</div>
+        <div style={{fontSize:11,color:"#888",marginTop:4}}>{nPastoCasa} al sacco + {nPastiManc} non consumati</div>
       </div>
     </div>
     <div style={{display:"flex",gap:8,marginBottom:12,alignItems:"center"}}>
@@ -1150,7 +1262,7 @@ function TabPastiContab({data,giorniSett,showToast}){
         {WEEKS.map(w=><option key={w.id} value={w.id}>{w.label} — {w.range}</option>)}
       </select>
       <button onClick={()=>{
-        const rows=[["Nome bambino","Città","Settimana","Date","Giorni","Tariffa €/giorno","Totale €"],...pastiRows.map(r=>[r.bambino,r.citta,r.settimana,r.settRange,r.giorni,PASTI_RATE,r.totale]),["","","","","TOTALE","",totPasti]];
+        const rows=[["Nome bambino","Città","Settimana","Date","Giorni consumati","Tariffa €/giorno","Totale €"],...pastiRows.map(r=>[r.bambino,r.citta,r.settimana,r.settRange,r.giorni,PASTI_RATE,r.totale]),["","","","","TOTALE","",totPasti]];
         const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),"Contabilità Pasti");
         XLSX.writeFile(wb,`Pasti_Macaranga_2026_${new Date().toISOString().slice(0,10)}.xlsx`);
         showToast("Export Contabilità Pasti completato");
@@ -1164,7 +1276,7 @@ function TabPastiContab({data,giorniSett,showToast}){
           <th style={TH}>Città</th>
           <th style={TH}>Settimana</th>
           <th style={TH}>Date</th>
-          <th style={TH}>Giorni totali</th>
+          <th style={TH}>Giorni consumati</th>
           <th style={TH}>Tariffa €/giorno</th>
           <th style={{...TH,background:"#166534"}}>Totale singolo</th>
         </tr></thead>
@@ -1176,19 +1288,27 @@ function TabPastiContab({data,giorniSett,showToast}){
               <td style={TD}>{r.citta}</td>
               <td style={{...TD,fontWeight:700}}>{r.settimana}</td>
               <td style={{...TD,fontSize:11,color:"#666"}}>{r.settRange}</td>
-              <td style={{...TD,textAlign:"center",fontWeight:600}}>{r.giorni}</td>
+              <td style={{...TD,textAlign:"center"}}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:4}}>
+                  <button onClick={()=>adjGiorni(r.id,r.settId,-1)} disabled={r.giorni<=0} style={{width:22,height:22,border:"1px solid #000",background:r.giorni<=0?"#e5e7eb":"#fff",cursor:r.giorni<=0?"not-allowed":"pointer",fontWeight:900,fontSize:14,lineHeight:1,padding:0,color:"#dc2626"}}>−</button>
+                  <span style={{fontWeight:700,minWidth:18,textAlign:"center",color:r.giorni<giorniSett?"#d97706":"#166534"}}>{r.giorni}</span>
+                  <button onClick={()=>adjGiorni(r.id,r.settId,1)} disabled={r.giorni>=giorniSett} style={{width:22,height:22,border:"1px solid #000",background:r.giorni>=giorniSett?"#e5e7eb":"#fff",cursor:r.giorni>=giorniSett?"not-allowed":"pointer",fontWeight:900,fontSize:14,lineHeight:1,padding:0,color:"#166534"}}>+</button>
+                </div>
+              </td>
               <td style={{...TD,textAlign:"center",color:"#666"}}>{E2(PASTI_RATE)}</td>
-              <td style={{...TD,background:"#dcfce7",fontWeight:700,color:"#166534"}}>{E2(r.totale)}</td>
+              <td style={{...TD,background:r.giorni<giorniSett?"#fef9c3":"#dcfce7",fontWeight:700,color:r.giorni<giorniSett?"#854d0e":"#166534"}}>{E2(r.totale)}</td>
             </tr>
           ))}
         </tbody>
         <tfoot><tr>
-          <th colSpan={7} style={{...TH,textAlign:"right",padding:"7px 12px"}}>TOTALE {lista.length} righe</th>
+          <th colSpan={5} style={{...TH,textAlign:"right",padding:"7px 12px"}}>TOTALE {lista.length} righe</th>
+          <th style={TH}>{totGiorni} gg</th>
+          <th style={TH}></th>
           <th style={{...TH,background:"#166534",fontSize:14}}>{E(totFiltro)}</th>
         </tr></tfoot>
       </table>
     </div>
-    <div style={{marginTop:8,fontSize:11,color:"#666"}}>Tariffa: <strong>€{PASTI_RATE}/giorno × {giorniSett} giorni/settimana</strong> · Esclusi bambini con "Pranzo al sacco" · Aggiornamento automatico</div>
+    <div style={{marginTop:8,fontSize:11,color:"#666"}}>Tariffa: <strong>€{PASTI_RATE}/pasto</strong> · Usa le frecce ▲▼ per diminuire i pasti non consumati · Esclusi "Pranzo al sacco" · Sincronizzato con BEP e Scheda Personale</div>
   </div>);
 }
 
@@ -1644,13 +1764,15 @@ function MainApp({onLogout}){
         const{data:rows,error}=await SB.from("iscritti").select("*").order("bambino");
         if(error)throw error;
         if(!error&&rows&&rows.length>0){
-          const p=rows.map(r=>({...r,quota:Number(r.quota||0),acconto:Number(r.acconto||0),saldato:Number(r.saldato||0),da_saldare:Number(r.da_saldare||0),eta:Number(r.eta||0),sett:Number(r.sett||1),nav:!!r.nav,pasto_casa:!!r.pasto_casa,n_pasti:Number(r.n_pasti||0),presenze:r.presenze||{},pasti_log:r.pasti_log||{}}));
+          const p=rows.map(r=>({...r,quota:Number(r.quota||0),acconto:Number(r.acconto||0),saldato:Number(r.saldato||0),da_saldare:Number(r.da_saldare||0),eta:Number(r.eta||0),sett:Number(r.sett||1),nav:!!r.nav,pasto_casa:!!r.pasto_casa,n_pasti:0,presenze:{},pasti_log:{}}));
           setData(p);setSnap(JSON.stringify(p));
         }else{
           setData(INITIAL_DATA);setSnap(JSON.stringify(INITIAL_DATA));
         }
         const{data:cfg}=await SB.from("config").select("*").eq("chiave","costs").single();
         if(cfg?.valore)setCosts(cfg.valore);
+        const{data:extraCfg}=await SB.from("config").select("*").eq("chiave","extra_data").single();
+        if(extraCfg?.valore){const ex=extraCfg.valore;setData(prev=>prev.map(r=>{const e=ex[r.id];return e?{...r,presenze:e.presenze||{},pasti_log:e.pasti_log||{},n_pasti:Object.values(e.pasti_log||{}).filter(Boolean).length}:r;}));}
       }catch(e){showToast("Errore caricamento: "+e.message,"error");}
       setLoading(false);
     })();
@@ -1660,7 +1782,7 @@ function MainApp({onLogout}){
     setSaving(true);
     try{
       if(data.length>0){
-        const cleanData=data.map(r=>{const{_tipo,...rest}=r;return{...rest,updated_at:new Date().toISOString()};});const{error}=await SB.from("iscritti").upsert(cleanData);
+        const cleanData=data.map(r=>{const{_tipo,n_pasti,presenze,pasti_log,...rest}=r;return{...rest,updated_at:new Date().toISOString()};});const{error}=await SB.from("iscritti").upsert(cleanData);
         if(error)throw error;
         const ids=data.map(r=>r.id);
         await SB.from("iscritti").delete().not("id","in",`(${ids.map(i=>`"${i}"`).join(",")})`);
@@ -1668,6 +1790,8 @@ function MainApp({onLogout}){
         await SB.from("iscritti").delete().neq("id","__never__");
       }
       await SB.from("config").upsert([{chiave:"costs",valore:costs,updated_at:new Date().toISOString()}]);
+      const extraData={};data.forEach(r=>{if(r.presenze&&Object.keys(r.presenze).length>0||r.pasti_log&&Object.keys(r.pasti_log).length>0){extraData[r.id]={presenze:r.presenze||{},pasti_log:r.pasti_log||{}};}});
+      await SB.from("config").upsert([{chiave:"extra_data",valore:extraData,updated_at:new Date().toISOString()}]);
       const ts=new Date().toLocaleTimeString("it-IT",{hour:"2-digit",minute:"2-digit"});
       setSnap(JSON.stringify(data));setLastSaved(ts);
       showToast(`✓ Salvato su database alle ${ts} · ${data.length} iscritti`);
@@ -1745,7 +1869,7 @@ function MainApp({onLogout}){
     {tab==="import"       && <TabImport onSync={handleSync} existingData={data} showToast={showToast} onDraftReady={handleDraftReady} savedMappings={savedMappings} setSavedMappings={setSavedMappings}/>}
     {tab==="iscritti"    && <TabIscritti data={data} setData={setData} showToast={showToast} extCerca={extCerca} onExtCercaUsed={()=>setExtCerca("")} navCap={costs?.navCap||NAV_CAP}/>}
     {tab==="nav_contab"  && <TabNavetteContab data={data} giorniSett={5} showToast={showToast}/>}
-    {tab==="pasti_contab"&& <TabPastiContab data={data} giorniSett={5} showToast={showToast}/>}
+    {tab==="pasti_contab"&& <TabPastiContab data={data} setData={setData} giorniSett={5} showToast={showToast}/>}
     {tab==="finanziario" && <TabFinanziario data={data} costs={costs} setCosts={setCosts} showToast={showToast}/>}
     {tab==="costi"       && <TabCosti costs={costs} setCosts={setCosts}/>}
     {tab==="navette"     && <TabNavette data={data} costs={costs} setCosts={setCosts} onAddNav={(id,citta)=>{
