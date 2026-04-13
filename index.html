@@ -481,40 +481,122 @@ function DraftEditorPanel({draft,existingData,onCommit,onDiscard,showToast}){
 /* ── PARSER LOCALE PER PDF/WORD ──────────────────────────── */
 function parseFormText(text){
   const lines=text.split(/\n/).map(l=>l.trim()).filter(Boolean);
-  const full=lines.join(" ");
+  const full=lines.join("\n");
+  const MESI={gennaio:"01",febbraio:"02",marzo:"03",aprile:"04",maggio:"05",giugno:"06",luglio:"07",agosto:"08",settembre:"09",ottobre:"10",novembre:"11",dicembre:"12"};
+  function findVal(label,src){
+    src=src||lines;
+    for(const line of src){const m=line.match(new RegExp(label+"[:\\s]+(.+)","i"));if(m&&m[1].trim())return m[1].trim();}
+    return "";
+  }
+  function parseDate(str){
+    if(!str)return "";
+    const iso=str.match(/(\d{4})-(\d{2})-(\d{2})/);if(iso)return `${iso[3]}/${iso[2]}/${iso[1]}`;
+    const dmy=str.match(/(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})/);if(dmy){const y=dmy[3].length===2?"20"+dmy[3]:dmy[3];return `${dmy[1].padStart(2,"0")}/${dmy[2].padStart(2,"0")}/${y}`;}
+    const ital=str.match(/(\d{1,2})\s+(gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre)/i);
+    if(ital)return `${ital[1].padStart(2,"0")}/${MESI[ital[2].toLowerCase()]}/2026`;
+    return "";
+  }
+  function dateToInizio(dateStr){
+    if(!dateStr)return "08/06/2026";
+    const m=dateStr.match(/(\d{2})\/(\d{2})\/(\d{4})/);if(!m)return "08/06/2026";
+    const d=new Date(Number(m[3]),Number(m[2])-1,Number(m[1]));
+    let best="08/06/2026",bestDiff=Infinity;
+    for(const w of WEEKS){const wm=w.dal.match(/(\d{2})\/(\d{2})\/(\d{4})/);if(!wm)continue;
+      const wd=new Date(Number(wm[3]),Number(wm[2])-1,Number(wm[1]));
+      const diff=Math.abs(d-wd);if(diff<bestDiff){bestDiff=diff;best=w.dal;}}
+    return best;
+  }
+
+  /* --- DETECT WORDPRESS FORM FORMAT --- */
+  const hasDettaglio=/DETTAGLIO\s+MINORE/i.test(full);
+  const hasCorpo=/Corpo\s+del\s+messaggio/i.test(full);
+  const hasCosto=/Costo\s+\d+\s+settiman/i.test(full);
+
+  if(hasDettaglio||hasCorpo||hasCosto){
+    /* === WordPress registration form === */
+    const corpoIdx=full.search(/Corpo\s+del\s+messaggio/i);
+    const dateIdx=full.search(/DATE\s+CENTRO/i);
+    const detIdx=full.search(/DETTAGLIO\s+MINORE/i);
+    const headerText=corpoIdx>=0?full.substring(corpoIdx,dateIdx>=0?dateIdx:detIdx>=0?detIdx:full.length):full.substring(0,dateIdx>=0?dateIdx:full.length);
+    const headerLines=headerText.split(/\n/).map(l=>l.trim()).filter(Boolean);
+    /* Parent info */
+    const pNome=findVal("^Nome",headerLines);
+    const pCognome=findVal("^Cognome",headerLines);
+    const genitore=pNome&&pCognome?`${pNome} ${pCognome}`:"";
+    const telefono=(findVal("Telefono",headerLines)||findVal("Cell",headerLines)||findVal("Tel(?!\\.)",headerLines)).replace(/\s/g,"");
+    const residenza=findVal("Residenza",headerLines)||findVal("Citt[àa]",headerLines)||findVal("Comune",headerLines);
+    const email=findVal("Email",headerLines);
+    /* Camp details */
+    const dateText=dateIdx>=0?full.substring(dateIdx,detIdx>=0?detIdx:full.length):"";
+    const dateLines=dateText.split(/\n/).map(l=>l.trim()).filter(Boolean);
+    const dataInizioRaw=findVal("Data inizio",dateLines);
+    const dataInizioParsed=parseDate(dataInizioRaw);
+    const inizio=dateToInizio(dataInizioParsed);
+    const location=findVal("Location",dateLines);
+    /* Costo line: "Costo 4 settimane + trasferimento A/R € 380" */
+    const costoMatch=full.match(/Costo\s+(\d+)\s+settiman[ae]\s*([^€\n]*?)€?\s*(\d[\d.,]*)/i);
+    const sett=costoMatch?parseInt(costoMatch[1]):4;
+    const hasNav=costoMatch?/trasferiment|navett|A\/R/i.test(costoMatch[2]):/trasferiment|navett/i.test(full);
+    const quota=costoMatch?parseFloat(costoMatch[3].replace(",",".")):0;
+    /* Sconto */
+    const scontoMatch=full.match(/Sconto\s+applicato[:\s]*([^\n]*)/i);
+    const note_pag=scontoMatch&&scontoMatch[1].trim()?`Sconto: ${scontoMatch[1].trim()}`:"";
+    /* Children from DETTAGLIO MINORE/I section */
+    const detText=detIdx>=0?full.substring(detIdx):"";
+    const childBlocks=detText.split(/[-]{3,}/);
+    const children=[];
+    for(const block of childBlocks){
+      const bl=block.split(/\n/).map(l=>l.trim()).filter(Boolean);
+      const cn=findVal("^nome",bl);const cc=findVal("^cognome",bl);
+      if(!cn&&!cc)continue;
+      const bambino=cn&&cc?`${cn} ${cc}`:cn||cc;
+      const nascitaRaw=findVal("data di nascita",bl)||findVal("nascita",bl)||findVal("nato",bl);
+      const nato_il=parseDate(nascitaRaw);
+      const noteRaw=findVal("NOTE",bl)||findVal("allergi",bl);
+      children.push({bambino,nato_il,note_bimbo:noteRaw||""});
+    }
+    if(children.length===0&&genitore){children.push({bambino:genitore,nato_il:"",note_bimbo:""});}
+    const results=[];
+    for(const ch of children){
+      if(!ch.bambino||!ch.bambino.trim())continue;
+      const rec={id:uid(),bambino:ch.bambino,nato_il:ch.nato_il,eta:calcEta(ch.nato_il),inizio,fine:"",sett:Math.max(1,Math.min(8,sett)),nav:hasNav,pasto_casa:false,citta:residenza,quota,acconto:0,saldato:0,note_pag,note_bimbo:ch.note_bimbo,telefono,genitore,da_saldare:0,stato:"DA PAGARE",n_pasti:0,presenze:{},pasti_log:{}};
+      rec.fine=calcFine(rec.inizio,rec.sett);rec.da_saldare=calcResidue(rec);rec.stato=autoStato(rec);
+      results.push(rec);
+    }
+    return results;
+  }
+
+  /* === GENERIC FORM FALLBACK === */
   const get=(pats,fallback="")=>{for(const p of pats){const m=full.match(p);if(m)return(m[1]||"").trim();}return fallback;};
-  const getDate=(pats)=>{const v=get(pats);if(!v)return"";const dm=v.match(/(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})/);if(dm){const y=dm[3].length===2?"20"+dm[3]:dm[3];return`${dm[1].padStart(2,"0")}/${dm[2].padStart(2,"0")}/${y}`;}return v;};
   const getNum=(pats)=>{const v=get(pats,"0");const n=parseFloat(String(v).replace(/[€\s,]/g,m=>m===","?".":""));return isNaN(n)?0:n;};
-  const getBool=(pats)=>{const v=get(pats,"").toLowerCase();return["si","sì","yes","x","✓","true","1"].includes(v);};
-  // Detect multiple children: look for patterns like "figlio 1", "bambino 1", or multiple name fields
-  const childBlocks=[];
-  // Try splitting by child markers
   const childSplit=text.split(/(?:figlio|bambino|bambina|iscritto|iscritta)\s*(?:n\.?\s*)?[2-9]/i);
-  if(childSplit.length>1){
-    childSplit.forEach(block=>{if(block.trim().length>30)childBlocks.push(block);});
-  }else{childBlocks.push(text);}
+  const childBlocks2=[];
+  if(childSplit.length>1){childSplit.forEach(block=>{if(block.trim().length>30)childBlocks2.push(block);});}else{childBlocks2.push(text);}
   const results=[];
-  for(const block of childBlocks){
-    const bf=block;const bfull=bf.split(/\n/).map(l=>l.trim()).filter(Boolean).join(" ");
+  for(const block of childBlocks2){
+    const blines=block.split(/\n/).map(l=>l.trim()).filter(Boolean);const bfull=blines.join(" ");
     const bg=(pats,fb="")=>{for(const p of pats){const m=bfull.match(p);if(m)return(m[1]||"").trim();}return fb;};
-    const bgd=(pats)=>{const v=bg(pats);if(!v)return"";const dm=v.match(/(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})/);if(dm){const y=dm[3].length===2?"20"+dm[3]:dm[3];return`${dm[1].padStart(2,"0")}/${dm[2].padStart(2,"0")}/${y}`;}return v;};
     const bgn=(pats)=>{const v=bg(pats,"0");const n=parseFloat(String(v).replace(/[€\s,]/g,m=>m===","?".":""));return isNaN(n)?0:n;};
     const bgb=(pats)=>{const v=bg(pats,"").toLowerCase();return["si","sì","yes","x","✓","true","1"].includes(v);};
     const nome=bg([/(?:nome\s+(?:e\s+)?cognome|nome\s+bambino|bambino|partecipante|iscritto|nome\s+figlio)[:\s]+([A-ZÀ-Ü][a-zà-ü]+(?:\s+[A-ZÀ-Ü][a-zà-ü]+){1,3})/i,/(?:nome)[:\s]+([A-ZÀ-Ü][a-zà-ü]+)/i]);
     const cognome=bg([/(?:cognome)[:\s]+([A-ZÀ-Ü][a-zà-ü]+(?:\s+[A-ZÀ-Ü][a-zà-ü]+)?)/i]);
     const bambino=nome&&cognome?`${nome} ${cognome}`:nome||cognome||"";
-    const nato_il=bgd([/(?:nato\s*il|nascita|data\s*di\s*nascita|data\s*nascita|nato\/a\s*il)[:\s]*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})/i]);
+    const natoRaw=bg([/(?:nato\s*il|nascita|data\s*di\s*nascita|data\s*nascita|nato\/a\s*il)[:\s]*(\S+)/i]);
+    const nato_il=parseDate(natoRaw);
     const eta=bgn([/(?:et[àa]|anni)[:\s]*(\d{1,2})/i]);
     const citta=bg([/(?:citt[àa]|comune|residenza|localit[àa]|provenienza)[:\s]+([A-ZÀ-Ü][a-zà-ü]+(?:\s+(?:di|del|della|delle)?\s*[A-ZÀ-Ü][a-zà-ü]+)*)/i]);
     const telefono=bg([/(?:telefono|cell|cellulare|tel\.?|mobile)[:\s]*(\+?\d[\d\s\-\.]{7,15})/i]);
     const genitore=bg([/(?:genitore|tutore|padre|madre|referente|nome\s*genitore)[:\s]+([A-ZÀ-Ü][a-zà-ü]+(?:\s+[A-ZÀ-Ü][a-zà-ü]+){1,3})/i]);
     const sett=bgn([/(?:settiman[ae]|sett\.?|n[°\.]\s*settiman)[:\s]*(\d{1,2})/i])||4;
     const nav=bgb([/(?:navett|trasferiment|bus|pullman|shuttle)[:\s]*(s[ìi]|no|true|false|x|✓)/i])||/navett|trasferiment|bus|pullman/i.test(bfull);
-    const quota=bgn([/(?:quota|importo|costo\s*totale|totale\s*quota)[:\s€]*(\d[\d\.,]*)/i]);
+    const quota=bgn([/(?:quota|importo|costo\s*totale|totale\s*quota|costo)[:\s€]*(\d[\d\.,]*)/i]);
     const note_bimbo=bg([/(?:allergi[ae]|intolleranz[ae]|patologi[ae]|note\s*mediche|note\s*sanitari[ae])[:\s]+([^\n]{3,80})/i]);
     const note_pag=bg([/(?:note\s*pagament|note\s*pag\.?)[:\s]+([^\n]{3,80})/i]);
     if(bambino){
-      const rec={id:uid(),bambino,nato_il,eta:eta||calcEta(nato_il),inizio:"08/06/2026",fine:"03/07/2026",sett:Math.max(1,Math.min(8,sett)),nav,pasto_casa:false,citta,quota,acconto:0,saldato:0,note_pag,note_bimbo,telefono:String(telefono).replace(/\s/g,""),genitore,da_saldare:0,stato:"DA PAGARE",n_pasti:0,presenze:{},pasti_log:{}};
+      const inizioRaw=bg([/(?:data\s*inizio|inizio)[:\s]+(\S+(?:\s+\S+)?)/i]);
+      const inizioParsed=parseDate(inizioRaw)||"08/06/2026";
+      const inizio=dateToInizio(inizioParsed)||inizioParsed;
+      const rec={id:uid(),bambino,nato_il,eta:eta||calcEta(nato_il),inizio,fine:"",sett:Math.max(1,Math.min(8,sett)),nav,pasto_casa:false,citta,quota,acconto:0,saldato:0,note_pag,note_bimbo,telefono:String(telefono).replace(/\s/g,""),genitore,da_saldare:0,stato:"DA PAGARE",n_pasti:0,presenze:{},pasti_log:{}};
       rec.fine=calcFine(rec.inizio,rec.sett);rec.da_saldare=calcResidue(rec);rec.stato=autoStato(rec);
       results.push(rec);
     }
@@ -588,8 +670,10 @@ function TabImport({onSync,existingData,showToast,savedMappings,setSavedMappings
       }else if(ext==="docx"){
         const buf=await readFileAsArrayBuffer(file);const res=await mammoth.extractRawText({arrayBuffer:buf});
         addLog("Parsing Word locale…");
+        console.log("WORD TEXT EXTRACTED:\n",res.value);
         const records=parseFormText(res.value);
-        if(records.length===0){addLog("Nessun iscritto trovato nel Word","warn");setUploading(false);return;}
+        if(records.length===0){addLog("Nessun iscritto trovato nel Word — controlla formato","warn");addLog("Testo estratto: "+res.value.substring(0,200)+"…","info");setUploading(false);return;}
+        records.forEach(r=>addLog(`→ ${r.bambino} | ${r.citta} | ${r.sett}sett | €${r.quota} | nav:${r.nav?"Sì":"No"}`,"ok"));
         addLog(`Estratti ${records.length} bambino/i dal Word`,"ok");
         if(records.length===1){onDraftReady(records[0]);}else{mergeAndPreview(records);}
         setUploading(false);return;
@@ -605,13 +689,22 @@ function TabImport({onSync,existingData,showToast,savedMappings,setSavedMappings
         for(let i=1;i<=pdf.numPages;i++){
           const page=await pdf.getPage(i);
           const content=await page.getTextContent();
-          const pageText=content.items.map(item=>item.str).join(" ");
+          let lastY=null;let pageText="";
+          for(const item of content.items){
+            const y=item.transform?item.transform[5]:null;
+            if(lastY!==null&&y!==null&&Math.abs(y-lastY)>3){pageText+="\n";}
+            else if(lastY!==null&&item.str){pageText+=" ";}
+            pageText+=item.str;
+            if(y!==null)lastY=y;
+          }
           fullText+=pageText+"\n";
         }
         addLog(`PDF: ${pdf.numPages} pagine, ${fullText.length} caratteri estratti`);
+        console.log("PDF TEXT EXTRACTED:\n",fullText);
         if(fullText.trim().length<10){addLog("PDF senza testo leggibile (potrebbe essere un'immagine scansionata)","error");setUploading(false);return;}
         const records=parseFormText(fullText);
-        if(records.length===0){addLog("Nessun iscritto trovato nel PDF — prova a verificare il contenuto","warn");setUploading(false);return;}
+        if(records.length===0){addLog("Nessun iscritto trovato nel PDF — controlla formato","warn");addLog("Testo estratto: "+fullText.substring(0,200)+"…","info");setUploading(false);return;}
+        records.forEach(r=>addLog(`→ ${r.bambino} | ${r.citta} | ${r.sett}sett | €${r.quota} | nav:${r.nav?"Sì":"No"}`,"ok"));
         addLog(`Estratti ${records.length} bambino/i dal PDF`,"ok");
         if(records.length===1){onDraftReady(records[0]);}else{mergeAndPreview(records);}
         setUploading(false);return;
