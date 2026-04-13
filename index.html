@@ -1855,6 +1855,161 @@ function TabFinanziario({data,costs}){
   </div>);
 }
 
+/* ══ TAB EDUCATORI ═════════════════════════════════════════ */
+function TabEducatori({data,costs,setCosts}){
+  const RATIO=10; // 1 educatore ogni 10 bambini
+  const MIN_SENIOR=2;
+  const EDU_TYPES=[
+    {key:"senior",label:"Senior",defaultPay:300,bg:"#166534",fg:"#dcfce7"},
+    {key:"junior",label:"Junior",defaultPay:200,bg:"#854d0e",fg:"#fef9c3"},
+  ];
+  /* Educator roster stored in costs.educatori */
+  const educatori=costs.educatori||[];
+  const setEdu=fn=>setCosts(p=>({...p,educatori:typeof fn==="function"?fn(p.educatori||[]):fn}));
+  /* Per-week children count */
+  const weekKids=useMemo(()=>{
+    const c={};WEEKS.forEach(w=>{c[w.id]=0;});
+    data.forEach(r=>{if(!r.bambino?.trim())return;calcWeeks(r.inizio,r.sett).forEach(wId=>{c[wId]=(c[wId]||0)+1;});});
+    return c;
+  },[data]);
+  /* Per-week required educators */
+  const weekReq=useMemo(()=>{
+    const r={};WEEKS.forEach(w=>{
+      const kids=weekKids[w.id]||0;
+      const tot=Math.max(kids>0?MIN_SENIOR:0,Math.ceil(kids/RATIO));
+      const senior=Math.min(tot,Math.max(MIN_SENIOR,0));
+      const junior=Math.max(0,tot-senior);
+      r[w.id]={kids,tot,senior,junior};
+    });return r;
+  },[weekKids]);
+  /* Per-week assigned educators */
+  const weekAssigned=useMemo(()=>{
+    const a={};WEEKS.forEach(w=>{a[w.id]={senior:0,junior:0,tot:0,names:[]};});
+    educatori.forEach(ed=>{
+      (ed.settimane||[]).forEach(wId=>{
+        if(!a[wId])return;
+        a[wId][ed.tipo]=(a[wId][ed.tipo]||0)+1;
+        a[wId].tot++;
+        a[wId].names.push(ed.nome);
+      });
+    });return a;
+  },[educatori]);
+  /* Weekly cost */
+  const weekCost=useMemo(()=>{
+    const c={};WEEKS.forEach(w=>{c[w.id]=0;});
+    educatori.forEach(ed=>{
+      (ed.settimane||[]).forEach(wId=>{c[wId]=(c[wId]||0)+(ed.paga||0);});
+    });return c;
+  },[educatori]);
+  const totCost=Object.values(weekCost).reduce((s,v)=>s+v,0);
+  /* Add educator */
+  const addEdu=(tipo)=>{
+    const pay=EDU_TYPES.find(t=>t.key===tipo)?.defaultPay||200;
+    setEdu(p=>[...p,{id:uid(),nome:"",tipo,paga:pay,settimane:[],telefono:"",note:""}]);
+  };
+  const upEdu=(id,k,v)=>setEdu(p=>p.map(e=>e.id===id?{...e,[k]:v}:e));
+  const rmEdu=id=>setEdu(p=>p.filter(e=>e.id!==id));
+  const toggleWeek=(edId,wId)=>setEdu(p=>p.map(e=>{
+    if(e.id!==edId)return e;
+    const s=e.settimane||[];
+    return{...e,settimane:s.includes(wId)?s.filter(x=>x!==wId):[...s,wId]};
+  }));
+
+  const TH={background:"#111",color:"#fff",padding:"6px 8px",border:"1px solid #000",textAlign:"center",fontSize:10,fontWeight:600};
+  const TD={border:"1px solid #000",padding:"5px 8px",fontSize:11,textAlign:"center"};
+
+  return(<div>
+    {/* DASHBOARD RICHIESTA */}
+    <div style={{background:"#fff",border:"1px solid #000",padding:14,marginBottom:12}}>
+      <div style={{fontWeight:800,fontSize:13,marginBottom:10,borderBottom:"2px solid #000",paddingBottom:5}}>Fabbisogno educatori per settimana</div>
+      <div style={{fontSize:10,color:"#666",marginBottom:8}}>Rapporto: 1 educatore ogni {RATIO} bambini · Minimo {MIN_SENIOR} senior per settimana attiva</div>
+      <table style={{borderCollapse:"collapse",width:"100%"}}>
+        <thead><tr>
+          <th style={TH}>Sett.</th><th style={TH}>Periodo</th><th style={TH}>Bambini</th>
+          <th style={{...TH,background:"#166534"}}>Senior min.</th><th style={{...TH,background:"#854d0e"}}>Junior min.</th>
+          <th style={{...TH,background:"#1e40af"}}>Totale min.</th>
+          <th style={{...TH,background:"#166534"}}>Senior ass.</th><th style={{...TH,background:"#854d0e"}}>Junior ass.</th>
+          <th style={{...TH,background:"#1e40af"}}>Tot. ass.</th>
+          <th style={TH}>Stato</th><th style={TH}>Costo sett.</th>
+        </tr></thead>
+        <tbody>{WEEKS.map(w=>{
+          const req=weekReq[w.id];const asg=weekAssigned[w.id];
+          const ok=req.kids===0||(asg.tot>=req.tot&&(asg.senior||0)>=MIN_SENIOR);
+          const warn=req.kids>0&&!ok;
+          return(<tr key={w.id} style={{background:req.kids===0?"#f5f5f5":warn?"#fef2f2":"#f0fdf4"}}>
+            <td style={{...TD,fontWeight:700}}>{w.label}</td>
+            <td style={{...TD,fontSize:10}}>{w.range}</td>
+            <td style={{...TD,fontWeight:700,fontSize:13}}>{req.kids}</td>
+            <td style={{...TD,color:"#166534",fontWeight:600}}>{req.kids>0?Math.max(MIN_SENIOR,req.senior):0}</td>
+            <td style={{...TD,color:"#854d0e",fontWeight:600}}>{req.junior}</td>
+            <td style={{...TD,fontWeight:800,color:"#1e40af"}}>{req.tot}</td>
+            <td style={{...TD,color:"#166534",fontWeight:700}}>{asg.senior||0}</td>
+            <td style={{...TD,color:"#854d0e",fontWeight:700}}>{asg.junior||0}</td>
+            <td style={{...TD,fontWeight:800,color:asg.tot>=req.tot?"#166534":"#dc2626"}}>{asg.tot}</td>
+            <td style={{...TD,fontSize:10,fontWeight:700,color:req.kids===0?"#888":ok?"#166534":"#dc2626"}}>{req.kids===0?"—":ok?"OK":"Mancanti"}</td>
+            <td style={{...TD,fontWeight:700}}>{E(weekCost[w.id]||0)}</td>
+          </tr>);
+        })}</tbody>
+        <tfoot><tr>
+          <td colSpan={10} style={{...TD,fontWeight:800,textAlign:"right",background:"#111",color:"#fff"}}>TOTALE COSTO EDUCATORI</td>
+          <td style={{...TD,fontWeight:900,fontSize:14,background:"#111",color:"#fca5a5"}}>{E(totCost)}</td>
+        </tr></tfoot>
+      </table>
+    </div>
+
+    {/* ROSTER EDUCATORI */}
+    <div style={{background:"#fff",border:"1px solid #000",padding:14,marginBottom:12}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,borderBottom:"2px solid #000",paddingBottom:5}}>
+        <div style={{fontWeight:800,fontSize:13}}>Roster educatori ({educatori.length})</div>
+        <div style={{display:"flex",gap:6}}>
+          {EDU_TYPES.map(t=>(
+            <button key={t.key} onClick={()=>addEdu(t.key)} style={{padding:"5px 12px",border:"1px solid #000",background:t.fg,color:t.bg,fontSize:11,fontWeight:700,cursor:"pointer"}}>+ {t.label}</button>
+          ))}
+        </div>
+      </div>
+      {educatori.length===0&&<div style={{padding:20,textAlign:"center",color:"#888",fontSize:12}}>Nessun educatore inserito. Clicca "+ Senior" o "+ Junior" per iniziare.</div>}
+      {educatori.map(ed=>{
+        const tipo=EDU_TYPES.find(t=>t.key===ed.tipo)||EDU_TYPES[0];
+        const settCount=(ed.settimane||[]).length;
+        const costoTot=settCount*(ed.paga||0);
+        return(<div key={ed.id} style={{border:`2px solid ${tipo.bg}`,marginBottom:8,background:"#fff"}}>
+          <div style={{background:tipo.fg,padding:"8px 12px",display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+            <span style={{fontWeight:800,fontSize:11,color:tipo.bg,minWidth:50}}>{tipo.label.toUpperCase()}</span>
+            <input value={ed.nome} onChange={e=>upEdu(ed.id,"nome",e.target.value)} placeholder="Nome educatore…" style={{flex:1,minWidth:140,padding:"4px 8px",fontSize:12,border:"1px solid #000",fontWeight:600}}/>
+            <input value={ed.telefono||""} onChange={e=>upEdu(ed.id,"telefono",e.target.value)} placeholder="Telefono…" style={{width:120,padding:"4px 8px",fontSize:11,border:"1px solid #ccc"}}/>
+            <div style={{display:"flex",alignItems:"center",gap:4}}>
+              <span style={{fontSize:10,color:tipo.bg,fontWeight:600}}>€/sett:</span>
+              <input type="number" value={ed.paga||0} min={0} step={50} onChange={e=>upEdu(ed.id,"paga",Number(e.target.value))} style={{width:70,padding:"3px 6px",fontSize:12,border:"1px solid #000",fontWeight:700,textAlign:"center"}}/>
+            </div>
+            <span style={{fontSize:11,fontWeight:700,color:tipo.bg}}>{settCount} sett. = {E(costoTot)}</span>
+            <button onClick={()=>rmEdu(ed.id)} style={{background:"none",border:"none",color:"#dc2626",fontSize:16,cursor:"pointer",fontWeight:900,marginLeft:"auto"}}>×</button>
+          </div>
+          <div style={{padding:"6px 12px",display:"flex",gap:4,flexWrap:"wrap",alignItems:"center"}}>
+            <span style={{fontSize:10,color:"#666",marginRight:4}}>Settimane:</span>
+            {WEEKS.map(w=>{
+              const active=(ed.settimane||[]).includes(w.id);
+              return(<button key={w.id} onClick={()=>toggleWeek(ed.id,w.id)} style={{padding:"4px 10px",fontSize:10,fontWeight:active?700:400,border:active?`2px solid ${tipo.bg}`:"1px solid #ccc",background:active?tipo.fg:"#fff",color:active?tipo.bg:"#888",cursor:"pointer",minWidth:36}}>{w.label}</button>);
+            })}
+          </div>
+          {ed.note!==undefined&&<div style={{padding:"0 12px 6px"}}>
+            <input value={ed.note||""} onChange={e=>upEdu(ed.id,"note",e.target.value)} placeholder="Note (es. specializzazione, certificazioni…)" style={{width:"100%",padding:"3px 8px",fontSize:10,border:"1px solid #eee",color:"#666"}}/>
+          </div>}
+        </div>);
+      })}
+    </div>
+
+    {/* RIEPILOGO COPERTURA */}
+    <div style={{background:"#111",color:"#fff",padding:14}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:10}}>
+        <div><div style={{fontSize:10,color:"#aaa"}}>Educatori totali</div><div style={{fontSize:20,fontWeight:900}}>{educatori.length}</div></div>
+        <div><div style={{fontSize:10,color:"#aaa"}}>Senior / Junior</div><div style={{fontSize:20,fontWeight:900}}>{educatori.filter(e=>e.tipo==="senior").length} / {educatori.filter(e=>e.tipo==="junior").length}</div></div>
+        <div><div style={{fontSize:10,color:"#aaa"}}>Costo totale</div><div style={{fontSize:20,fontWeight:900,color:"#fca5a5"}}>{E(totCost)}</div></div>
+        <div><div style={{fontSize:10,color:"#aaa"}}>Settimane coperte</div><div style={{fontSize:20,fontWeight:900,color:WEEKS.every(w=>(weekReq[w.id].kids===0)||(weekAssigned[w.id].tot>=weekReq[w.id].tot&&(weekAssigned[w.id].senior||0)>=MIN_SENIOR))?"#4ade80":"#fca5a5"}}>{WEEKS.filter(w=>weekReq[w.id].kids>0&&weekAssigned[w.id].tot>=weekReq[w.id].tot&&(weekAssigned[w.id].senior||0)>=MIN_SENIOR).length}/{WEEKS.filter(w=>weekReq[w.id].kids>0).length}</div></div>
+      </div>
+    </div>
+  </div>);
+}
+
 /* ══ TAB COSTI ══════════════════════════════════════════════ */
 function TabCosti({costs,setCosts}){
   const cats=[...new Set(costs.voci.map(v=>v.cat))];
@@ -2117,6 +2272,7 @@ function MainApp({onLogout}){
     {id:"nav_contab",l:"🚐 Cont. Navette"},
     {id:"pasti_contab",l:"🍽 Cont. Pasti"},
     {id:"finanziario",l:"Finanziario & BEP"},
+    {id:"educatori",l:"👩‍🏫 Educatori"},
     {id:"costi",l:"Costi"},
     {id:"navette",l:"Navette"},
     {id:"export",l:"Export"},
@@ -2162,6 +2318,7 @@ function MainApp({onLogout}){
     {tab==="nav_contab"  && <TabNavetteContab data={data} giorniSett={5} showToast={showToast}/>}
     {tab==="pasti_contab"&& <TabPastiContab data={data} setData={setData} giorniSett={5} showToast={showToast}/>}
     {tab==="finanziario" && <TabFinanziario data={data} costs={costs} setCosts={setCosts} showToast={showToast}/>}
+    {tab==="educatori"   && <TabEducatori data={data} costs={costs} setCosts={setCosts}/>}
     {tab==="costi"       && <TabCosti costs={costs} setCosts={setCosts}/>}
     {tab==="navette"     && <TabNavette data={data} costs={costs} setCosts={setCosts} onAddNav={(id,citta)=>{
       setData(prev=>prev.map(r=>r.id===id?{...r,nav:true,citta:citta}:r));
