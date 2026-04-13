@@ -533,11 +533,16 @@ function parseFormText(text){
     const dataInizioParsed=parseDate(dataInizioRaw);
     const inizio=dateToInizio(dataInizioParsed);
     const location=findVal("Location",dateLines);
-    /* Costo line: "Costo 4 settimane + trasferimento A/R € 380" */
-    const costoMatch=full.match(/Costo\s+(\d+)\s+settiman[ae]\s*([^€\n]*?)€?\s*(\d[\d.,]*)/i);
+    /* Costo line: "Costo 4 settimane (2 minori) + trasferimento A/R € 660" */
+    const costoMatch=full.match(/Costo\s+(\d+)\s+settiman[ae]\s*(.*?)€\s*(\d[\d.,]*)/i)
+      ||full.match(/Costo\s+(\d+)\s+settiman[ae]\s*(.*?)\s+(\d[\d.,]*)\s*€/i);
     const sett=costoMatch?parseInt(costoMatch[1]):4;
     const hasNav=costoMatch?/trasferiment|navett|A\/R/i.test(costoMatch[2]):/trasferiment|navett/i.test(full);
-    const quota=costoMatch?parseFloat(costoMatch[3].replace(",",".")):0;
+    const quotaTotale=costoMatch?parseFloat(costoMatch[3].replace(",",".")):0;
+    /* Detect number of minori from costo line "(2 minori)" or "Numero minori" */
+    const minoriFromCosto=costoMatch&&costoMatch[2]?costoMatch[2].match(/\((\d+)\s*minor[ie]*\)/i):null;
+    const minoriFromNumero=full.match(/Numero\s*minori[:\s]*.*?(\d+)\s*(?:figli|minor|bambin)/i);
+    const nMinori=minoriFromCosto?parseInt(minoriFromCosto[1]):minoriFromNumero?parseInt(minoriFromNumero[1]):0;
     /* Sconto */
     const scontoMatch=full.match(/Sconto\s+applicato[:\s]*([^\n]*)/i);
     const note_pag=scontoMatch&&scontoMatch[1].trim()?`Sconto: ${scontoMatch[1].trim()}`:"";
@@ -556,10 +561,13 @@ function parseFormText(text){
       children.push({bambino,nato_il,note_bimbo:noteRaw||""});
     }
     if(children.length===0&&genitore){children.push({bambino:genitore,nato_il:"",note_bimbo:""});}
+    /* Divide quota by number of children */
+    const numFigli=children.length>1?children.length:(nMinori>1?nMinori:1);
+    const quotaPerFiglio=numFigli>1?Math.round(quotaTotale/numFigli*100)/100:quotaTotale;
     const results=[];
     for(const ch of children){
       if(!ch.bambino||!ch.bambino.trim())continue;
-      const rec={id:uid(),bambino:ch.bambino,nato_il:ch.nato_il,eta:calcEta(ch.nato_il),inizio,fine:"",sett:Math.max(1,Math.min(8,sett)),nav:hasNav,pasto_casa:false,citta:residenza,quota,acconto:0,saldato:0,note_pag,note_bimbo:ch.note_bimbo,telefono,genitore,da_saldare:0,stato:"DA PAGARE",n_pasti:0,presenze:{},pasti_log:{}};
+      const rec={id:uid(),bambino:ch.bambino,nato_il:ch.nato_il,eta:calcEta(ch.nato_il),inizio,fine:"",sett:Math.max(1,Math.min(8,sett)),nav:hasNav,pasto_casa:false,citta:residenza,quota:quotaPerFiglio,acconto:0,saldato:0,note_pag,note_bimbo:ch.note_bimbo,telefono,genitore,da_saldare:0,stato:"DA PAGARE",n_pasti:0,presenze:{},pasti_log:{}};
       rec.fine=calcFine(rec.inizio,rec.sett);rec.da_saldare=calcResidue(rec);rec.stato=autoStato(rec);
       results.push(rec);
     }
