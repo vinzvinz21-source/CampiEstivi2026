@@ -48,8 +48,8 @@ const CITTA_OPTIONS=["Ruvo di Puglia","Terlizzi","Molfetta","Corato","Roma","Tor
 
 const DEFAULT_COSTS={
   voci:[
-    {id:"c1",cat:"Personale educativo",label:"Educatori esperti (2×€300×6 sett.)",importo:3600,note:""},
-    {id:"c2",cat:"Personale educativo",label:"Educatori junior (2×€200×6 sett.)",importo:2400,note:""},
+    {id:"c1",cat:"Personale educativo",label:"Educatore Senior (1 sett. × €300)",importo:300,note:"Costo a settimana"},
+    {id:"c2",cat:"Personale educativo",label:"Educatore Junior (1 sett. × €200)",importo:200,note:"Costo a settimana"},
     {id:"c3",cat:"Personale cucina",label:"Cuochi (2×€300×8 sett.)",importo:4800,note:""},
     {id:"c4",cat:"Struttura",label:"Location (8 sett.)",importo:3400,note:""},
     {id:"c5",cat:"Struttura",label:"Assicurazione RC+infortuni",importo:410,note:""},
@@ -1190,7 +1190,7 @@ function TabIscritti({data,setData,showToast,extCerca="",onExtCercaUsed,navCap,t
   });
   const weekCounts=useMemo(()=>{const c={};data.forEach(r=>calcWeeks(r.inizio,r.sett).forEach(wId=>{c[wId]=(c[wId]||0)+1;}));return c;},[data]);
   const{sorted,STH}=useSorted(lista);
-  const tot=sorted.reduce((a,r)=>({q:a.q+(r.quota||0),inc:a.inc+(r.stato==="SALDATO"?r.quota||0:r.stato==="ACCONTO"?(r.acconto||0)+(r.saldato||0):0),res:a.res+(r.da_saldare||0)}),{q:0,inc:0,res:0});
+  const tot=sorted.reduce((a,r)=>({q:a.q+(r.quota||0),acc:a.acc+(r.acconto||0),sal:a.sal+(r.saldato||0),inc:a.inc+(r.stato==="SALDATO"?r.quota||0:r.stato==="ACCONTO"?(r.acconto||0)+(r.saldato||0):0),res:a.res+(r.da_saldare||0)}),{q:0,acc:0,sal:0,inc:0,res:0});
 
   const schedaRecord=schedaId?data.find(r=>r.id===schedaId):null;
   const handleSchedaSave=(updated)=>{setData(prev=>prev.map(r=>r.id===updated.id?{...updated,da_saldare:calcResidue(updated),stato:autoStato(updated)}:r));showToast("Scheda aggiornata");};
@@ -1238,7 +1238,7 @@ function TabIscritti({data,setData,showToast,extCerca="",onExtCercaUsed,navCap,t
     </div>
     {/* KPI */}
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(110px,1fr))",gap:8,marginBottom:12}}>
-      {[["Mostrati",sorted.length,"#111"],["🚐 Navetta",sorted.filter(r=>r.nav).length,"#1e40af"],["🍽 Pasti",sorted.filter(r=>!r.pasto_casa).length,"#166534"],["🥪 Sacco",sorted.filter(r=>r.pasto_casa).length,"#854d0e"],["Quote",E(tot.q),"#185FA5"],["Incassato",E(tot.inc),"#166534"]].map(([l,v,c])=>(
+      {[["Mostrati",sorted.length,"#111"],["🚐 Navetta",sorted.filter(r=>r.nav).length,"#1e40af"],["🍽 Pasti",sorted.filter(r=>!r.pasto_casa).length,"#166534"],["Quote",E(tot.q),"#185FA5"],["Acconti",E(tot.acc),"#854d0e"],["Saldi",E(tot.sal),"#166534"],["Incassato",E(tot.inc),"#166534"],["Residuo",E(tot.res),"#dc2626"]].map(([l,v,c])=>(
         <div key={l} style={{background:"#fff",border:"1px solid #000",padding:"9px 11px"}}><div style={{fontSize:10,color:"#666",marginBottom:2}}>{l}</div><div style={{fontSize:16,fontWeight:800,color:c}}>{v}</div></div>
       ))}
     </div>
@@ -1353,7 +1353,8 @@ function TabIscritti({data,setData,showToast,extCerca="",onExtCercaUsed,navCap,t
         <tfoot><tr>
           <th style={{background:"#111",color:"#fff",border:"1px solid #000",padding:"5px 8px",fontSize:11}} colSpan={9}>TOTALI — {sorted.length} iscritti</th>
           <th style={{background:"#111",color:"#fff",border:"1px solid #000",padding:"5px 8px",fontSize:11}}>{E(tot.q)}</th>
-          <th style={{background:"#166534",color:"#fff",border:"1px solid #000",padding:"5px 8px",fontSize:11}} colSpan={2}></th>
+          <th style={{background:"#166534",color:"#fff",border:"1px solid #000",padding:"5px 8px",fontSize:11,fontWeight:700}}>{E(tot.acc)}</th>
+          <th style={{background:"#166534",color:"#fff",border:"1px solid #000",padding:"5px 8px",fontSize:11,fontWeight:700}}>{E(tot.sal)}</th>
           <th style={{background:"#111",color:"#fca5a5",border:"1px solid #000",padding:"5px 8px",fontSize:11,fontWeight:700}}>{E(tot.res)}</th>
           <th style={{background:"#111",color:"#86efac",border:"1px solid #000",padding:"5px 8px",fontSize:11}} colSpan={6}>Incassato: {E(tot.inc)}</th>
         </tr></tfoot>
@@ -1745,21 +1746,26 @@ function TabNavette({data,onAddNav,costs,setCosts}){
   </div>);
 }
 
-function TabFinanziario({data,costs}){
+function TabFinanziario({data,costs,setCosts,showToast}){
   const sv=useMemo(()=>calcServizi(data),[data]);
   const tF=costs.voci.reduce((s,v)=>s+v.importo,0);
+  /* Educator cost from roster */
+  const eduCost=useMemo(()=>(costs.educatori||[]).reduce((s,e)=>s+(e.settimane||[]).length*(e.paga||0),0),[costs.educatori]);
   const scN=Math.max(0,costs.costoNavette-sv.totNav);const scP=Math.max(0,costs.costoCucina-sv.totPasti);
   const ecN=Math.max(0,sv.totNav-costs.costoNavette);const ecP=Math.max(0,sv.totPasti-costs.costoCucina);
   const pN=costs.costoNavette>0?sv.totNav/costs.costoNavette:0;const pP=costs.costoCucina>0?sv.totPasti/costs.costoCucina:0;
   const tQ=data.reduce((s,r)=>s+(r.quota||0),0);
   const tI=data.reduce((s,r)=>s+(r.stato==="SALDATO"?r.quota||0:r.stato==="ACCONTO"?(r.acconto||0)+(r.saldato||0):0),0);
+  const tAcc=data.reduce((s,r)=>s+(r.acconto||0),0);
+  const tSal=data.reduce((s,r)=>s+(r.saldato||0),0);
   const tR=data.reduce((s,r)=>s+(r.da_saldare||0),0);
   const qM=data.length>0?tQ/data.reduce((s,r)=>s+(r.sett||1),0):20;
   const tSc=scN+scP;
-  const bP=qM>0?Math.ceil((tF+tSc)/qM):0;
+  const totCostiFull=tF+eduCost;
+  const bP=qM>0?Math.ceil((totCostiFull+tSc)/qM):0;
   const pTot=data.reduce((s,r)=>s+(r.sett||0),0);
   const bOk=pTot>=bP;const bW=Math.min(100,bP>0?Math.round(pTot/bP*100):0);
-  const uN=tI-tF-scN-scP+ecN+ecP;const uP=tQ-tF-scN-scP+ecN+ecP;
+  const uN=tI-totCostiFull-scN-scP+ecN+ecP;const uP=tQ-totCostiFull-scN-scP+ecN+ecP;
   const Pct=v=>isNaN(v)||!isFinite(v)?"0%":(Math.round(v*100)+"%");
   return(<div>
     <div style={{background:"#fff",border:"2px solid #000",padding:16,marginBottom:14}}>
@@ -1788,13 +1794,13 @@ function TabFinanziario({data,costs}){
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
       <div style={{background:"#fff",border:"1px solid #000",padding:14}}>
         <div style={{fontWeight:800,fontSize:13,marginBottom:8,borderBottom:"2px solid #000",paddingBottom:5}}>💰 Entrate</div>
-        {[["Quote iscrizioni",tQ,"#185FA5"],["+ Navette",sv.totNav,"#1e40af"],["+ Pasti",sv.totPasti,"#166534"],["= Totale lorde",tQ+sv.totExtra,"#000"],["Incassato",tI,"#166534"],["Da incassare",tR,"#dc2626"]].map(([l,v,c])=>(
+        {[["Quote iscrizioni",tQ,"#185FA5"],["+ Navette",sv.totNav,"#1e40af"],["+ Pasti",sv.totPasti,"#166534"],["= Totale lorde",tQ+sv.totExtra,"#000"],["Acconti",tAcc,"#854d0e"],["Saldi",tSal,"#166534"],["Incassato",tI,"#166534"],["Da incassare",tR,"#dc2626"]].map(([l,v,c])=>(
           <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"4px 0",borderBottom:"0.5px solid #f0f0f0",fontSize:12}}><span style={{color:"#555"}}>{l}</span><span style={{fontWeight:l.startsWith("=")||l.startsWith("Inc")?700:500,color:c}}>{E(v)}</span></div>
         ))}
       </div>
       <div style={{background:"#fff",border:"1px solid #000",padding:14}}>
         <div style={{fontWeight:800,fontSize:13,marginBottom:8,borderBottom:"2px solid #000",paddingBottom:5}}>📊 Costi</div>
-        {[["Costi fissi",tF,"#dc2626"],["Navette",costs.costoNavette,"#dc2626"],["- Copertura nav.",-sv.totNav,"#166534"],["Cucina",costs.costoCucina,"#dc2626"],["- Copertura pasti",-sv.totPasti,"#166534"],["= Costo netto serv.",tSc,"#d97706"],["TOTALE EFFETTIVO",tF+tSc,"#dc2626"]].map(([l,v,c])=>(
+        {[["Costi fissi",tF,"#dc2626"],["Educatori (da roster)",eduCost,"#dc2626"],["Navette",costs.costoNavette,"#dc2626"],["- Copertura nav.",-sv.totNav,"#166534"],["Cucina",costs.costoCucina,"#dc2626"],["- Copertura pasti",-sv.totPasti,"#166534"],["= Costo netto serv.",tSc,"#d97706"],["TOTALE EFFETTIVO",totCostiFull+tSc,"#dc2626"]].map(([l,v,c])=>(
           <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"4px 0",borderBottom:"0.5px solid #f0f0f0",fontSize:12}}><span style={{color:"#555"}}>{l}</span><span style={{fontWeight:l.startsWith("=")||l.startsWith("TOT")?700:500,color:c}}>{l.startsWith("- ")?"- "+E(-v):E(Math.abs(v))}</span></div>
         ))}
       </div>
@@ -1805,7 +1811,7 @@ function TabFinanziario({data,costs}){
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
         <div>
           <div style={{fontWeight:900,fontSize:14,marginBottom:2}}>📐 Break-Even Point — tempo reale</div>
-          <div style={{fontSize:11,color:"#666"}}>= ({E(tF)} + {E(tSc)}) ÷ {E(qM)}/bambino-sett. = <strong>{bP} presenze</strong></div>
+          <div style={{fontSize:11,color:"#666"}}>= ({E(totCostiFull)} + {E(tSc)}) ÷ {E(qM)}/bambino-sett. = <strong>{bP} presenze</strong></div>
         </div>
         <div style={{textAlign:"right"}}>
           <div style={{fontWeight:900,fontSize:16,color:bOk?"#16a34a":"#d97706"}}>{bOk?"✓ BEP RAGGIUNTO":"⚡ NON RAGGIUNTO"}</div>
