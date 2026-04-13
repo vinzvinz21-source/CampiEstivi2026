@@ -1865,9 +1865,11 @@ function TabFinanziario({data,costs,setCosts,showToast}){
 function TabEducatori({data,costs,setCosts}){
   const RATIO=10; // 1 educatore ogni 10 bambini
   const MIN_SENIOR=2;
+  const SENIOR_PAY=300;
+  const JUNIOR_PAY=200;
   const EDU_TYPES=[
-    {key:"senior",label:"Senior",defaultPay:300,bg:"#166534",fg:"#dcfce7"},
-    {key:"junior",label:"Junior",defaultPay:200,bg:"#854d0e",fg:"#fef9c3"},
+    {key:"senior",label:"Senior",defaultPay:SENIOR_PAY,bg:"#166534",fg:"#dcfce7"},
+    {key:"junior",label:"Junior",defaultPay:JUNIOR_PAY,bg:"#854d0e",fg:"#fef9c3"},
   ];
   /* Educator roster stored in costs.educatori */
   const educatori=costs.educatori||[];
@@ -1907,7 +1909,17 @@ function TabEducatori({data,costs,setCosts}){
       (ed.settimane||[]).forEach(wId=>{c[wId]=(c[wId]||0)+(ed.paga||0);});
     });return c;
   },[educatori]);
-  const totCost=Object.values(weekCost).reduce((s,v)=>s+v,0);
+  /* Estimated cost based on required educators */
+  const weekEstCost=useMemo(()=>{
+    const c={};WEEKS.forEach(w=>{
+      const req=weekReq[w.id];
+      const seniorN=req.kids>0?Math.max(MIN_SENIOR,req.senior):0;
+      c[w.id]=seniorN*SENIOR_PAY+req.junior*JUNIOR_PAY;
+    });return c;
+  },[weekReq]);
+  const totEstCost=Object.values(weekEstCost).reduce((s,v)=>s+v,0);
+  const totAssigned=Object.values(weekCost).reduce((s,v)=>s+v,0);
+  const totCost=totAssigned>0?totAssigned:totEstCost;
   /* Add educator */
   const addEdu=(tipo)=>{
     const pay=EDU_TYPES.find(t=>t.key===tipo)?.defaultPay||200;
@@ -1928,20 +1940,23 @@ function TabEducatori({data,costs,setCosts}){
     {/* DASHBOARD RICHIESTA */}
     <div style={{background:"#fff",border:"1px solid #000",padding:14,marginBottom:12}}>
       <div style={{fontWeight:800,fontSize:13,marginBottom:10,borderBottom:"2px solid #000",paddingBottom:5}}>Fabbisogno educatori per settimana</div>
-      <div style={{fontSize:10,color:"#666",marginBottom:8}}>Rapporto: 1 educatore ogni {RATIO} bambini · Minimo {MIN_SENIOR} senior per settimana attiva</div>
+      <div style={{fontSize:10,color:"#666",marginBottom:8}}>Rapporto: 1 educatore ogni {RATIO} bambini · Minimo {MIN_SENIOR} senior per settimana attiva · Senior {E(SENIOR_PAY)}/sett · Junior {E(JUNIOR_PAY)}/sett</div>
       <table style={{borderCollapse:"collapse",width:"100%"}}>
         <thead><tr>
           <th style={TH}>Sett.</th><th style={TH}>Periodo</th><th style={TH}>Bambini</th>
-          <th style={{...TH,background:"#166534"}}>Senior min.</th><th style={{...TH,background:"#854d0e"}}>Junior min.</th>
-          <th style={{...TH,background:"#1e40af"}}>Totale min.</th>
-          <th style={{...TH,background:"#166534"}}>Senior ass.</th><th style={{...TH,background:"#854d0e"}}>Junior ass.</th>
+          <th style={{...TH,background:"#166534"}}>Senior</th><th style={{...TH,background:"#854d0e"}}>Junior</th>
+          <th style={{...TH,background:"#1e40af"}}>Totale</th>
+          <th style={{...TH,background:"#dc2626"}}>Costo stimato</th>
+          <th style={{...TH,background:"#166534"}}>S. ass.</th><th style={{...TH,background:"#854d0e"}}>J. ass.</th>
           <th style={{...TH,background:"#1e40af"}}>Tot. ass.</th>
-          <th style={TH}>Stato</th><th style={TH}>Costo sett.</th>
+          <th style={TH}>Stato</th><th style={{...TH,background:"#166534"}}>Costo reale</th>
         </tr></thead>
         <tbody>{WEEKS.map(w=>{
           const req=weekReq[w.id];const asg=weekAssigned[w.id];
           const ok=req.kids===0||(asg.tot>=req.tot&&(asg.senior||0)>=MIN_SENIOR);
           const warn=req.kids>0&&!ok;
+          const estC=weekEstCost[w.id]||0;
+          const realC=weekCost[w.id]||0;
           return(<tr key={w.id} style={{background:req.kids===0?"#f5f5f5":warn?"#fef2f2":"#f0fdf4"}}>
             <td style={{...TD,fontWeight:700}}>{w.label}</td>
             <td style={{...TD,fontSize:10}}>{w.range}</td>
@@ -1949,16 +1964,19 @@ function TabEducatori({data,costs,setCosts}){
             <td style={{...TD,color:"#166534",fontWeight:600}}>{req.kids>0?Math.max(MIN_SENIOR,req.senior):0}</td>
             <td style={{...TD,color:"#854d0e",fontWeight:600}}>{req.junior}</td>
             <td style={{...TD,fontWeight:800,color:"#1e40af"}}>{req.tot}</td>
+            <td style={{...TD,fontWeight:800,color:"#dc2626",background:"#fef2f2"}}>{E(estC)}</td>
             <td style={{...TD,color:"#166534",fontWeight:700}}>{asg.senior||0}</td>
             <td style={{...TD,color:"#854d0e",fontWeight:700}}>{asg.junior||0}</td>
             <td style={{...TD,fontWeight:800,color:asg.tot>=req.tot?"#166534":"#dc2626"}}>{asg.tot}</td>
             <td style={{...TD,fontSize:10,fontWeight:700,color:req.kids===0?"#888":ok?"#166534":"#dc2626"}}>{req.kids===0?"—":ok?"OK":"Mancanti"}</td>
-            <td style={{...TD,fontWeight:700}}>{E(weekCost[w.id]||0)}</td>
+            <td style={{...TD,fontWeight:700,color:realC>0?"#166534":"#aaa"}}>{realC>0?E(realC):"—"}</td>
           </tr>);
         })}</tbody>
         <tfoot><tr>
-          <td colSpan={10} style={{...TD,fontWeight:800,textAlign:"right",background:"#111",color:"#fff"}}>TOTALE COSTO EDUCATORI</td>
-          <td style={{...TD,fontWeight:900,fontSize:14,background:"#111",color:"#fca5a5"}}>{E(totCost)}</td>
+          <td colSpan={6} style={{...TD,fontWeight:800,textAlign:"right",background:"#111",color:"#fff"}}>TOTALI</td>
+          <td style={{...TD,fontWeight:900,fontSize:13,background:"#dc2626",color:"#fff"}}>{E(totEstCost)}</td>
+          <td colSpan={4} style={{...TD,fontWeight:800,textAlign:"right",background:"#111",color:"#fff"}}>COSTO REALE</td>
+          <td style={{...TD,fontWeight:900,fontSize:13,background:totAssigned>0?"#166534":"#555",color:"#fff"}}>{totAssigned>0?E(totAssigned):"—"}</td>
         </tr></tfoot>
       </table>
     </div>
@@ -2009,7 +2027,8 @@ function TabEducatori({data,costs,setCosts}){
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:10}}>
         <div><div style={{fontSize:10,color:"#aaa"}}>Educatori totali</div><div style={{fontSize:20,fontWeight:900}}>{educatori.length}</div></div>
         <div><div style={{fontSize:10,color:"#aaa"}}>Senior / Junior</div><div style={{fontSize:20,fontWeight:900}}>{educatori.filter(e=>e.tipo==="senior").length} / {educatori.filter(e=>e.tipo==="junior").length}</div></div>
-        <div><div style={{fontSize:10,color:"#aaa"}}>Costo totale</div><div style={{fontSize:20,fontWeight:900,color:"#fca5a5"}}>{E(totCost)}</div></div>
+        <div><div style={{fontSize:10,color:"#aaa"}}>Costo stimato</div><div style={{fontSize:20,fontWeight:900,color:"#fca5a5"}}>{E(totEstCost)}</div></div>
+        <div><div style={{fontSize:10,color:"#aaa"}}>Costo reale (roster)</div><div style={{fontSize:20,fontWeight:900,color:totAssigned>0?"#4ade80":"#666"}}>{totAssigned>0?E(totAssigned):"—"}</div></div>
         <div><div style={{fontSize:10,color:"#aaa"}}>Settimane coperte</div><div style={{fontSize:20,fontWeight:900,color:WEEKS.every(w=>(weekReq[w.id].kids===0)||(weekAssigned[w.id].tot>=weekReq[w.id].tot&&(weekAssigned[w.id].senior||0)>=MIN_SENIOR))?"#4ade80":"#fca5a5"}}>{WEEKS.filter(w=>weekReq[w.id].kids>0&&weekAssigned[w.id].tot>=weekReq[w.id].tot&&(weekAssigned[w.id].senior||0)>=MIN_SENIOR).length}/{WEEKS.filter(w=>weekReq[w.id].kids>0).length}</div></div>
       </div>
     </div>
