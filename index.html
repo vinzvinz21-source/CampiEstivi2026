@@ -1874,6 +1874,7 @@ function TabEducatori({data,costs,setCosts}){
   /* Educator roster stored in costs.educatori */
   const educatori=costs.educatori||[];
   const setEdu=fn=>setCosts(p=>({...p,educatori:typeof fn==="function"?fn(p.educatori||[]):fn}));
+  const[openRegistro,setOpenRegistro]=useState(null);
   /* Per-week children count */
   const weekKids=useMemo(()=>{
     const c={};WEEKS.forEach(w=>{c[w.id]=0;});
@@ -1920,10 +1921,18 @@ function TabEducatori({data,costs,setCosts}){
   const totEstCost=Object.values(weekEstCost).reduce((s,v)=>s+v,0);
   const totAssigned=Object.values(weekCost).reduce((s,v)=>s+v,0);
   const totCost=totAssigned>0?totAssigned:totEstCost;
+  /* Attendance stats per educator */
+  const eduStats=useMemo(()=>educatori.map(ed=>{
+    const setts=ed.settimane||[];const giorniPrevisti=setts.length*5;const pres=ed.presenze||{};
+    let giorniLavorati=0;setts.forEach(wId=>{for(let d=0;d<5;d++){if(pres[`${wId}_${d}`])giorniLavorati++;}});
+    const assenze=giorniPrevisti-giorniLavorati;
+    const pagaGG=ed.paga_giornaliera||(ed.paga?Math.round(ed.paga/5):0);
+    return{id:ed.id,giorniPrevisti,giorniLavorati,assenze,giorniDaRecuperare:assenze,pagaGG,pagaMaturata:giorniLavorati*pagaGG,pagaPrevista:giorniPrevisti*pagaGG};
+  }),[educatori]);
   /* Add educator */
   const addEdu=(tipo)=>{
     const pay=EDU_TYPES.find(t=>t.key===tipo)?.defaultPay||200;
-    setEdu(p=>[...p,{id:uid(),nome:"",tipo,paga:pay,settimane:[],telefono:"",note:""}]);
+    setEdu(p=>[...p,{id:uid(),nome:"",tipo,paga:pay,paga_giornaliera:Math.round(pay/5),settimane:[],telefono:"",note:"",presenze:{}}]);
   };
   const upEdu=(id,k,v)=>setEdu(p=>p.map(e=>e.id===id?{...e,[k]:v}:e));
   const rmEdu=id=>setEdu(p=>p.filter(e=>e.id!==id));
@@ -1932,6 +1941,31 @@ function TabEducatori({data,costs,setCosts}){
     const s=e.settimane||[];
     return{...e,settimane:s.includes(wId)?s.filter(x=>x!==wId):[...s,wId]};
   }));
+  const togglePresenza=(edId,weekId,dayIdx)=>{
+    setEdu(p=>p.map(e=>{
+      if(e.id!==edId)return e;
+      const pres={...(e.presenze||{})};
+      const key=`${weekId}_${dayIdx}`;
+      pres[key]=!pres[key];
+      return{...e,presenze:pres};
+    }));
+  };
+  const setWeekFull=(edId,weekId)=>{
+    setEdu(p=>p.map(e=>{
+      if(e.id!==edId)return e;
+      const pres={...(e.presenze||{})};
+      for(let d=0;d<5;d++) pres[`${weekId}_${d}`]=true;
+      return{...e,presenze:pres};
+    }));
+  };
+  const clearWeek=(edId,weekId)=>{
+    setEdu(p=>p.map(e=>{
+      if(e.id!==edId)return e;
+      const pres={...(e.presenze||{})};
+      for(let d=0;d<5;d++) delete pres[`${weekId}_${d}`];
+      return{...e,presenze:pres};
+    }));
+  };
 
   /* PDF Export - prospetto turni */
   const exportPDF=()=>{
@@ -2061,6 +2095,7 @@ function TabEducatori({data,costs,setCosts}){
         const tipo=EDU_TYPES.find(t=>t.key===ed.tipo)||EDU_TYPES[0];
         const settCount=(ed.settimane||[]).length;
         const costoTot=settCount*(ed.paga||0);
+        const st=eduStats.find(s=>s.id===ed.id)||{giorniPrevisti:0,giorniLavorati:0,assenze:0,giorniDaRecuperare:0,pagaGG:0,pagaMaturata:0,pagaPrevista:0};
         return(<div key={ed.id} style={{border:`2px solid ${tipo.bg}`,marginBottom:8,background:"#fff"}}>
           <div style={{background:tipo.fg,padding:"8px 12px",display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
             <span style={{fontWeight:800,fontSize:11,color:tipo.bg,minWidth:50}}>{tipo.label.toUpperCase()}</span>
@@ -2068,9 +2103,14 @@ function TabEducatori({data,costs,setCosts}){
             <input value={ed.telefono||""} onChange={e=>upEdu(ed.id,"telefono",e.target.value)} placeholder="Telefono…" style={{width:120,padding:"4px 8px",fontSize:11,border:"1px solid #ccc"}}/>
             <div style={{display:"flex",alignItems:"center",gap:4}}>
               <span style={{fontSize:10,color:tipo.bg,fontWeight:600}}>€/sett:</span>
-              <input type="number" value={ed.paga||0} min={0} step={50} onChange={e=>upEdu(ed.id,"paga",Number(e.target.value))} style={{width:70,padding:"3px 6px",fontSize:12,border:"1px solid #000",fontWeight:700,textAlign:"center"}}/>
+              <input type="number" value={ed.paga||0} min={0} step={50} onChange={e=>{const v=Number(e.target.value);setEdu(p=>p.map(x=>x.id===ed.id?{...x,paga:v,paga_giornaliera:Math.round(v/5)}:x));}} style={{width:70,padding:"3px 6px",fontSize:12,border:"1px solid #000",fontWeight:700,textAlign:"center"}}/>
+            </div>
+            <div style={{display:"flex",alignItems:"center",gap:4}}>
+              <span style={{fontSize:10,color:tipo.bg,fontWeight:600}}>€/giorno:</span>
+              <input type="number" value={ed.paga_giornaliera||Math.round((ed.paga||0)/5)} min={0} step={5} onChange={e=>upEdu(ed.id,"paga_giornaliera",Number(e.target.value))} style={{width:60,padding:"3px 6px",fontSize:12,border:"1px solid #000",fontWeight:700,textAlign:"center"}}/>
             </div>
             <span style={{fontSize:11,fontWeight:700,color:tipo.bg}}>{settCount} sett. = {E(costoTot)}</span>
+            <button onClick={()=>setOpenRegistro(openRegistro===ed.id?null:ed.id)} style={{padding:"4px 10px",border:`1px solid ${tipo.bg}`,background:openRegistro===ed.id?tipo.bg:tipo.fg,color:openRegistro===ed.id?"#fff":tipo.bg,fontSize:10,fontWeight:700,cursor:"pointer"}}>📋 Registro</button>
             <button onClick={()=>rmEdu(ed.id)} style={{background:"none",border:"none",color:"#dc2626",fontSize:16,cursor:"pointer",fontWeight:900,marginLeft:"auto"}}>×</button>
           </div>
           <div style={{padding:"6px 12px",display:"flex",gap:4,flexWrap:"wrap",alignItems:"center"}}>
@@ -2083,9 +2123,74 @@ function TabEducatori({data,costs,setCosts}){
           {ed.note!==undefined&&<div style={{padding:"0 12px 6px"}}>
             <input value={ed.note||""} onChange={e=>upEdu(ed.id,"note",e.target.value)} placeholder="Note (es. specializzazione, certificazioni…)" style={{width:"100%",padding:"3px 8px",fontSize:10,border:"1px solid #eee",color:"#666"}}/>
           </div>}
+          {st.giorniPrevisti>0&&<div style={{padding:"4px 12px 6px",display:"flex",gap:12,flexWrap:"wrap",fontSize:10,borderTop:"1px dashed #ddd"}}>
+            <span>Giorni: <strong style={{color:"#166534"}}>{st.giorniLavorati}</strong>/{st.giorniPrevisti}</span>
+            <span>Assenze: <strong style={{color:st.assenze>0?"#dc2626":"#166534"}}>{st.assenze}</strong></span>
+            {st.giorniDaRecuperare>0&&<span style={{color:"#dc2626",fontWeight:700}}>⚠ {st.giorniDaRecuperare} da recuperare</span>}
+            {st.giorniDaRecuperare===0&&st.giorniLavorati>0&&<span style={{color:"#166534",fontWeight:700}}>✓ Completo</span>}
+            <span>Maturata: <strong style={{color:"#166534"}}>{E(st.pagaMaturata)}</strong> / {E(st.pagaPrevista)}</span>
+            {st.giorniDaRecuperare>0&&<span style={{color:"#d97706",fontWeight:700}}>💰 {E(st.pagaPrevista-st.pagaMaturata)} in sospeso</span>}
+          </div>}
+          {openRegistro===ed.id&&<div style={{padding:"10px 12px",borderTop:`2px solid ${tipo.bg}`,background:"#fafafa"}}>
+            <div style={{fontWeight:700,fontSize:12,marginBottom:8,color:tipo.bg}}>📋 Registro Presenze — {ed.nome||"Educatore"}</div>
+            {(ed.settimane||[]).length===0&&<div style={{color:"#888",fontSize:11,textAlign:"center",padding:10}}>Nessuna settimana assegnata</div>}
+            {[...(ed.settimane||[])].sort((a,b)=>a-b).map(wId=>{const week=WEEKS.find(w=>w.id===wId);if(!week)return null;const pres=ed.presenze||{};const dW=[0,1,2,3,4].filter(d=>pres[`${wId}_${d}`]).length;const rec=5-dW;return(<div key={wId} style={{marginBottom:6,padding:"6px 10px",border:"1px solid #ddd",background:"#fff"}}>
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:4,flexWrap:"wrap"}}>
+                <span style={{fontWeight:700,fontSize:11,minWidth:30}}>{week.label}</span>
+                <span style={{fontSize:10,color:"#666"}}>{week.range}</span>
+                <span style={{fontSize:10,color:dW===5?"#166534":dW>0?"#d97706":"#888",fontWeight:700,marginLeft:"auto"}}>{dW}/5 {rec>0?`(${rec} da recuperare)`:dW===5?"✓ Completa":""}</span>
+                <button onClick={()=>setWeekFull(ed.id,wId)} style={{fontSize:9,padding:"2px 6px",border:"1px solid #166534",background:"#dcfce7",color:"#166534",cursor:"pointer",fontWeight:600}}>✓ Tutti</button>
+                <button onClick={()=>clearWeek(ed.id,wId)} style={{fontSize:9,padding:"2px 6px",border:"1px solid #dc2626",background:"#fef2f2",color:"#dc2626",cursor:"pointer",fontWeight:600}}>✗ Reset</button>
+              </div>
+              <div style={{display:"flex",gap:4}}>{GIORNI_NOMI.map((g,idx)=>{const present=pres[`${wId}_${idx}`];return(<button key={idx} onClick={()=>togglePresenza(ed.id,wId,idx)} style={{flex:1,padding:"8px 4px",fontSize:11,fontWeight:600,border:present?"2px solid #166534":"1px solid #ccc",background:present?"#dcfce7":"#fff",color:present?"#166534":"#aaa",cursor:"pointer"}}>{g}{present?" ✓":""}</button>);})}</div>
+            </div>);})}
+          </div>}
         </div>);
       })}
     </div>
+
+    {/* RIEPILOGO PRESENZE E CONTABILITA */}
+    {educatori.length>0&&<div style={{background:"#fff",border:"1px solid #000",padding:14,marginBottom:12}}>
+      <div style={{fontWeight:800,fontSize:13,marginBottom:10,borderBottom:"2px solid #000",paddingBottom:5}}>Riepilogo Presenze e Contabilità Educatori</div>
+      <div style={{overflowX:"auto"}}>
+      <table style={{borderCollapse:"collapse",width:"100%",minWidth:700}}>
+        <thead><tr>
+          <th style={TH}>Nome</th><th style={TH}>Tipo</th><th style={TH}>€/giorno</th>
+          <th style={TH}>Gg. Previsti</th><th style={{...TH,background:"#166534"}}>Gg. Lavorati</th>
+          <th style={{...TH,background:"#dc2626"}}>Assenze</th><th style={{...TH,background:"#d97706"}}>Da Recuperare</th>
+          <th style={{...TH,background:"#166534"}}>Paga Maturata</th><th style={TH}>Paga Prevista</th>
+          <th style={TH}>Stato</th>
+        </tr></thead>
+        <tbody>{educatori.map(ed=>{
+          const s=eduStats.find(x=>x.id===ed.id)||{giorniPrevisti:0,giorniLavorati:0,assenze:0,giorniDaRecuperare:0,pagaGG:0,pagaMaturata:0,pagaPrevista:0};
+          const hasRec=s.giorniDaRecuperare>0&&s.giorniPrevisti>0;
+          const isComp=s.giorniPrevisti>0&&s.giorniDaRecuperare===0;
+          return(<tr key={ed.id} style={{background:isComp?"#f0fdf4":hasRec?"#fef2f2":"#fff"}}>
+            <td style={{...TD,fontWeight:700,textAlign:"left"}}>{ed.nome||"(senza nome)"}</td>
+            <td style={{...TD,color:ed.tipo==="senior"?"#166534":"#854d0e",fontWeight:700}}>{ed.tipo==="senior"?"Senior":"Junior"}</td>
+            <td style={{...TD,fontWeight:700}}>{E(s.pagaGG)}</td>
+            <td style={TD}>{s.giorniPrevisti}</td>
+            <td style={{...TD,fontWeight:700,color:"#166534"}}>{s.giorniLavorati}</td>
+            <td style={{...TD,fontWeight:700,color:s.assenze>0?"#dc2626":"#166534"}}>{s.assenze}</td>
+            <td style={{...TD,fontWeight:800,color:hasRec?"#dc2626":"#166534",background:hasRec?"#fef2f2":isComp?"#dcfce7":"transparent"}}>{hasRec?s.giorniDaRecuperare:isComp?"✓ 0":"—"}</td>
+            <td style={{...TD,fontWeight:800,color:"#166534"}}>{E(s.pagaMaturata)}</td>
+            <td style={{...TD,color:"#666"}}>{E(s.pagaPrevista)}</td>
+            <td style={{...TD,fontSize:10,fontWeight:700,color:isComp?"#166534":hasRec?"#dc2626":"#888"}}>{isComp?"Completo":hasRec?"In sospeso":"—"}</td>
+          </tr>);
+        })}</tbody>
+        <tfoot><tr>
+          <td colSpan={3} style={{...TD,fontWeight:800,textAlign:"right",background:"#111",color:"#fff"}}>TOTALI</td>
+          <td style={{...TD,fontWeight:700,background:"#222",color:"#fff"}}>{eduStats.reduce((a,s)=>a+s.giorniPrevisti,0)}</td>
+          <td style={{...TD,fontWeight:700,background:"#166534",color:"#fff"}}>{eduStats.reduce((a,s)=>a+s.giorniLavorati,0)}</td>
+          <td style={{...TD,fontWeight:700,background:"#dc2626",color:"#fff"}}>{eduStats.reduce((a,s)=>a+s.assenze,0)}</td>
+          <td style={{...TD,fontWeight:700,background:"#d97706",color:"#fff"}}>{eduStats.reduce((a,s)=>a+s.giorniDaRecuperare,0)}</td>
+          <td style={{...TD,fontWeight:900,background:"#166534",color:"#fff"}}>{E(eduStats.reduce((a,s)=>a+s.pagaMaturata,0))}</td>
+          <td style={{...TD,fontWeight:700,background:"#333",color:"#fff"}}>{E(eduStats.reduce((a,s)=>a+s.pagaPrevista,0))}</td>
+          <td style={{...TD,background:"#111",color:"#fff"}}></td>
+        </tr></tfoot>
+      </table>
+      </div>
+    </div>}
 
     {/* RIEPILOGO COPERTURA */}
     <div style={{background:"#111",color:"#fff",padding:14}}>
@@ -2359,12 +2464,12 @@ function MainApp({onLogout}){
   const TABS=[
     {id:"import",l:"🤖 Import Smart"},
     {id:"iscritti",l:"Iscritti & Pagamenti"},
+    {id:"educatori",l:"👩‍🏫 Educatori"},
+    {id:"navette",l:"Navette"},
     {id:"nav_contab",l:"🚐 Cont. Navette"},
     {id:"pasti_contab",l:"🍽 Cont. Pasti"},
     {id:"finanziario",l:"Finanziario & BEP"},
-    {id:"educatori",l:"👩‍🏫 Educatori"},
     {id:"costi",l:"Costi"},
-    {id:"navette",l:"Navette"},
     {id:"export",l:"Export"},
   ];
   const tS=on=>({padding:"9px 13px",border:"none",background:"transparent",borderBottom:on?"3px solid #111":"3px solid transparent",color:on?"#111":"#888",fontWeight:on?700:400,cursor:"pointer",fontSize:12,whiteSpace:"nowrap",marginBottom:-2});
