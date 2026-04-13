@@ -1957,12 +1957,10 @@ function TabEducatori({data,costs,setCosts}){
     const eduRows=educatori.map(ed=>{
       const tipo=ed.tipo==="senior"?"Senior":"Junior";
       const setts=(ed.settimane||[]).sort((a,b)=>a-b).map(s=>"S"+s).join(", ");
-      const c=(ed.settimane||[]).length*(ed.paga||0);
       return `<tr>
         <td style="font-weight:700">${ed.nome||"(senza nome)"}</td>
         <td style="text-align:center;font-weight:600;color:${ed.tipo==="senior"?"#166534":"#854d0e"}">${tipo}</td>
         <td style="text-align:center">${ed.telefono||"—"}</td>
-        <td style="text-align:center;font-weight:700">${E(ed.paga||0)}</td>
         <td style="font-size:10px">${setts||"Nessuna"}</td>
         <td style="text-align:center;font-weight:700">${(ed.settimane||[]).length}</td>
         <td style="text-align:left;font-size:10px;color:#666">${ed.note||""}</td>
@@ -1982,17 +1980,15 @@ function TabEducatori({data,costs,setCosts}){
     .summary .lbl{font-size:10px;color:#666}
     @media print{body{padding:8px}}</style></head><body>
     <h1>🌿 Turni Educatori — Campi Natura Macaranga 2026</h1>
-    <h2>Generato il ${new Date().toLocaleDateString("it-IT")} · Rapporto 1:${RATIO} · Min. ${MIN_SENIOR} senior · Senior ${E(SENIOR_PAY)}/sett · Junior ${E(JUNIOR_PAY)}/sett</h2>
+    <h2>Generato il ${new Date().toLocaleDateString("it-IT")} · Rapporto 1:${RATIO} · Min. ${MIN_SENIOR} senior</h2>
     <h3>Fabbisogno settimanale</h3>
     <table><thead><tr><th>Sett.</th><th>Periodo</th><th>Bambini</th><th>Senior</th><th>Junior</th><th>Totale</th><th>S. ass.</th><th>J. ass.</th><th>Tot. ass.</th><th>Stato</th><th style="text-align:left">Educatori assegnati</th></tr></thead>
     <tbody>${rows}</tbody></table>
     <h3>Roster educatori (${educatori.length})</h3>
-    ${educatori.length>0?`<table><thead><tr><th style="text-align:left">Nome</th><th>Tipo</th><th>Telefono</th><th>€/sett</th><th style="text-align:left">Settimane</th><th>N. sett.</th><th style="text-align:left">Note</th></tr></thead><tbody>${eduRows}</tbody></table>`:"<p style='color:#888;text-align:center;padding:12px'>Nessun educatore inserito nel roster.</p>"}
+    ${educatori.length>0?`<table><thead><tr><th style="text-align:left">Nome</th><th>Tipo</th><th>Telefono</th><th style="text-align:left">Settimane</th><th>N. sett.</th><th style="text-align:left">Note</th></tr></thead><tbody>${eduRows}</tbody></table>`:"<p style='color:#888;text-align:center;padding:12px'>Nessun educatore inserito nel roster.</p>"}
     <div class="summary">
-      <div><div class="lbl">Educatori</div><div class="val">${educatori.length}</div></div>
+      <div><div class="lbl">Educatori totali</div><div class="val">${educatori.length}</div></div>
       <div><div class="lbl">Senior / Junior</div><div class="val">${nSen} / ${nJun}</div></div>
-      <div><div class="lbl">Costo stimato</div><div class="val" style="color:#dc2626">${E(totEstCost)}</div></div>
-      <div><div class="lbl">Costo reale</div><div class="val" style="color:${totAssigned>0?"#166534":"#888"}">${totAssigned>0?E(totAssigned):"—"}</div></div>
     </div>
     </body></html>`;
     const w=window.open("","_blank");if(!w)return;w.document.write(html);w.document.close();
