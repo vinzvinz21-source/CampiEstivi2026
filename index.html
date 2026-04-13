@@ -553,12 +553,23 @@ function TabImport({onSync,existingData,showToast,savedMappings,setSavedMappings
     setPreviewData(null);setMappingState(null);
   }
 
+  function readFileAsArrayBuffer(f){
+    return new Promise((resolve,reject)=>{
+      const reader=new FileReader();
+      reader.onload=()=>resolve(reader.result);
+      reader.onerror=()=>reject(new Error("Errore lettura file"));
+      reader.readAsArrayBuffer(f);
+    });
+  }
+
   async function handleFile(file){
     if(!file||uploading)return;setUploading(true);addLog(`Caricamento: ${file.name}`);
+    if(file.size===0){addLog("Il file è vuoto (0 bytes)","error");setUploading(false);return;}
+    addLog(`Dimensione: ${(file.size/1024).toFixed(1)} KB`);
     const ext=file.name.split(".").pop().toLowerCase();
     try{
       if(ext==="xlsx"||ext==="xls"){
-        const buf=await file.arrayBuffer();const wb=XLSX.read(buf,{type:"array",cellDates:true});
+        const buf=await readFileAsArrayBuffer(file);const wb=XLSX.read(buf,{type:"array",cellDates:true});
         const ws=wb.Sheets[wb.SheetNames[0]];const rawMatrix=XLSX.utils.sheet_to_json(ws,{header:1,defval:""});
         let hi=-1;for(let i=0;i<rawMatrix.length;i++){if(rawMatrix[i].some(c=>String(c).toLowerCase().match(/bambino|nome|partecipant/))){hi=i;break;}}
         if(hi<0){hi=0;}
@@ -575,7 +586,7 @@ function TabImport({onSync,existingData,showToast,savedMappings,setSavedMappings
           setMappingState({rawRows,headers,currentMapping:am,unmapped});
         }
       }else if(ext==="docx"){
-        const buf=await file.arrayBuffer();const res=await mammoth.extractRawText({arrayBuffer:buf});
+        const buf=await readFileAsArrayBuffer(file);const res=await mammoth.extractRawText({arrayBuffer:buf});
         addLog("Parsing Word locale…");
         const records=parseFormText(res.value);
         if(records.length===0){addLog("Nessun iscritto trovato nel Word","warn");setUploading(false);return;}
@@ -585,8 +596,11 @@ function TabImport({onSync,existingData,showToast,savedMappings,setSavedMappings
       }else if(ext==="pdf"){
         if(!window.pdfjsLib){addLog("Errore: pdf.js non caricato","error");setUploading(false);return;}
         addLog("Estrazione testo dal PDF…");
-        const buf=await file.arrayBuffer();
-        const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+        const buf=await readFileAsArrayBuffer(file);
+        const uint8=new Uint8Array(buf);
+        addLog(`Buffer letto: ${uint8.length} bytes`);
+        if(uint8.length===0){addLog("Errore: buffer vuoto dopo la lettura","error");setUploading(false);return;}
+        const pdf=await pdfjsLib.getDocument({data:uint8}).promise;
         let fullText="";
         for(let i=1;i<=pdf.numPages;i++){
           const page=await pdf.getPage(i);
