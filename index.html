@@ -133,7 +133,12 @@ function calcServizi(data,giorniSett=GIORNI_SETT){
     if(!r.bambino?.trim())return;
     calcWeeks(r.inizio,r.sett).forEach(sid=>{
       const w=WEEKS.find(x=>x.id===sid);
-      if(r.nav)nR.push({id:r.id,bambino:r.bambino,citta:r.citta,settimana:w?.label||"—",settId:sid,settRange:w?.range||"—",giorni:giorniSett,totale:giorniSett*NAV_RATE});
+      if(r.nav){
+        const nl=r.nav_log||{};
+        const consumed=GIORNI_NOMI.reduce((c,_,di)=>c+(nl[`${sid}_${di}`]?1:0),0);
+        const g=consumed>0?consumed:giorniSett;
+        nR.push({id:r.id,bambino:r.bambino,citta:r.citta,settimana:w?.label||"—",settId:sid,settRange:w?.range||"—",giorni:g,totale:g*NAV_RATE});
+      }
       if(!r.pasto_casa){
         const pl=r.pasti_log||{};
         const consumed=GIORNI_NOMI.reduce((c,_,di)=>c+(pl[`${sid}_${di}`]?1:0),0);
@@ -266,7 +271,7 @@ function autoMapHeaders(headers,saved={}){
   return{result,unmapped:headers.filter(h=>h&&!mapped.has(String(h).trim()))};
 }
 function buildRecord(raw,mapping){
-  const base={id:uid(),bambino:"",nato_il:"",eta:0,inizio:"08/06/2026",fine:"03/07/2026",sett:1,nav:false,pasto_casa:false,citta:"",quota:0,acconto:0,saldato:0,da_saldare:0,stato:"DA PAGARE",note_pag:"",note_bimbo:"",telefono:"",genitore:"",n_pasti:0,presenze:{},pasti_log:{}};
+  const base={id:uid(),bambino:"",nato_il:"",eta:0,inizio:"08/06/2026",fine:"03/07/2026",sett:1,nav:false,pasto_casa:false,citta:"",quota:0,acconto:0,saldato:0,da_saldare:0,stato:"DA PAGARE",note_pag:"",note_bimbo:"",telefono:"",genitore:"",n_pasti:0,presenze:{},pasti_log:{},nav_log:{}};
   if(Object.values(raw).some(v=>isTrasf(v)))base.nav=true;
   Object.entries(mapping).forEach(([h,f])=>{
     if(f==="_ignore"||!f)return;const val=raw[h];if(val===undefined||val===null||val==="")return;
@@ -567,7 +572,7 @@ function parseFormText(text){
     const results=[];
     for(const ch of children){
       if(!ch.bambino||!ch.bambino.trim())continue;
-      const rec={id:uid(),bambino:ch.bambino,nato_il:ch.nato_il,eta:calcEta(ch.nato_il),inizio,fine:"",sett:Math.max(1,Math.min(8,sett)),nav:hasNav,pasto_casa:false,citta:residenza,quota:quotaPerFiglio,acconto:0,saldato:0,note_pag,note_bimbo:ch.note_bimbo,telefono,genitore,da_saldare:0,stato:"DA PAGARE",n_pasti:0,presenze:{},pasti_log:{}};
+      const rec={id:uid(),bambino:ch.bambino,nato_il:ch.nato_il,eta:calcEta(ch.nato_il),inizio,fine:"",sett:Math.max(1,Math.min(8,sett)),nav:hasNav,pasto_casa:false,citta:residenza,quota:quotaPerFiglio,acconto:0,saldato:0,note_pag,note_bimbo:ch.note_bimbo,telefono,genitore,da_saldare:0,stato:"DA PAGARE",n_pasti:0,presenze:{},pasti_log:{},nav_log:{}};
       rec.fine=calcFine(rec.inizio,rec.sett);rec.da_saldare=calcResidue(rec);rec.stato=autoStato(rec);
       results.push(rec);
     }
@@ -604,7 +609,7 @@ function parseFormText(text){
       const inizioRaw=bg([/(?:data\s*inizio|inizio)[:\s]+(\S+(?:\s+\S+)?)/i]);
       const inizioParsed=parseDate(inizioRaw)||"08/06/2026";
       const inizio=dateToInizio(inizioParsed)||inizioParsed;
-      const rec={id:uid(),bambino,nato_il,eta:eta||calcEta(nato_il),inizio,fine:"",sett:Math.max(1,Math.min(8,sett)),nav,pasto_casa:false,citta,quota,acconto:0,saldato:0,note_pag,note_bimbo,telefono:String(telefono).replace(/\s/g,""),genitore,da_saldare:0,stato:"DA PAGARE",n_pasti:0,presenze:{},pasti_log:{}};
+      const rec={id:uid(),bambino,nato_il,eta:eta||calcEta(nato_il),inizio,fine:"",sett:Math.max(1,Math.min(8,sett)),nav,pasto_casa:false,citta,quota,acconto:0,saldato:0,note_pag,note_bimbo,telefono:String(telefono).replace(/\s/g,""),genitore,da_saldare:0,stato:"DA PAGARE",n_pasti:0,presenze:{},pasti_log:{},nav_log:{}};
       rec.fine=calcFine(rec.inizio,rec.sett);rec.da_saldare=calcResidue(rec);rec.stato=autoStato(rec);
       results.push(rec);
     }
@@ -1175,7 +1180,7 @@ function TabIscritti({data,setData,showToast,extCerca="",onExtCercaUsed,navCap,t
     if(k==="nato_il"){u.eta=calcEta(v);}
     return u;
   })),[setData]);
-  const add=()=>setData(p=>[{id:uid(),bambino:"",nato_il:"",eta:0,inizio:"08/06/2026",fine:calcFine("08/06/2026",1),sett:1,nav:false,pasto_casa:false,citta:"",quota:0,acconto:0,saldato:0,da_saldare:0,stato:"DA PAGARE",note_pag:"",note_bimbo:"",telefono:"",genitore:"",n_pasti:0,presenze:{},pasti_log:{}},...p]);
+  const add=()=>setData(p=>[{id:uid(),bambino:"",nato_il:"",eta:0,inizio:"08/06/2026",fine:calcFine("08/06/2026",1),sett:1,nav:false,pasto_casa:false,citta:"",quota:0,acconto:0,saldato:0,da_saldare:0,stato:"DA PAGARE",note_pag:"",note_bimbo:"",telefono:"",genitore:"",n_pasti:0,presenze:{},pasti_log:{},nav_log:{}},...p]);
   const TH={background:"#111",color:"#fff",padding:"7px 8px",border:"1px solid #000",textAlign:"center",fontWeight:600,fontSize:11,whiteSpace:"nowrap"};
   const TD=ex=>({border:"1px solid #000",padding:"5px 7px",textAlign:"center",fontSize:12,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",...ex});
   const iS={border:"none",background:"transparent",width:"100%",textAlign:"center",fontSize:12,color:"#1a1a1a",padding:0,overflow:"hidden",textOverflow:"ellipsis"};
@@ -1366,7 +1371,7 @@ function TabIscritti({data,setData,showToast,extCerca="",onExtCercaUsed,navCap,t
 
 
 /* ══ TAB CONTABILITÀ NAVETTE ════════════════════════════════════ */
-function TabNavetteContab({data,giorniSett,showToast}){
+function TabNavetteContab({data,setData,giorniSett,showToast}){
   const{navRows,totNav}=useMemo(()=>calcServizi(data,giorniSett),[data,giorniSett]);
   const[filtro,setFiltro]=useState("tutti");
   const[fSett,setFSett]=useState(0);
@@ -1377,6 +1382,18 @@ function TabNavetteContab({data,giorniSett,showToast}){
   });
   const cities=[...new Set(navRows.map(r=>r.citta))].sort();
   const totFiltro=lista.reduce((s,r)=>s+r.totale,0);
+  const totGiorni=lista.reduce((s,r)=>s+r.giorni,0);
+  const adjNavGiorni=(id,settId,delta)=>{
+    setData(prev=>prev.map(r=>{
+      if(r.id!==id)return r;
+      const nl={...(r.nav_log||{})};
+      const current=GIORNI_NOMI.reduce((c,_,di)=>c+(nl[`${settId}_${di}`]?1:0),0);
+      const actual=current>0?current:giorniSett;
+      const newVal=Math.max(0,Math.min(giorniSett,actual+delta));
+      GIORNI_NOMI.forEach((_,di)=>{nl[`${settId}_${di}`]=di<newVal;});
+      return{...r,nav_log:nl};
+    }));
+  };
   const TH={background:"#111",color:"#fff",padding:"7px 9px",border:"1px solid #000",textAlign:"center",fontWeight:600,fontSize:11};
   const TD={border:"1px solid #000",padding:"6px 9px",fontSize:12};
   return(<div>
@@ -1384,7 +1401,7 @@ function TabNavetteContab({data,giorniSett,showToast}){
       <div style={{background:"#1e40af",border:"1px solid #000",padding:14,color:"#fff"}}>
         <div style={{fontSize:11,opacity:.8,marginBottom:4}}>🚐 Totale ricavi navette (stagione)</div>
         <div style={{fontSize:22,fontWeight:900}}>{E(totNav)}</div>
-        <div style={{fontSize:11,opacity:.8,marginTop:4}}>{navRows.length} settimane-bambino · {NAV_RATE}€/giorno/bambino</div>
+        <div style={{fontSize:11,opacity:.8,marginTop:4}}>{totGiorni} navette consumate · {NAV_RATE}€/giorno/bambino</div>
       </div>
       <div style={{background:"#fff",border:"1px solid #000",padding:14}}>
         <div style={{fontSize:11,color:"#666",marginBottom:4}}>Bambini con navetta</div>
@@ -1426,7 +1443,7 @@ function TabNavetteContab({data,giorniSett,showToast}){
           <th style={TH}>Città</th>
           <th style={TH}>Settimana</th>
           <th style={TH}>Date</th>
-          <th style={TH}>Giorni prenotati</th>
+          <th style={TH}>Navette consumate</th>
           <th style={TH}>Tariffa €/giorno</th>
           <th style={{...TH,background:"#1e40af"}}>Totale singolo</th>
         </tr></thead>
@@ -1438,19 +1455,27 @@ function TabNavetteContab({data,giorniSett,showToast}){
               <td style={{...TD}}>{r.citta}</td>
               <td style={{...TD,fontWeight:700}}>{r.settimana}</td>
               <td style={{...TD,fontSize:11,color:"#666"}}>{r.settRange}</td>
-              <td style={{...TD,textAlign:"center",fontWeight:600}}>{r.giorni}</td>
+              <td style={{...TD,textAlign:"center"}}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:4}}>
+                  <button onClick={()=>adjNavGiorni(r.id,r.settId,-1)} disabled={r.giorni<=0} style={{width:22,height:22,border:"1px solid #000",background:r.giorni<=0?"#e5e7eb":"#fff",cursor:r.giorni<=0?"not-allowed":"pointer",fontWeight:900,fontSize:14,lineHeight:1,padding:0,color:"#dc2626"}}>−</button>
+                  <span style={{fontWeight:700,minWidth:18,textAlign:"center",color:r.giorni<giorniSett?"#d97706":"#1e40af"}}>{r.giorni}</span>
+                  <button onClick={()=>adjNavGiorni(r.id,r.settId,1)} disabled={r.giorni>=giorniSett} style={{width:22,height:22,border:"1px solid #000",background:r.giorni>=giorniSett?"#e5e7eb":"#fff",cursor:r.giorni>=giorniSett?"not-allowed":"pointer",fontWeight:900,fontSize:14,lineHeight:1,padding:0,color:"#1e40af"}}>+</button>
+                </div>
+              </td>
               <td style={{...TD,textAlign:"center",color:"#666"}}>{E2(NAV_RATE)}</td>
-              <td style={{...TD,background:"#dbeafe",fontWeight:700,color:"#1e40af"}}>{E2(r.totale)}</td>
+              <td style={{...TD,background:r.giorni<giorniSett?"#fef9c3":"#dbeafe",fontWeight:700,color:r.giorni<giorniSett?"#854d0e":"#1e40af"}}>{E2(r.totale)}</td>
             </tr>
           ))}
         </tbody>
         <tfoot><tr>
-          <th colSpan={7} style={{...TH,textAlign:"right",padding:"7px 12px"}}>TOTALE {fSett!==0?WEEKS.find(w=>w.id===fSett)?.label+" ·":""} {filtro!=="tutti"?filtro+" ·":""} {lista.length} righe</th>
+          <th colSpan={5} style={{...TH,textAlign:"right",padding:"7px 12px"}}>TOTALE {fSett!==0?WEEKS.find(w=>w.id===fSett)?.label+" ·":""} {filtro!=="tutti"?filtro+" ·":""} {lista.length} righe</th>
+          <th style={TH}>{totGiorni} gg</th>
+          <th style={TH}></th>
           <th style={{...TH,background:"#1e40af",fontSize:14}}>{E(totFiltro)}</th>
         </tr></tfoot>
       </table>
     </div>
-    <div style={{marginTop:8,fontSize:11,color:"#666"}}>Tariffa: <strong>€{NAV_RATE}/giorno × {giorniSett} giorni/settimana</strong> · La tabella si aggiorna automaticamente ad ogni modifica degli iscritti</div>
+    <div style={{marginTop:8,fontSize:11,color:"#666"}}>Tariffa: <strong>€{NAV_RATE}/giorno × {giorniSett} giorni/settimana</strong> · Usa le frecce ▲▼ per regolare le navette non consumate · Sincronizzato con BEP</div>
   </div>);
 }
 
@@ -1875,6 +1900,15 @@ function TabEducatori({data,costs,setCosts}){
   const educatori=costs.educatori||[];
   const setEdu=fn=>setCosts(p=>({...p,educatori:typeof fn==="function"?fn(p.educatori||[]):fn}));
   const[openRegistro,setOpenRegistro]=useState(null);
+  const[openScheda,setOpenScheda]=useState(null);
+  const upEduNote=(edId,weekId,dayIdx,val)=>{
+    setEdu(p=>p.map(e=>{
+      if(e.id!==edId)return e;
+      const ng={...(e.note_giorno||{})};
+      ng[`${weekId}_${dayIdx}`]=val;
+      return{...e,note_giorno:ng};
+    }));
+  };
   /* Per-week children count */
   const weekKids=useMemo(()=>{
     const c={};WEEKS.forEach(w=>{c[w.id]=0;});
@@ -1932,7 +1966,7 @@ function TabEducatori({data,costs,setCosts}){
   /* Add educator */
   const addEdu=(tipo)=>{
     const pay=EDU_TYPES.find(t=>t.key===tipo)?.defaultPay||200;
-    setEdu(p=>[...p,{id:uid(),nome:"",tipo,paga:pay,paga_giornaliera:Math.round(pay/5),settimane:[],telefono:"",note:"",presenze:{}}]);
+    setEdu(p=>[...p,{id:uid(),nome:"",tipo,paga:pay,paga_giornaliera:Math.round(pay/5),settimane:[],telefono:"",note:"",presenze:{},note_giorno:{}}]);
   };
   const upEdu=(id,k,v)=>setEdu(p=>p.map(e=>e.id===id?{...e,[k]:v}:e));
   const rmEdu=id=>setEdu(p=>p.filter(e=>e.id!==id));
@@ -2029,6 +2063,73 @@ function TabEducatori({data,costs,setCosts}){
     setTimeout(()=>{w.print();},400);
   };
 
+  /* PDF Scheda individuale educatore */
+  const exportSchedaPDF=(ed)=>{
+    const tipo=ed.tipo==="senior"?"Senior":"Junior";
+    const st=eduStats.find(s=>s.id===ed.id)||{giorniPrevisti:0,giorniLavorati:0,assenze:0,giorniDaRecuperare:0,pagaGG:0,pagaMaturata:0,pagaPrevista:0};
+    const setts=[...(ed.settimane||[])].sort((a,b)=>a-b);
+    const weekRows=setts.map(wId=>{
+      const week=WEEKS.find(w=>w.id===wId);if(!week)return"";
+      const pres=ed.presenze||{};const ng=ed.note_giorno||{};
+      const dayCells=GIORNI_NOMI.map((g,idx)=>{
+        const present=pres[`${wId}_${idx}`];
+        const nota=ng[`${wId}_${idx}`]||"";
+        return`<td style="text-align:center;padding:6px 4px;border:1px solid #ccc;background:${present?"#dcfce7":"#fef2f2"};color:${present?"#166534":"#dc2626"};font-weight:700;font-size:11px">
+          ${present?"✓ Presente":"✗ Assente"}${nota?`<div style="font-size:9px;color:#666;font-weight:400;margin-top:2px">${esc(nota)}</div>`:""}
+        </td>`;
+      }).join("");
+      const dW=[0,1,2,3,4].filter(d=>pres[`${wId}_${d}`]).length;
+      return`<tr><td style="font-weight:700;text-align:center;border:1px solid #ccc;padding:6px;background:#f5f5f5">${week.label}<div style="font-size:9px;color:#666;font-weight:400">${week.range}</div></td>${dayCells}<td style="text-align:center;border:1px solid #ccc;padding:6px;font-weight:800;color:${dW===5?"#166534":"#dc2626"}">${dW}/5</td></tr>`;
+    }).join("");
+    const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Scheda ${ed.nome||"Educatore"} — Macaranga 2026</title>
+    <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:11px;padding:20px}
+    h1{font-size:16px;margin-bottom:2px}h2{font-size:12px;color:#666;margin-bottom:14px;font-weight:400}
+    h3{font-size:13px;margin:18px 0 8px;border-bottom:2px solid #000;padding-bottom:4px}
+    table{border-collapse:collapse;width:100%;margin-bottom:16px}
+    th{background:#111;color:#fff;padding:5px 7px;text-align:center;font-size:10px;border:1px solid #000}
+    td{border:1px solid #ccc;padding:4px 7px;font-size:11px}
+    .info{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin:14px 0}
+    .info div{background:#f5f5f5;border:1px solid #000;padding:10px 14px}
+    .info .lbl{font-size:10px;color:#666;margin-bottom:2px}
+    .info .val{font-size:16px;font-weight:900}
+    .summary{display:flex;gap:16px;margin:14px 0;flex-wrap:wrap}
+    .summary div{background:#f5f5f5;border:1px solid #000;padding:10px 16px;text-align:center;min-width:100px}
+    .summary .val{font-size:18px;font-weight:900}.summary .lbl{font-size:10px;color:#666}
+    @media print{body{padding:8px}}</style></head><body>
+    <h1>📋 Scheda Personale — ${esc(ed.nome||"Educatore")}</h1>
+    <h2>Campi Natura Macaranga 2026 · Generato il ${new Date().toLocaleDateString("it-IT")}</h2>
+    <div class="info">
+      <div><div class="lbl">Ruolo</div><div class="val" style="color:${ed.tipo==="senior"?"#166534":"#854d0e"}">${tipo}</div></div>
+      <div><div class="lbl">Telefono</div><div class="val">${ed.telefono||"—"}</div></div>
+      <div><div class="lbl">Settimane assegnate</div><div class="val">${setts.length}</div></div>
+      <div><div class="lbl">Paga settimanale</div><div class="val">€${ed.paga||0}</div></div>
+      <div><div class="lbl">Paga giornaliera</div><div class="val">€${st.pagaGG}</div></div>
+      <div><div class="lbl">Note</div><div style="font-size:11px">${esc(ed.note||"—")}</div></div>
+    </div>
+    <h3>Registro Presenze</h3>
+    <table>
+      <thead><tr><th>Sett.</th>${GIORNI_NOMI.map(g=>`<th>${g}</th>`).join("")}<th>Totale</th></tr></thead>
+      <tbody>${weekRows}</tbody>
+    </table>
+    <h3>Riepilogo Retribuzione</h3>
+    <div class="summary">
+      <div><div class="lbl">Giorni Previsti</div><div class="val">${st.giorniPrevisti}</div></div>
+      <div><div class="lbl">Giorni Lavorati</div><div class="val" style="color:#166534">${st.giorniLavorati}</div></div>
+      <div><div class="lbl">Assenze</div><div class="val" style="color:${st.assenze>0?"#dc2626":"#166534"}">${st.assenze}</div></div>
+      <div><div class="lbl">Da Recuperare</div><div class="val" style="color:${st.giorniDaRecuperare>0?"#dc2626":"#166534"}">${st.giorniDaRecuperare}</div></div>
+      <div><div class="lbl">Paga Maturata</div><div class="val" style="color:#166534">€${st.pagaMaturata}</div></div>
+      <div><div class="lbl">Paga Prevista</div><div class="val">€${st.pagaPrevista}</div></div>
+      ${st.giorniDaRecuperare>0?`<div style="background:#fef2f2;border-color:#dc2626"><div class="lbl" style="color:#dc2626">In Sospeso</div><div class="val" style="color:#dc2626">€${st.pagaPrevista-st.pagaMaturata}</div></div>`:""}
+    </div>
+    <div style="margin-top:20px;padding:12px;border-top:2px solid #000;font-size:10px;color:#888">
+      <div>Stato: <strong style="color:${st.giorniDaRecuperare>0?"#dc2626":"#166534"}">${st.giorniDaRecuperare>0?"PAGAMENTO IN SOSPESO — "+st.giorniDaRecuperare+" giorni da recuperare":"COMPLETO — Tutti i giorni lavorati"}</strong></div>
+      <div style="margin-top:4px">Firma educatore: ___________________________&nbsp;&nbsp;&nbsp;&nbsp;Firma responsabile: ___________________________</div>
+    </div>
+    </body></html>`;
+    const w=window.open("","_blank");if(!w)return;w.document.write(html);w.document.close();
+    setTimeout(()=>{w.print();},400);
+  };
+
   const TH={background:"#111",color:"#fff",padding:"6px 8px",border:"1px solid #000",textAlign:"center",fontSize:10,fontWeight:600};
   const TD={border:"1px solid #000",padding:"5px 8px",fontSize:11,textAlign:"center"};
 
@@ -2111,6 +2212,7 @@ function TabEducatori({data,costs,setCosts}){
             </div>
             <span style={{fontSize:11,fontWeight:700,color:tipo.bg}}>{settCount} sett. = {E(costoTot)}</span>
             <button onClick={()=>setOpenRegistro(openRegistro===ed.id?null:ed.id)} style={{padding:"4px 10px",border:`1px solid ${tipo.bg}`,background:openRegistro===ed.id?tipo.bg:tipo.fg,color:openRegistro===ed.id?"#fff":tipo.bg,fontSize:10,fontWeight:700,cursor:"pointer"}}>📋 Registro</button>
+            <button onClick={()=>exportSchedaPDF(ed)} style={{padding:"4px 10px",border:"1px solid #7c3aed",background:"#7c3aed",color:"#fff",fontSize:10,fontWeight:700,cursor:"pointer"}}>📄 Scheda PDF</button>
             <button onClick={()=>rmEdu(ed.id)} style={{background:"none",border:"none",color:"#dc2626",fontSize:16,cursor:"pointer",fontWeight:900,marginLeft:"auto"}}>×</button>
           </div>
           <div style={{padding:"6px 12px",display:"flex",gap:4,flexWrap:"wrap",alignItems:"center"}}>
@@ -2132,17 +2234,25 @@ function TabEducatori({data,costs,setCosts}){
             {st.giorniDaRecuperare>0&&<span style={{color:"#d97706",fontWeight:700}}>💰 {E(st.pagaPrevista-st.pagaMaturata)} in sospeso</span>}
           </div>}
           {openRegistro===ed.id&&<div style={{padding:"10px 12px",borderTop:`2px solid ${tipo.bg}`,background:"#fafafa"}}>
-            <div style={{fontWeight:700,fontSize:12,marginBottom:8,color:tipo.bg}}>📋 Registro Presenze — {ed.nome||"Educatore"}</div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+              <div style={{fontWeight:700,fontSize:12,color:tipo.bg}}>📋 Registro Presenze — {ed.nome||"Educatore"}</div>
+              <button onClick={()=>exportSchedaPDF(ed)} style={{padding:"3px 10px",border:"1px solid #7c3aed",background:"#7c3aed",color:"#fff",fontSize:10,fontWeight:700,cursor:"pointer"}}>📄 Scarica Scheda PDF</button>
+            </div>
             {(ed.settimane||[]).length===0&&<div style={{color:"#888",fontSize:11,textAlign:"center",padding:10}}>Nessuna settimana assegnata</div>}
-            {[...(ed.settimane||[])].sort((a,b)=>a-b).map(wId=>{const week=WEEKS.find(w=>w.id===wId);if(!week)return null;const pres=ed.presenze||{};const dW=[0,1,2,3,4].filter(d=>pres[`${wId}_${d}`]).length;const rec=5-dW;return(<div key={wId} style={{marginBottom:6,padding:"6px 10px",border:"1px solid #ddd",background:"#fff"}}>
-              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:4,flexWrap:"wrap"}}>
+            {[...(ed.settimane||[])].sort((a,b)=>a-b).map(wId=>{const week=WEEKS.find(w=>w.id===wId);if(!week)return null;const pres=ed.presenze||{};const ng=ed.note_giorno||{};const dW=[0,1,2,3,4].filter(d=>pres[`${wId}_${d}`]).length;const rec=5-dW;return(<div key={wId} style={{marginBottom:8,padding:"8px 10px",border:"1px solid #ddd",background:"#fff"}}>
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6,flexWrap:"wrap"}}>
                 <span style={{fontWeight:700,fontSize:11,minWidth:30}}>{week.label}</span>
                 <span style={{fontSize:10,color:"#666"}}>{week.range}</span>
                 <span style={{fontSize:10,color:dW===5?"#166534":dW>0?"#d97706":"#888",fontWeight:700,marginLeft:"auto"}}>{dW}/5 {rec>0?`(${rec} da recuperare)`:dW===5?"✓ Completa":""}</span>
                 <button onClick={()=>setWeekFull(ed.id,wId)} style={{fontSize:9,padding:"2px 6px",border:"1px solid #166534",background:"#dcfce7",color:"#166534",cursor:"pointer",fontWeight:600}}>✓ Tutti</button>
                 <button onClick={()=>clearWeek(ed.id,wId)} style={{fontSize:9,padding:"2px 6px",border:"1px solid #dc2626",background:"#fef2f2",color:"#dc2626",cursor:"pointer",fontWeight:600}}>✗ Reset</button>
               </div>
-              <div style={{display:"flex",gap:4}}>{GIORNI_NOMI.map((g,idx)=>{const present=pres[`${wId}_${idx}`];return(<button key={idx} onClick={()=>togglePresenza(ed.id,wId,idx)} style={{flex:1,padding:"8px 4px",fontSize:11,fontWeight:600,border:present?"2px solid #166534":"1px solid #ccc",background:present?"#dcfce7":"#fff",color:present?"#166534":"#aaa",cursor:"pointer"}}>{g}{present?" ✓":""}</button>);})}</div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:4}}>
+                {GIORNI_NOMI.map((g,idx)=>{const present=pres[`${wId}_${idx}`];const nota=ng[`${wId}_${idx}`]||"";return(<div key={idx} style={{display:"flex",flexDirection:"column",gap:2}}>
+                  <button onClick={()=>togglePresenza(ed.id,wId,idx)} style={{padding:"8px 4px",fontSize:11,fontWeight:600,border:present?"2px solid #166534":"1px solid #ccc",background:present?"#dcfce7":"#fef2f2",color:present?"#166534":"#dc2626",cursor:"pointer"}}>{g}{present?" ✓":" ✗"}</button>
+                  <input value={nota} onChange={e=>upEduNote(ed.id,wId,idx,e.target.value)} placeholder="note/orario…" style={{width:"100%",padding:"3px 4px",fontSize:9,border:"1px solid #ddd",color:"#666",textAlign:"center"}}/>
+                </div>);})}
+              </div>
             </div>);})}
           </div>}
         </div>);
@@ -2159,7 +2269,7 @@ function TabEducatori({data,costs,setCosts}){
           <th style={TH}>Gg. Previsti</th><th style={{...TH,background:"#166534"}}>Gg. Lavorati</th>
           <th style={{...TH,background:"#dc2626"}}>Assenze</th><th style={{...TH,background:"#d97706"}}>Da Recuperare</th>
           <th style={{...TH,background:"#166534"}}>Paga Maturata</th><th style={TH}>Paga Prevista</th>
-          <th style={TH}>Stato</th>
+          <th style={TH}>Stato</th><th style={TH}>PDF</th>
         </tr></thead>
         <tbody>{educatori.map(ed=>{
           const s=eduStats.find(x=>x.id===ed.id)||{giorniPrevisti:0,giorniLavorati:0,assenze:0,giorniDaRecuperare:0,pagaGG:0,pagaMaturata:0,pagaPrevista:0};
@@ -2176,6 +2286,7 @@ function TabEducatori({data,costs,setCosts}){
             <td style={{...TD,fontWeight:800,color:"#166534"}}>{E(s.pagaMaturata)}</td>
             <td style={{...TD,color:"#666"}}>{E(s.pagaPrevista)}</td>
             <td style={{...TD,fontSize:10,fontWeight:700,color:isComp?"#166534":hasRec?"#dc2626":"#888"}}>{isComp?"Completo":hasRec?"In sospeso":"—"}</td>
+            <td style={TD}><button onClick={()=>exportSchedaPDF(ed)} style={{padding:"2px 8px",border:"1px solid #7c3aed",background:"#7c3aed",color:"#fff",fontSize:9,fontWeight:700,cursor:"pointer"}}>📄</button></td>
           </tr>);
         })}</tbody>
         <tfoot><tr>
@@ -2186,6 +2297,7 @@ function TabEducatori({data,costs,setCosts}){
           <td style={{...TD,fontWeight:700,background:"#d97706",color:"#fff"}}>{eduStats.reduce((a,s)=>a+s.giorniDaRecuperare,0)}</td>
           <td style={{...TD,fontWeight:900,background:"#166534",color:"#fff"}}>{E(eduStats.reduce((a,s)=>a+s.pagaMaturata,0))}</td>
           <td style={{...TD,fontWeight:700,background:"#333",color:"#fff"}}>{E(eduStats.reduce((a,s)=>a+s.pagaPrevista,0))}</td>
+          <td style={{...TD,background:"#111",color:"#fff"}}></td>
           <td style={{...TD,background:"#111",color:"#fff"}}></td>
         </tr></tfoot>
       </table>
@@ -2382,7 +2494,7 @@ function MainApp({onLogout}){
         const{data:rows,error}=await SB.from("iscritti").select("*").order("bambino");
         if(error)throw error;
         if(!error&&rows&&rows.length>0){
-          const p=rows.map(r=>({...r,quota:Number(r.quota||0),acconto:Number(r.acconto||0),saldato:Number(r.saldato||0),da_saldare:Number(r.da_saldare||0),eta:Number(r.eta||0),sett:Number(r.sett||1),nav:!!r.nav,pasto_casa:!!r.pasto_casa,n_pasti:0,presenze:{},pasti_log:{}}));
+          const p=rows.map(r=>({...r,quota:Number(r.quota||0),acconto:Number(r.acconto||0),saldato:Number(r.saldato||0),da_saldare:Number(r.da_saldare||0),eta:Number(r.eta||0),sett:Number(r.sett||1),nav:!!r.nav,pasto_casa:!!r.pasto_casa,n_pasti:0,presenze:{},pasti_log:{},nav_log:{}}));
           setData(p);setSnap(JSON.stringify(p));
         }else{
           setData(INITIAL_DATA);setSnap(JSON.stringify(INITIAL_DATA));
@@ -2397,7 +2509,7 @@ function MainApp({onLogout}){
           if(backupCfg?.valore&&Object.keys(backupCfg.valore).length>0){extraValore=backupCfg.valore;showToast("Dati pasti/presenze ripristinati da backup","warn");}
           else{try{const ls=localStorage.getItem("macaranga_extra_data");if(ls){extraValore=JSON.parse(ls);showToast("Dati pasti/presenze ripristinati da cache locale","warn");}}catch(e){}}
         }
-        if(extraValore){setData(prev=>prev.map(r=>{const e=extraValore[r.id];return e?{...r,presenze:e.presenze||{},pasti_log:e.pasti_log||{},n_pasti:Object.values(e.pasti_log||{}).filter(Boolean).length}:r;}));}
+        if(extraValore){setData(prev=>prev.map(r=>{const e=extraValore[r.id];return e?{...r,presenze:e.presenze||{},pasti_log:e.pasti_log||{},nav_log:e.nav_log||{},n_pasti:Object.values(e.pasti_log||{}).filter(Boolean).length}:r;}));}
       }catch(e){showToast("Errore caricamento: "+e.message,"error");}
       setLoading(false);
     })();
@@ -2423,7 +2535,7 @@ function MainApp({onLogout}){
         await SB.from("iscritti").delete().neq("id","__never__");
       }
       await SB.from("config").upsert([{chiave:"costs",valore:costs,updated_at:new Date().toISOString()}]);
-      const extraData={};data.forEach(r=>{if(r.presenze&&Object.keys(r.presenze).length>0||r.pasti_log&&Object.keys(r.pasti_log).length>0){extraData[r.id]={presenze:r.presenze||{},pasti_log:r.pasti_log||{}};}});
+      const extraData={};data.forEach(r=>{if(r.presenze&&Object.keys(r.presenze).length>0||r.pasti_log&&Object.keys(r.pasti_log).length>0||r.nav_log&&Object.keys(r.nav_log).length>0){extraData[r.id]={presenze:r.presenze||{},pasti_log:r.pasti_log||{},nav_log:r.nav_log||{}};}});
       const ts_now=new Date().toISOString();
       await SB.from("config").upsert([{chiave:"extra_data",valore:extraData,updated_at:ts_now}]);
       await SB.from("config").upsert([{chiave:"extra_data_backup",valore:extraData,updated_at:ts_now}]);
@@ -2510,7 +2622,7 @@ function MainApp({onLogout}){
     </div>
     {tab==="import"       && <TabImport onSync={handleSync} existingData={data} showToast={showToast} onDraftReady={handleDraftReady} savedMappings={savedMappings} setSavedMappings={setSavedMappings}/>}
     {tab==="iscritti"    && <TabIscritti data={data} setData={setData} showToast={showToast} extCerca={extCerca} onExtCercaUsed={()=>setExtCerca("")} navCap={costs?.navCap||NAV_CAP} trash={trash} setTrash={setTrash}/>}
-    {tab==="nav_contab"  && <TabNavetteContab data={data} giorniSett={5} showToast={showToast}/>}
+    {tab==="nav_contab"  && <TabNavetteContab data={data} setData={setData} giorniSett={5} showToast={showToast}/>}
     {tab==="pasti_contab"&& <TabPastiContab data={data} setData={setData} giorniSett={5} showToast={showToast}/>}
     {tab==="finanziario" && <TabFinanziario data={data} costs={costs} setCosts={setCosts} showToast={showToast}/>}
     {tab==="educatori"   && <TabEducatori data={data} costs={costs} setCosts={setCosts}/>}
