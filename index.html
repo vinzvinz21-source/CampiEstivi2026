@@ -12,7 +12,61 @@
 <script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>if(window.pdfjsLib)pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";</script>
-<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#fafafa}input,select,button{font-family:inherit}</style>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#fafafa;overflow-x:hidden}
+input,select,button,textarea{font-family:inherit}
+button{touch-action:manipulation}
+[class*="overflowX"],.app-scroll{-webkit-overflow-scrolling:touch}
+
+/* ═══ MOBILE (≤768px) ═══ */
+@media (max-width: 768px){
+  body{font-size:14px}
+  /* Evita zoom automatico su iOS */
+  input[type="text"],input[type="number"],input[type="date"],input[type="email"],input[type="password"],input[type="tel"],input[type="search"],input:not([type]),select,textarea{font-size:16px !important}
+  /* Container principale */
+  .app-main{padding:0.5rem !important}
+  /* Header - stack */
+  .app-header{flex-direction:column !important;align-items:stretch !important;gap:10px !important}
+  .app-header h1{font-size:16px !important}
+  .app-search-wrap{width:100% !important;position:relative !important}
+  .app-search{width:100% !important;min-width:0 !important}
+  /* Tab bar - padding ridotto + scroll */
+  .app-tabs{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:thin;white-space:nowrap;flex-wrap:nowrap !important}
+  .app-tab-btn{padding:10px 12px !important;font-size:12px !important;flex:0 0 auto !important;min-height:40px !important}
+  /* Modal - full-screen friendly */
+  .app-modal-inner{max-width:calc(100vw - 16px) !important;width:calc(100vw - 16px) !important;padding:16px !important;max-height:92vh !important}
+  .app-modal-wide{max-width:100vw !important;width:100vw !important;border-left:0 !important;border-right:0 !important;margin:0 !important;min-height:100vh}
+  .app-modal-wide .app-modal-wide-body{padding:14px !important}
+  /* Tasti comodi al tocco */
+  button{min-height:36px;min-width:36px}
+  button.btn-mini{min-height:28px;min-width:28px}
+  /* Bottone chiusura modal */
+  .app-modal-close{min-height:44px !important;min-width:44px !important;font-size:28px !important}
+  /* Tabelle: suggerisci scroll orizzontale */
+  .app-scroll{overflow-x:auto !important;max-width:100%}
+  .app-scroll::-webkit-scrollbar{height:6px}
+  .app-scroll::-webkit-scrollbar-thumb{background:#999;border-radius:3px}
+  /* Sommario/chip nell'header: gap più piccolo */
+  .app-kpi{gap:6px !important;font-size:11px !important}
+  /* Form rows: permetti il wrap ovunque */
+  .app-row{flex-wrap:wrap !important}
+  /* Pulsanti azione piccoli: leggibili su mobile */
+  .app-btn-sm{font-size:12px !important;padding:8px 12px !important}
+  /* Save bar: pulsanti stacked */
+  .app-savebar{flex-direction:column !important;align-items:stretch !important}
+  .app-savebar > div{justify-content:flex-end !important}
+  /* Toast: non tagliare sul lato */
+  .app-toast{right:8px !important;left:8px !important;bottom:16px !important;min-width:0 !important;font-size:13px !important}
+  /* Login form full-width */
+  .app-login{width:calc(100vw - 24px) !important;max-width:420px !important}
+}
+@media (max-width: 420px){
+  .app-tab-btn{padding:10px 9px !important;font-size:11px !important}
+  h1{letter-spacing:0 !important}
+}
+</style>
 </head>
 <body>
 <div id="root"></div>
@@ -172,8 +226,8 @@ function Login({onLogin}){
     setLoading(false);
   };
   return(
-    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#f5f5f3"}}>
-      <div style={{background:"#fff",border:"2px solid #000",padding:40,width:380,maxWidth:"92%"}}>
+    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#f5f5f3",padding:12}}>
+      <div className="app-login" style={{background:"#fff",border:"2px solid #000",padding:40,width:380,maxWidth:"92%"}}>
         <div style={{textAlign:"center",marginBottom:28}}>
           <div style={{fontSize:36,marginBottom:8}}>🌿</div>
           <h1 style={{fontSize:20,fontWeight:900}}>Campi Natura Macaranga 2026</h1>
@@ -200,17 +254,17 @@ function Login({onLogin}){
 function Toast({msg,type="ok",onDone}){
   useEffect(()=>{const t=setTimeout(onDone,3500);return()=>clearTimeout(t);},[]);
   const bg=type==="warn"?"#d97706":type==="error"?"#dc2626":"#16a34a";
-  return(<div style={{position:"fixed",bottom:24,right:24,zIndex:9999,background:bg,color:"#fff",padding:"12px 20px",fontWeight:700,fontSize:13,boxShadow:"0 4px 20px rgba(0,0,0,.3)",display:"flex",gap:10,alignItems:"center",minWidth:280}}>
+  return(<div className="app-toast" style={{position:"fixed",bottom:24,right:24,zIndex:9999,background:bg,color:"#fff",padding:"12px 20px",fontWeight:700,fontSize:13,boxShadow:"0 4px 20px rgba(0,0,0,.3)",display:"flex",gap:10,alignItems:"center",minWidth:280}}>
     {type==="ok"?"✓":type==="warn"?"⚠":"✕"} {msg}
   </div>);
 }
 
 function Modal({title,children,onClose}){
   return(<div style={{position:"fixed",inset:0,zIndex:9998,background:"rgba(0,0,0,.55)",display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
-    <div style={{background:"#fff",border:"2px solid #000",padding:24,maxWidth:440,width:"100%",maxHeight:"85vh",display:"flex",flexDirection:"column"}}>
+    <div className="app-modal-inner" style={{background:"#fff",border:"2px solid #000",padding:24,maxWidth:440,width:"100%",maxHeight:"85vh",display:"flex",flexDirection:"column"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
         <div style={{fontWeight:900,fontSize:15}}>{title}</div>
-        <button onClick={onClose} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:"#666"}}>×</button>
+        <button className="app-modal-close" onClick={onClose} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:"#666"}}>×</button>
       </div>
       <div style={{overflowY:"auto",flex:1}}>{children}</div>
     </div>
@@ -221,7 +275,7 @@ function Modal({title,children,onClose}){
 
 
 function SaveBar({hasChanges,saving,onSave,onReset,lastSaved,onLogout}){
-  return(<div style={{position:"sticky",top:0,zIndex:100,display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 14px",background:hasChanges?"#fef3c7":"#f0fdf4",border:`1px solid ${hasChanges?"#d97706":"#16a34a"}`,marginBottom:12,gap:8,flexWrap:"wrap"}}>
+  return(<div className="app-savebar" style={{position:"sticky",top:0,zIndex:100,display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 14px",background:hasChanges?"#fef3c7":"#f0fdf4",border:`1px solid ${hasChanges?"#d97706":"#16a34a"}`,marginBottom:12,gap:8,flexWrap:"wrap"}}>
     <span style={{fontSize:12,fontWeight:700,color:hasChanges?"#92400e":"#166534"}}>
       {saving?"💾 Salvataggio su Supabase…":hasChanges?"⚠  Modifiche non salvate — Ctrl+S o premi Salva (auto-save 30s)":`✓  Salvato su database${lastSaved?" · "+lastSaved:""}`}
     </span>
@@ -376,7 +430,7 @@ function DraftEditorPanel({draft,existingData,onCommit,onDiscard,showToast}){
 
   return(
     <div style={{position:"fixed",inset:0,zIndex:9997,background:"rgba(0,0,0,0.65)",display:"flex",alignItems:"flex-start",justifyContent:"center",padding:"16px 16px 0",overflowY:"auto"}}>
-      <div style={{background:"#fff",border:"2px solid #000",padding:0,maxWidth:720,width:"100%",marginBottom:16}}>
+      <div className="app-modal-wide" style={{background:"#fff",border:"2px solid #000",padding:0,maxWidth:720,width:"100%",marginBottom:16}}>
         {/* HEADER */}
         <div style={{background:"#111",color:"#fff",padding:"12px 18px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <div>
@@ -973,7 +1027,7 @@ ${r.note_pag?`<h2>📝 Note Pagamento</h2><p>${r.note_pag}</p>`:""}
   };
   return(
     <div style={{position:"fixed",inset:0,zIndex:9998,background:"rgba(0,0,0,.55)",display:"flex",alignItems:"flex-start",justifyContent:"center",padding:16,overflowY:"auto"}}>
-      <div style={{background:"#fff",border:"2px solid #000",maxWidth:760,width:"100%",marginBottom:16}}>
+      <div className="app-modal-wide" style={{background:"#fff",border:"2px solid #000",maxWidth:760,width:"100%",marginBottom:16}}>
         {/* HEADER */}
         <div style={{background:"#111",color:"#fff",padding:"12px 18px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <div><div style={{fontWeight:900,fontSize:16}}>📋 Scheda Personale</div><div style={{fontSize:12,opacity:.7,marginTop:2}}>{r.bambino||"Nuovo iscritto"}</div></div>
@@ -2590,13 +2644,13 @@ function MainApp({onLogout}){
     <div style={{fontSize:36}}>🌿</div><div style={{fontSize:14,color:"#666"}}>Caricamento dati…</div>
   </div>);
 
-  return(<div style={{fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",padding:"1rem",background:"#fafafa",minHeight:"100vh"}}>
+  return(<div className="app-main" style={{fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",padding:"1rem",background:"#fafafa",minHeight:"100vh"}}>
     {toast&&<Toast msg={toast.msg} type={toast.type||"ok"} onDone={()=>setToast(null)}/>}
     {draft&&<DraftEditorPanel draft={draft} existingData={data} onCommit={handleCommitDraft} onDiscard={()=>{setDraft(null);showToast("Bozza scartata","warn");}} showToast={showToast}/>}
-    <div style={{marginBottom:"0.75rem",borderBottom:"2px solid #000",paddingBottom:10,display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:8}}>
+    <div className="app-header" style={{marginBottom:"0.75rem",borderBottom:"2px solid #000",paddingBottom:10,display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:8}}>
       <div>
         <h1 style={{fontSize:18,fontWeight:900,letterSpacing:"-0.02em",margin:"0 0 2px"}}>🌿 Campi Natura Macaranga 2026</h1>
-        <div style={{fontSize:11,color:"#666",display:"flex",gap:10,flexWrap:"wrap"}}>
+        <div className="app-kpi" style={{fontSize:11,color:"#666",display:"flex",gap:10,flexWrap:"wrap"}}>
           <span style={{fontWeight:700}}>{data.length} iscritti</span>
           <span>🍽 {totPastiGG} pasti</span>
           <span style={{color:"#1e40af"}}>🚐 {E(sv.totNav)}</span>
@@ -2607,8 +2661,8 @@ function MainApp({onLogout}){
           {allergici>0&&<span style={{color:"#dc2626",fontWeight:700}}>🚨 {allergici} allergie</span>}
         </div>
       </div>
-      <div style={{position:"relative"}}>
-        <input value={globalQ} onChange={e=>setGlobalQ(e.target.value)} placeholder="🔍 Cerca…" style={{padding:"7px 12px",fontSize:12,border:"1px solid #000",background:"#fff",width:200}}/>
+      <div className="app-search-wrap" style={{position:"relative"}}>
+        <input className="app-search" value={globalQ} onChange={e=>setGlobalQ(e.target.value)} placeholder="🔍 Cerca…" style={{padding:"7px 12px",fontSize:12,border:"1px solid #000",background:"#fff",width:200}}/>
         {gRes.length>0&&<div style={{position:"absolute",top:"100%",left:0,right:0,background:"#fff",border:"1px solid #000",zIndex:200,boxShadow:"0 4px 12px rgba(0,0,0,.15)"}}>
           {gRes.map(r=><div key={r.id} onClick={()=>{setTab("iscritti");setExtCerca(globalQ);setGlobalQ("");}} style={{padding:"7px 10px",borderBottom:"0.5px solid #eee",cursor:"pointer",fontSize:12}} onMouseEnter={e=>e.currentTarget.style.background="#f5f5f3"} onMouseLeave={e=>e.currentTarget.style.background="#fff"}>
             <span style={{fontWeight:700}}>{r.bambino}</span><span style={{color:"#888",marginLeft:8,fontSize:11}}>{r.citta} · {r.stato}</span>
@@ -2617,8 +2671,8 @@ function MainApp({onLogout}){
       </div>
     </div>
     <SaveBar hasChanges={hasChanges} saving={saving} onSave={handleSave} onReset={handleReset} lastSaved={lastSaved} onLogout={handleLogout}/>
-    <div style={{display:"flex",gap:0,borderBottom:"2px solid #000",marginBottom:"1.25rem",overflowX:"auto"}}>
-      {TABS.map(t=><button key={t.id} onClick={()=>setTab(t.id)} style={tS(tab===t.id)}>{t.l}</button>)}
+    <div className="app-tabs" style={{display:"flex",gap:0,borderBottom:"2px solid #000",marginBottom:"1.25rem",overflowX:"auto"}}>
+      {TABS.map(t=><button key={t.id} className="app-tab-btn" onClick={()=>setTab(t.id)} style={tS(tab===t.id)}>{t.l}</button>)}
     </div>
     {tab==="import"       && <TabImport onSync={handleSync} existingData={data} showToast={showToast} onDraftReady={handleDraftReady} savedMappings={savedMappings} setSavedMappings={setSavedMappings}/>}
     {tab==="iscritti"    && <TabIscritti data={data} setData={setData} showToast={showToast} extCerca={extCerca} onExtCercaUsed={()=>setExtCerca("")} navCap={costs?.navCap||NAV_CAP} trash={trash} setTrash={setTrash}/>}
