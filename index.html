@@ -195,11 +195,12 @@ const SCL={SALDATO:"#166534",ACCONTO:"#854d0e","DA PAGARE":"#991b1b"};
    - ED è PRESENTE quel giorno: presenze (default = presente finché non si registrano le presenze di quella
      settimana; appena si inizia a segnarle, i giorni non spuntati valgono come ASSENZA e liberano il posto). */
 const navPrenotataGiorno=(r,sid,di)=>{const nl=r.nav_log||{};const taken=GIORNI_NOMI.some((_,d)=>nl[`${sid}_${d}`]!==undefined);return taken?!!nl[`${sid}_${di}`]:true;};
-const presenzeRegistrate=(r,sid)=>{const pr=r.presenze||{};return GIORNI_NOMI.some((_,d)=>pr[`${sid}_${d}`]!==undefined);};
-const presenteGiorno=(r,sid,di)=>{const pr=r.presenze||{};return presenzeRegistrate(r,sid)?!!pr[`${sid}_${di}`]:true;};
-const assenteGiorno=(r,sid,di)=>presenzeRegistrate(r,sid)&&!presenteGiorno(r,sid,di);
-/* posto navetta effettivamente occupato quel giorno (assenze escluse) */
-const usaNavettaGiorno=(r,sid,di)=>!!r.nav&&navPrenotataGiorno(r,sid,di)&&presenteGiorno(r,sid,di);
+/* ASSENZA esplicita: il giorno è stato segnato come NON presente nel Registro Presenze (presenze[key]===false).
+   I giorni non ancora registrati (undefined) NON sono assenze → restano pianificati (niente falsi liberi). */
+const assenteGiorno=(r,sid,di)=>(r.presenze||{})[`${sid}_${di}`]===false;
+const presenteGiorno=(r,sid,di)=>!assenteGiorno(r,sid,di);
+/* posto navetta effettivamente occupato quel giorno = prenotato quel giorno E non assente */
+const usaNavettaGiorno=(r,sid,di)=>!!r.nav&&navPrenotataGiorno(r,sid,di)&&!assenteGiorno(r,sid,di);
 
 function calcServizi(data,giorniSett=GIORNI_SETT){
   const nR=[];const pR=[];
@@ -1244,7 +1245,8 @@ ${r.note_pag?`<h2>= Note Pagamento</h2><p>${r.note_pag}</p>`:""}
           </div>
 
           {/* REGISTRO PRESENZE */}
-          <div style={{fontWeight:800,fontSize:13,marginBottom:10,borderBottom:"2px solid #000",paddingBottom:5}}>✅ Registro Presenze <span style={{fontWeight:400,fontSize:11,color:"#666"}}>({presCount}/{totalDays} giorni)</span></div>
+          <div style={{fontWeight:800,fontSize:13,marginBottom:6,borderBottom:"2px solid #000",paddingBottom:5}}>✅ Registro Presenze <span style={{fontWeight:400,fontSize:11,color:"#666"}}>({presCount}/{totalDays} giorni)</span></div>
+          <div style={{fontSize:11,color:"#666",marginBottom:8}}>Clic sul giorno: <span style={{color:"#166534",fontWeight:700}}>✓ presente</span> → <span style={{color:"#991b1b",fontWeight:700}}>✗ assente</span> → … L'assenza <strong>libera automaticamente il posto navetta</strong> di quel giorno nel Piano Navette.{r.nav?"":" (navetta non attiva per questo bambino)"}</div>
           {weeks.length===0?<div style={{color:"#aaa",fontSize:12,padding:10}}>Nessuna settimana selezionata</div>:
           <div style={{display:"grid",gap:6,marginBottom:16}}>
             {weeks.map(wId=>{
@@ -1254,8 +1256,14 @@ ${r.note_pag?`<h2>= Note Pagamento</h2><p>${r.note_pag}</p>`:""}
                 <span style={{fontWeight:700,fontSize:12,minWidth:90,color:"#333"}}>{wk?.label} <span style={{fontWeight:400,fontSize:10,color:"#888"}}>{wk?.range}</span></span>
                 <div style={{display:"flex",gap:4,flex:1}}>
                   {GIORNI_NOMI.map((g,di)=>{
-                    const key=`${wId}_${di}`;const checked=!!r.presenze?.[key];
-                    return(<button key={di} onClick={()=>setRSync(prev=>({...prev,presenze:{...(prev.presenze||{}),[key]:!checked}}))} style={{padding:"4px 8px",fontSize:11,fontWeight:checked?700:400,border:`1px solid ${checked?"#16a34a":"#ccc"}`,background:checked?"#dcfce7":"#fff",color:checked?"#166534":"#aaa",cursor:"pointer",minWidth:36,textAlign:"center"}}>{g}{checked?" ✓":""}</button>);
+                    const key=`${wId}_${di}`;const st=r.presenze?.[key]; // undefined | true | false
+                    const next=st===undefined?true:st===true?false:true; // — → presente → assente → presente
+                    const bg=st===true?"#dcfce7":st===false?"#fee2e2":"#fff";
+                    const bc=st===true?"#16a34a":st===false?"#dc2626":"#ccc";
+                    const fg=st===true?"#166534":st===false?"#991b1b":"#aaa";
+                    const sym=st===true?" ✓":st===false?" ✗":"";
+                    const ttl=st===true?"presente":st===false?"assente (libera posto navetta)":"non registrato";
+                    return(<button key={di} title={`${g}: ${ttl} — clic per cambiare`} onClick={()=>setRSync(prev=>({...prev,presenze:{...(prev.presenze||{}),[key]:next}}))} style={{padding:"4px 8px",fontSize:11,fontWeight:st!==undefined?700:400,border:`1px solid ${bc}`,background:bg,color:fg,cursor:"pointer",minWidth:36,textAlign:"center"}}>{g}{sym}</button>);
                   })}
                 </div>
                 <span style={{fontSize:11,fontWeight:700,color:wPres===GIORNI_SETT?"#166534":"#888"}}>{wPres}/{GIORNI_SETT}</span>
@@ -1813,7 +1821,14 @@ function TabNavette({data,onAddNav,costs,setCosts}){
   const[addingTo,setAddingTo]=useState(null);
   const[showCapSettings,setShowCapSettings]=useState(false);
   const w=WEEKS.find(x=>x.id===sel);
-  const kids=data.filter(r=>r.nav&&getSettimane(r).includes(sel));
+  // === SINCRONIZZAZIONE PER-GIORNO ===
+  // corse effettive nella settimana (prenotate E presenti), assenze escluse
+  const rideDays=(r,wId)=>GIORNI_NOMI.reduce((c,_,di)=>c+(usaNavettaGiorno(r,wId,di)?1:0),0);
+  const usesWeek=(r,wId)=>rideDays(r,wId)>0;
+  const dayCount=(lst,wId,di)=>lst.filter(r=>usaNavettaGiorno(r,wId,di)).length;
+  const peak=(lst,wId)=>GIORNI_NOMI.reduce((m,_,di)=>Math.max(m,dayCount(lst,wId,di)),0); // posti necessari = giorno più affollato
+  // Solo i bambini che usano davvero la navetta in questa settimana (giorni prenotati e non assenti)
+  const kids=data.filter(r=>r.nav&&getSettimane(r).includes(sel)&&usesWeek(r,sel));
   const senzaNav=data.filter(r=>!r.nav&&getSettimane(r).includes(sel));
   // Raggruppa per punto di PARTENZA: Molfetta→Terlizzi, tutti gli altri per città
   const byPartenza=kids.reduce((acc,r)=>{
@@ -1843,17 +1858,17 @@ function TabNavette({data,onAddNav,costs,setCosts}){
     <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:12,alignItems:"center"}}>
       <div style={{display:"flex",gap:4,flexWrap:"wrap",flex:1}}>
         {WEEKS.map(wk=>{
-          const cnt=data.filter(r=>r.nav&&getSettimane(r).includes(wk.id)).length;
+          const cnt=data.filter(r=>r.nav&&getSettimane(r).includes(wk.id)&&usesWeek(r,wk.id)).length;
           const alert=NAVETTE_ORD.some(p=>{
             const cap=navCapDyn[p]??14;
-            const used=data.filter(r=>r.nav&&getPartenza(r.citta)===p&&getSettimane(r).includes(wk.id)).length;
-            return used/cap>=0.9;
+            const routeKids=data.filter(r=>r.nav&&getPartenza(r.citta)===p&&getSettimane(r).includes(wk.id));
+            return peak(routeKids,wk.id)/cap>=0.9;
           });
           return(<button key={wk.id} onClick={()=>setSel(wk.id)} style={{padding:"6px 10px",border:`2px solid ${sel===wk.id?"#111":"#ccc"}`,background:sel===wk.id?"#111":"#fff",color:sel===wk.id?"#fff":"#444",fontSize:11,cursor:"pointer",position:"relative",minWidth:70}}>
             {alert&&<span style={{position:"absolute",top:-3,right:-3,width:8,height:8,borderRadius:"50%",background:"#dc2626"}}/>}
             <div style={{fontWeight:700}}>{wk.label}</div>
             <div style={{fontSize:9,opacity:.8}}>{wk.range}</div>
-            <div style={{fontSize:10,marginTop:2,fontWeight:cnt>0?700:400,color:cnt>0?"inherit":"#aaa"}}>{cnt>0?cnt+" =":"—"}</div>
+            <div style={{fontSize:10,marginTop:2,fontWeight:cnt>0?700:400,color:cnt>0?"inherit":"#aaa"}}>{cnt>0?cnt+" 🚌":"—"}</div>
           </button>);
         })}
       </div>
@@ -1893,19 +1908,20 @@ function TabNavette({data,onAddNav,costs,setCosts}){
       <span style={{fontSize:11,opacity:.7}}>Dal {w.dal} al {w.al}</span>
     </div>
     <div style={{fontSize:11,color:"#666",marginBottom:12,padding:"4px 2px"}}>
-      I riquadri <strong>"Posti occupati per giorno"</strong> escludono gli assenti: i giorni segnati come assenza nel Registro Presenze (settimane già registrate) <strong>liberano il posto navetta</strong> (⊘). Le settimane senza presenze registrate restano a carico pieno (prenotazione).
+      Piano sincronizzato in tempo reale: 🚌 = in navetta · <span style={{color:"#92400e",fontWeight:700}}>⊘ = assente (posto liberato)</span> · – = giorno non prenotato. Un posto si libera quando <strong>togli il giorno dalla navetta del bambino</strong> (Scheda o Contabilità Navette) <strong>oppure</strong> quando segni quel giorno come <strong>assente</strong> nel Registro Presenze. I giorni non ancora registrati restano pianificati.
     </div>
     {/* RIEPILOGO CAPIENZA 3 NAVETTE */}
     <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:16}}>
       {[["Ruvo di Puglia","#1e40af"],["Terlizzi","#0d9488"],["Corato","#7c3aed"]].map(([p,col])=>{
         const cap=navCapDyn[p]??14;
-        const used=data.filter(r=>r.nav&&getPartenza(r.citta)===p&&getSettimane(r).includes(sel)).length;
+        const routeKids=data.filter(r=>r.nav&&getPartenza(r.citta)===p&&getSettimane(r).includes(sel));
+        const used=peak(routeKids,sel); // posti necessari nel giorno più affollato (assenze escluse)
         const pct=cap>0?Math.round(used/cap*100):0;
         const alert=pct>=90;
         return(<div key={p} style={{background:"#fff",border:`2px solid ${alert?"#dc2626":col}`,padding:12}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
             <div>
-              <div style={{fontWeight:700,fontSize:13,color:col}}>= {p}</div>
+              <div style={{fontWeight:700,fontSize:13,color:col}}>🚌 {p}</div>
               {p==="Terlizzi"&&<div style={{fontSize:10,color:"#888"}}>Comprende anche Molfetta</div>}
             </div>
             <div style={{fontWeight:900,fontSize:20,color:alert?"#dc2626":col}}>{used}<span style={{fontSize:12,fontWeight:400,color:"#888"}}>/{cap}</span></div>
@@ -1914,7 +1930,7 @@ function TabNavette({data,onAddNav,costs,setCosts}){
             <div style={{height:"100%",width:`${Math.min(100,pct)}%`,background:alert?"#dc2626":pct>=75?"#d97706":col,transition:"width .3s"}}/>
           </div>
           <div style={{fontSize:11,color:"#666",display:"flex",justifyContent:"space-between"}}>
-            <span>{Math.max(0,cap-used)} posti liberi</span>
+            <span>{Math.max(0,cap-used)} posti liberi (picco)</span>
             <span style={{fontWeight:700,color:alert?"#dc2626":"inherit"}}>{pct}%{alert&&" ⚠"}</span>
           </div>
         </div>);
@@ -1928,8 +1944,8 @@ function TabNavette({data,onAddNav,costs,setCosts}){
     {partenze.map(p=>{
       const cap=navCapDyn[p]??14;
       const list=byPartenza[p]||[];
-      const used=list.length;
-      const pct=Math.round(used/cap*100);
+      const used=peak(list,sel); // posti necessari nel giorno più affollato
+      const pct=cap>0?Math.round(used/cap*100):0;
       const alert=pct>=90;
       const col=p==="Ruvo di Puglia"?"#1e40af":p==="Corato"?"#7c3aed":"#0d9488";
       return(<div key={p} style={{background:"#fff",border:`2px solid ${alert?"#dc2626":col}`,marginBottom:14}}>
@@ -1967,7 +1983,7 @@ function TabNavette({data,onAddNav,costs,setCosts}){
         <div style={{padding:14}}>
           <table style={{borderCollapse:"collapse",width:"100%",fontSize:12}}>
             <thead><tr>
-              {["#","Bambino/a","Città residenza","Età","Genitore","Telefono","Settimane iscritto","🚨 Note med.","Stato pag."].map(h=><th key={h} style={TH}>{h}</th>)}
+              {["#","Bambino/a","Città residenza","Età","Genitore","Telefono","Navetta (Lun–Ven)","Settimane iscritto","🚨 Note med.","Stato pag."].map(h=><th key={h} style={TH}>{h}</th>)}
             </tr></thead>
             <tbody>{list.map((r,i)=>{
               const nt=noteType(r.note_bimbo);const ns=nt?NST[nt]:null;
@@ -1981,6 +1997,21 @@ function TabNavette({data,onAddNav,costs,setCosts}){
                 <td style={{...TD,textAlign:"center"}}>{r.eta}</td>
                 <td style={TD}>{r.genitore}</td>
                 <td style={TD}><a href={`tel:${r.telefono}`} style={{color:"#185FA5",textDecoration:"none"}}>{r.telefono}</a></td>
+                <td style={{...TD,textAlign:"center"}}>
+                  <div style={{display:"flex",gap:2,justifyContent:"center"}}>
+                    {GIORNI_NOMI.map((g,di)=>{
+                      const booked=navPrenotataGiorno(r,sel,di);
+                      const absent=assenteGiorno(r,sel,di);
+                      const rides=booked&&!absent; // corsa effettiva
+                      const bg=rides?"#dbeafe":absent?"#fef3c7":"#f3f4f6";
+                      const bc=rides?"#1e40af":absent?"#d97706":"#d1d5db";
+                      const fg=rides?"#1e40af":absent?"#92400e":"#bbb";
+                      const sym=rides?"🚌":absent?"⊘":"–";
+                      const ttl=rides?"in navetta":absent?"assente — posto liberato":"non prenotato";
+                      return(<span key={di} title={`${g}: ${ttl}`} style={{display:"inline-flex",flexDirection:"column",alignItems:"center",minWidth:24,padding:"1px 3px",background:bg,border:`1px solid ${bc}`,color:fg,fontSize:9,fontWeight:700,lineHeight:1.1}}><span>{g}</span><span style={{fontSize:9}}>{sym}</span></span>);
+                    })}
+                  </div>
+                </td>
                 <td style={{...TD,textAlign:"center"}}>
                   <div style={{display:"flex",gap:2,flexWrap:"wrap",justifyContent:"center"}}>
                     {settBimbo.map(s=>{
@@ -1996,8 +2027,8 @@ function TabNavette({data,onAddNav,costs,setCosts}){
               </tr>);
             })}</tbody>
             <tfoot><tr>
-              <td colSpan={9} style={{padding:"6px 12px",fontSize:11,color:"#666",borderTop:"2px solid #000",background:"#f0f0f0"}}>
-                <strong>{list.length}</strong> bambini · <strong>{Math.max(0,cap-used)}</strong> posti liberi su {cap} · Partenza: <strong>{w.dal}</strong>
+              <td colSpan={10} style={{padding:"6px 12px",fontSize:11,color:"#666",borderTop:"2px solid #000",background:"#f0f0f0"}}>
+                <strong>{list.length}</strong> bambini iscritti alla navetta · picco <strong>{used}/{cap}</strong> · <strong>{Math.max(0,cap-used)}</strong> posti liberi nel giorno più affollato · Partenza: <strong>{w.dal}</strong>
               </td>
             </tr></tfoot>
           </table>
