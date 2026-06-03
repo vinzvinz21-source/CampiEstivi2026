@@ -189,6 +189,18 @@ const isIncomplete=r=>!r.bambino?.trim()||!r.telefono?.trim()||!r.genitore?.trim
 const SBG={SALDATO:"#dcfce7",ACCONTO:"#fef9c3","DA PAGARE":"#fee2e2"};
 const SCL={SALDATO:"#166534",ACCONTO:"#854d0e","DA PAGARE":"#991b1b"};
 
+/* === DISPONIBILITÀ NAVETTE — sincronizzazione con le assenze ===
+   Un bambino occupa un posto navetta in un giorno (sid=settimana, di=indice giorno Lun..Ven) solo se:
+   - ha PRENOTATO quel giorno: nav_log (default = intera settimana finché non si toccano i singoli giorni)
+   - ED è PRESENTE quel giorno: presenze (default = presente finché non si registrano le presenze di quella
+     settimana; appena si inizia a segnarle, i giorni non spuntati valgono come ASSENZA e liberano il posto). */
+const navPrenotataGiorno=(r,sid,di)=>{const nl=r.nav_log||{};const taken=GIORNI_NOMI.some((_,d)=>nl[`${sid}_${d}`]!==undefined);return taken?!!nl[`${sid}_${di}`]:true;};
+const presenzeRegistrate=(r,sid)=>{const pr=r.presenze||{};return GIORNI_NOMI.some((_,d)=>pr[`${sid}_${d}`]!==undefined);};
+const presenteGiorno=(r,sid,di)=>{const pr=r.presenze||{};return presenzeRegistrate(r,sid)?!!pr[`${sid}_${di}`]:true;};
+const assenteGiorno=(r,sid,di)=>presenzeRegistrate(r,sid)&&!presenteGiorno(r,sid,di);
+/* posto navetta effettivamente occupato quel giorno (assenze escluse) */
+const usaNavettaGiorno=(r,sid,di)=>!!r.nav&&navPrenotataGiorno(r,sid,di)&&presenteGiorno(r,sid,di);
+
 function calcServizi(data,giorniSett=GIORNI_SETT){
   const nR=[];const pR=[];
   data.forEach(r=>{
@@ -1876,9 +1888,12 @@ function TabNavette({data,onAddNav,costs,setCosts}){
       <div style={{marginTop:8,fontSize:11,color:"#666"}}>Modifica la capienza massima per ciascuna tratta. Le modifiche si applicano immediatamente. Premi "Salva" per memorizzare.</div>
     </div>}
     {/* HEADER SETTIMANA */}
-    <div style={{padding:"8px 14px",background:"#111",color:"#fff",fontWeight:700,fontSize:13,marginBottom:12,display:"flex",justifyContent:"space-between"}}>
+    <div style={{padding:"8px 14px",background:"#111",color:"#fff",fontWeight:700,fontSize:13,marginBottom:6,display:"flex",justifyContent:"space-between"}}>
       <span>{w.label} · {w.range} · {kids.length} bambini con navetta</span>
       <span style={{fontSize:11,opacity:.7}}>Dal {w.dal} al {w.al}</span>
+    </div>
+    <div style={{fontSize:11,color:"#666",marginBottom:12,padding:"4px 2px"}}>
+      I riquadri <strong>"Posti occupati per giorno"</strong> escludono gli assenti: i giorni segnati come assenza nel Registro Presenze (settimane già registrate) <strong>liberano il posto navetta</strong> (⊘). Le settimane senza presenze registrate restano a carico pieno (prenotazione).
     </div>
     {/* RIEPILOGO CAPIENZA 3 NAVETTE */}
     <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:16}}>
@@ -1939,11 +1954,13 @@ function TabNavette({data,onAddNav,costs,setCosts}){
         </div>
         {/* Frequenza giornaliera (infrasettimanale): posti occupati per giorno */}
         <div style={{padding:"7px 14px",background:"#eff6ff",borderBottom:"1px solid #dbeafe",display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
-          <span style={{fontSize:11,fontWeight:700,color:"#1e40af"}}>Posti per giorno:</span>
+          <span style={{fontSize:11,fontWeight:700,color:"#1e40af"}}>Posti occupati per giorno <span style={{fontWeight:400,color:"#888"}}>(assenti esclusi)</span>:</span>
           {GIORNI_NOMI.map((g,di)=>{
-            const cnt=list.filter(r=>{const nl=r.nav_log||{};const hasLog=GIORNI_NOMI.some((_,d)=>nl[`${sel}_${d}`]!==undefined);return hasLog?!!nl[`${sel}_${di}`]:true;}).length;
+            const cnt=list.filter(r=>usaNavettaGiorno(r,sel,di)).length; // prenotati e presenti
+            const ass=list.filter(r=>navPrenotataGiorno(r,sel,di)&&assenteGiorno(r,sel,di)).length; // posti liberati da assenze
+            const liberi=Math.max(0,cap-cnt);
             const full=cnt>=cap;
-            return(<span key={di} style={{display:"inline-flex",alignItems:"center",gap:4,padding:"2px 8px",background:full?"#fee2e2":"#fff",border:`1px solid ${full?"#dc2626":"#93c5fd"}`,fontSize:11}}><strong style={{color:full?"#dc2626":"#1e40af"}}>{g}</strong> <span style={{color:full?"#dc2626":"#555",fontWeight:700}}>{cnt}/{cap}</span></span>);
+            return(<span key={di} title={ass>0?`${ass} assenti → ${ass} posti liberati`:""} style={{display:"inline-flex",alignItems:"center",gap:4,padding:"2px 8px",background:full?"#fee2e2":"#fff",border:`1px solid ${full?"#dc2626":"#93c5fd"}`,fontSize:11}}><strong style={{color:full?"#dc2626":"#1e40af"}}>{g}</strong> <span style={{color:full?"#dc2626":"#555",fontWeight:700}}>{cnt}/{cap}</span><span style={{color:"#16a34a",fontWeight:600}}>· {liberi} liberi</span>{ass>0&&<span style={{color:"#d97706",fontWeight:700}}>· {ass}⊘</span>}</span>);
           })}
         </div>
         {/* Tabella bambini */}
