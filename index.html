@@ -2041,8 +2041,12 @@ function TabNavette({data,onAddNav,costs,setCosts}){
 function TabFinanziario({data,costs,setCosts,showToast}){
   const sv=useMemo(()=>calcServizi(data),[data]);
   const tF=costs.voci.reduce((s,v)=>s+v.importo,0);
-  /* Educator cost from roster */
-  const eduCost=useMemo(()=>(costs.educatori||[]).reduce((s,e)=>s+(e.settimane||[]).length*(e.paga||0),0),[costs.educatori]);
+  /* Costo educatori dal roster, guidato dal COSTO GIORNALIERO (paga_giornaliera):
+     giorni-uomo = settimane assegnate × 5 ; costo = giorni-uomo × €/giorno.
+     Al variare del costo giornaliero cambiano eduCost → costi totali → BEP. */
+  const eduDayRate=e=>(e.paga_giornaliera!=null?e.paga_giornaliera:Math.round((e.paga||0)/5));
+  const eduGiorni=useMemo(()=>(costs.educatori||[]).reduce((s,e)=>s+(e.settimane||[]).length*GIORNI_SETT,0),[costs.educatori]);
+  const eduCost=useMemo(()=>(costs.educatori||[]).reduce((s,e)=>s+(e.settimane||[]).length*GIORNI_SETT*eduDayRate(e),0),[costs.educatori]);
   /* NUOVO MODELLO: la navetta è inclusa nelle quote → è un COSTO FISSO, non un servizio a ricavo separato.
      L'unico servizio accessorio con ricavo proprio sono i PASTI (€5/pasto, in aggiunta alla quota). */
   const scP=Math.max(0,costs.costoCucina-sv.totPasti); // cucina non coperta dai ricavi pasti
@@ -2103,7 +2107,7 @@ function TabFinanziario({data,costs,setCosts,showToast}){
       </div>
       <div style={{background:"#fff",border:"1px solid #000",padding:14}}>
         <div style={{fontWeight:800,fontSize:13,marginBottom:8,borderBottom:"2px solid #000",paddingBottom:5}}>📊 Costi</div>
-        {[["Costi fissi",tF,"#dc2626"],["Educatori (da roster)",eduCost,"#dc2626"],["Navette (inclusa nelle quote)",costs.costoNavette,"#dc2626"],["Cucina",costs.costoCucina,"#dc2626"],["- Copertura pasti",-sv.totPasti,"#166534"],["= Costo netto cucina",tSc,"#d97706"],["TOTALE EFFETTIVO",totCostiFull+tSc,"#dc2626"]].map(([l,v,c])=>(
+        {[["Costi fissi",tF,"#dc2626"],[`Educatori (${eduGiorni} gg-uomo × €/gg)`,eduCost,"#dc2626"],["Navette (inclusa nelle quote)",costs.costoNavette,"#dc2626"],["Cucina",costs.costoCucina,"#dc2626"],["- Copertura pasti",-sv.totPasti,"#166534"],["= Costo netto cucina",tSc,"#d97706"],["TOTALE EFFETTIVO",totCostiFull+tSc,"#dc2626"]].map(([l,v,c])=>(
           <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"4px 0",borderBottom:"0.5px solid #f0f0f0",fontSize:12}}><span style={{color:"#555"}}>{l}</span><span style={{fontWeight:l.startsWith("=")||l.startsWith("TOT")?700:500,color:c}}>{l.startsWith("- ")?"- "+E(-v):E(Math.abs(v))}</span></div>
         ))}
       </div>
@@ -2177,6 +2181,9 @@ function TabEducatori({data,costs,setCosts}){
   ];
   /* Educator roster stored in costs.educatori */
   const educatori=costs.educatori||[];
+  // Costo giornaliero = fonte unica. Costo educatore = giorni assegnati (settimane×5) × €/giorno.
+  const dayRate=ed=>(ed.paga_giornaliera!=null?ed.paga_giornaliera:Math.round((ed.paga||0)/5));
+  const eduCostOf=ed=>(ed.settimane||[]).length*GIORNI_SETT*dayRate(ed);
   const setEdu=fn=>setCosts(p=>({...p,educatori:typeof fn==="function"?fn(p.educatori||[]):fn}));
   const[openRegistro,setOpenRegistro]=useState(null);
   const[openScheda,setOpenScheda]=useState(null);
@@ -2220,7 +2227,7 @@ function TabEducatori({data,costs,setCosts}){
   const weekCost=useMemo(()=>{
     const c={};WEEKS.forEach(w=>{c[w.id]=0;});
     educatori.forEach(ed=>{
-      (ed.settimane||[]).forEach(wId=>{c[wId]=(c[wId]||0)+(ed.paga||0);});
+      (ed.settimane||[]).forEach(wId=>{c[wId]=(c[wId]||0)+dayRate(ed)*GIORNI_SETT;});
     });return c;
   },[educatori]);
   /* Estimated cost based on required educators */
@@ -2460,7 +2467,20 @@ function TabEducatori({data,costs,setCosts}){
   const TH={background:"#111",color:"#fff",padding:"6px 8px",border:"1px solid #000",textAlign:"center",fontSize:10,fontWeight:600};
   const TD={border:"1px solid #000",padding:"5px 8px",fontSize:11,textAlign:"center"};
 
+  const manDays=educatori.reduce((s,e)=>s+(e.settimane||[]).length*GIORNI_SETT,0);
+  const totEduCost=educatori.reduce((s,e)=>s+eduCostOf(e),0);
+  const avgDayRate=manDays>0?Math.round(totEduCost/manDays):0;
   return(<div>
+    {/* COSTO EDUCATORI → COSTI TOTALI & BEP (dinamico col costo giornaliero) */}
+    <div style={{background:"#fff",border:"2px solid #dc2626",padding:14,marginBottom:12}}>
+      <div style={{fontWeight:900,fontSize:13,marginBottom:8,color:"#dc2626"}}>💶 Costo Educatori → Costi Totali & BEP</div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:10}}>
+        <div style={{background:"#f5f5f3",border:"1px solid #000",padding:"8px 10px",textAlign:"center"}}><div style={{fontSize:10,color:"#666"}}>Giorni-uomo (sett.×5)</div><div style={{fontSize:20,fontWeight:900}}>{manDays}</div></div>
+        <div style={{background:"#f5f5f3",border:"1px solid #000",padding:"8px 10px",textAlign:"center"}}><div style={{fontSize:10,color:"#666"}}>Costo medio €/giorno</div><div style={{fontSize:20,fontWeight:900,color:"#854d0e"}}>{E(avgDayRate)}</div></div>
+        <div style={{background:"#fef2f2",border:"1px solid #dc2626",padding:"8px 10px",textAlign:"center"}}><div style={{fontSize:10,color:"#dc2626"}}>Costo educatori totale</div><div style={{fontSize:20,fontWeight:900,color:"#dc2626"}}>{E(totEduCost)}</div></div>
+      </div>
+      <div style={{marginTop:8,fontSize:11,color:"#666"}}>Cambiando il <strong>€/giorno</strong> di un educatore (o le settimane assegnate) si aggiornano in tempo reale il <strong>costo educatori</strong>, i <strong>costi totali</strong> e il <strong>BEP</strong> nel tab «Finanziario &amp; BEP». Formula: giorni-uomo × €/giorno.</div>
+    </div>
     {/* DASHBOARD RICHIESTA */}
     <div style={{background:"#fff",border:"1px solid #000",padding:14,marginBottom:12}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,borderBottom:"2px solid #000",paddingBottom:5}}>
@@ -2522,7 +2542,7 @@ function TabEducatori({data,costs,setCosts}){
       {educatori.map(ed=>{
         const tipo=EDU_TYPES.find(t=>t.key===ed.tipo)||EDU_TYPES[0];
         const settCount=(ed.settimane||[]).length;
-        const costoTot=settCount*(ed.paga||0);
+        const costoTot=eduCostOf(ed);
         const st=eduStats.find(s=>s.id===ed.id)||{giorniPrevisti:0,giorniLavorati:0,assenze:0,giorniDaRecuperare:0,pagaGG:0,pagaMaturata:0,pagaPrevista:0};
         return(<div key={ed.id} style={{border:`2px solid ${tipo.bg}`,marginBottom:8,background:"#fff"}}>
           <div style={{background:tipo.fg,padding:"8px 12px",display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
@@ -2535,7 +2555,7 @@ function TabEducatori({data,costs,setCosts}){
             </div>
             <div style={{display:"flex",alignItems:"center",gap:4}}>
               <span style={{fontSize:10,color:tipo.bg,fontWeight:600}}>€/giorno:</span>
-              <input type="number" value={ed.paga_giornaliera||Math.round((ed.paga||0)/5)} min={0} step={5} onChange={e=>upEdu(ed.id,"paga_giornaliera",Number(e.target.value))} style={{width:60,padding:"3px 6px",fontSize:12,border:"1px solid #000",fontWeight:700,textAlign:"center"}}/>
+              <input type="number" value={ed.paga_giornaliera!=null?ed.paga_giornaliera:Math.round((ed.paga||0)/5)} min={0} step={5} onChange={e=>{const v=Number(e.target.value);setEdu(p=>p.map(x=>x.id===ed.id?{...x,paga_giornaliera:v,paga:v*GIORNI_SETT}:x));}} style={{width:60,padding:"3px 6px",fontSize:12,border:"1px solid #000",fontWeight:700,textAlign:"center"}}/>
             </div>
             <span style={{fontSize:11,fontWeight:700,color:tipo.bg}}>{settCount} sett. = {E(costoTot)}</span>
             <button onClick={()=>setOpenRegistro(openRegistro===ed.id?null:ed.id)} style={{padding:"4px 10px",border:`1px solid ${tipo.bg}`,background:openRegistro===ed.id?tipo.bg:tipo.fg,color:openRegistro===ed.id?"#fff":tipo.bg,fontSize:10,fontWeight:700,cursor:"pointer"}}>📋 Registro</button>
