@@ -175,7 +175,11 @@ const getSettimane=r=>{if(r?.settimane_custom?.length>0)return[...r.settimane_cu
 const calcFine=(inizio,sett)=>{const ws=calcWeeks(inizio,sett);if(!ws.length)return"";const lw=WEEKS.find(w=>w.id===ws[ws.length-1]);return lw?.al||"";};
 const calcFineFromWeeks=wks=>{if(!wks?.length)return"";const lw=WEEKS.find(w=>w.id===wks[wks.length-1]);return lw?.al||"";};
 const calcEta=(nato_il)=>{if(!nato_il)return 0;const m=String(nato_il).match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);if(!m)return 0;const b=new Date(Number(m[3]),Number(m[2])-1,Number(m[1]));const n=new Date();let a=n.getFullYear()-b.getFullYear();const mo=n.getMonth()-b.getMonth();if(mo<0||(mo===0&&n.getDate()<b.getDate()))a--;return Math.max(0,a);};
-const calcResidue=r=>Math.max(0,(r.quota||0)-(r.acconto||0)-(r.saldato||0));
+/* La NAVETTA è già inclusa nella quota di iscrizione (i saldi versati la comprendono).
+   L'unico servizio extra fatturato a consumo sono i PASTI (€5/pasto). */
+const calcPastiTot=r=>Object.values(r.pasti_log||{}).filter(Boolean).length*PASTI_RATE;
+const calcDovuto=r=>(r.quota||0)+calcPastiTot(r);
+const calcResidue=r=>Math.max(0,calcDovuto(r)-(r.acconto||0)-(r.saldato||0));
 const autoStato=r=>{const res=calcResidue(r);if(res===0&&((r.saldato||0)>0||(r.acconto||0)>=(r.quota||0)))return"SALDATO";if((r.acconto||0)>0||(r.saldato||0)>0)return"ACCONTO";return"DA PAGARE";};
 const AKW=["lattosio","glutin","celiac","allergi","latte","uova","pesce","noci","arachid","epipen","fans"];
 const MKW=["autist","epiless","diabeti","asma","cardiop","sindrome","disabilit","iperattiv","adhd"];
@@ -521,9 +525,9 @@ function DraftEditorPanel({draft,existingData,onCommit,onDiscard,showToast}){
             <div style={{fontWeight:700,marginBottom:6}}>✅ Effetti dopo "Applica e Salva"</div>
             <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
               <span>📋 Aggiunto a <strong>Tabella Iscritti</strong></span>
-              {r.nav&&<span style={{color:"#1e40af",fontWeight:600}}>= Aggiunto a <strong>Contabilità Navette</strong> · -1 posto disponibile</span>}
-              {!r.pasto_casa&&<span style={{color:"#166534",fontWeight:600}}>== Aggiunto a <strong>Contabilità Pasti</strong></span>}
-              <span style={{color:"#185FA5",fontWeight:600}}>= BEP e Ricavi Extra aggiornati</span>
+              {r.nav&&<span style={{color:"#1e40af",fontWeight:600}}>🚌 Aggiunto al <strong>Piano Navette</strong> · -1 posto disponibile</span>}
+              {!r.pasto_casa&&<span style={{color:"#166534",fontWeight:600}}>🍽 Aggiunto a <strong>Contabilità Pasti</strong></span>}
+              <span style={{color:"#185FA5",fontWeight:600}}>⚖ BEP aggiornato</span>
             </div>
           </div>
 
@@ -873,11 +877,11 @@ function TabImport({onSync,existingData,showToast,savedMappings,setSavedMappings
 
 /* == SCHEDA PERSONALE ======================================== */
 function SchedaPersonale({record,onUpdate,onClose,onLiveSync,navCap}){
-  const[r,setR]=useState(()=>({...record,presenze:record.presenze||{},pasti_log:record.pasti_log||{}}));
+  const[r,setR]=useState(()=>({...record,presenze:record.presenze||{},pasti_log:record.pasti_log||{},nav_log:record.nav_log||{}}));
   const liveSyncRef=useRef(onLiveSync);liveSyncRef.current=onLiveSync;
   const setRSync=useCallback(updater=>{
     setR(prev=>{const next=typeof updater==="function"?updater(prev):updater;
-      if(liveSyncRef.current&&(next.pasti_log!==prev.pasti_log||next.presenze!==prev.presenze)){
+      if(liveSyncRef.current&&(next.pasti_log!==prev.pasti_log||next.presenze!==prev.presenze||next.nav_log!==prev.nav_log)){
         setTimeout(()=>liveSyncRef.current(next),0);
       }
       return next;
@@ -909,9 +913,11 @@ function SchedaPersonale({record,onUpdate,onClose,onLiveSync,navCap}){
   const pastiCount=Object.values(r.pasti_log||{}).filter(Boolean).length;
   const pastiNonCons=totalDays-pastiCount;
   const pastiTotale=pastiCount*PASTI_RATE;
-  const navGiorni=r.nav?weeks.length*GIORNI_SETT:0;
-  const navTotale=navGiorni*NAV_RATE;
-  const quotaTotDovuto=(r.quota||0)+pastiTotale+navTotale;
+  // Corse navetta: per ogni settimana, se non sono stati spuntati i singoli giorni vale l'intera settimana (come in calcServizi)
+  const navGiorni=r.nav?weeks.reduce((tot,wId)=>{const hasLog=GIORNI_NOMI.some((_,di)=>r.nav_log?.[`${wId}_${di}`]!==undefined);return tot+GIORNI_NOMI.filter((_,di)=>hasLog?r.nav_log?.[`${wId}_${di}`]:true).length;},0):0;
+  const navTotale=navGiorni*NAV_RATE; // valore notional navetta (già incluso nella quota)
+  const quotaTotDovuto=(r.quota||0)+pastiTotale; // navetta inclusa nella quota
+  const residuoLive=Math.max(0,quotaTotDovuto-(r.acconto||0)-(r.saldato||0)); // sempre coerente col riepilogo
   const nt=noteType(r.note_bimbo);const ns=nt?NST[nt]:null;
   const inpS={padding:"7px 10px",fontSize:13,border:"1px solid #000",background:"#fff",width:"100%"};
   const lbl=t=><label style={{fontSize:11,fontWeight:600,color:"#555",display:"block",marginBottom:4}}>{t}</label>;
@@ -963,20 +969,19 @@ th,td{border:1px solid #333;padding:5px 8px;text-align:center}th{background:#222
 <div><span class="lbl">Allergie / Note</span><span class="val">${r.note_bimbo||"—"}</span></div>
 </div>
 
-<h2>== Registro Pasti — ${pastiCount} consumati / ${pastiNonCons} non consumati</h2>
+<h2>🍽 Registro Pasti — ${pastiCount} consumati / ${pastiNonCons} non consumati</h2>
 <table>
 <tr><th>Settimana</th>${GIORNI_NOMI.map(g=>"<th>"+g+"</th>").join("")}<th>Tot</th><th>Costo</th></tr>
 ${wkData.map(w=>"<tr><td style='text-align:left;font-weight:700'>"+w.label+"<br><span style='font-size:10px;color:#888'>"+w.range+"</span></td>"+w.days.map(d=>"<td class='"+(d==="✓"?"check":"miss")+"'>"+d+"</td>").join("")+"<td style='font-weight:700'>"+w.wP+"</td><td style='font-weight:700'>€ "+(w.wP*PASTI_RATE)+"</td></tr>").join("")}
 <tr style="font-weight:800;background:#f0fdf4"><td colspan="${GIORNI_NOMI.length+1}" style="text-align:right">TOTALE PASTI</td><td>${pastiCount} gg</td><td>€ ${pastiTotale}</td></tr>
 </table>
 
-${r.nav?`<h2>= Navette — ${navGiorni} giorni · € ${navTotale}</h2>
+${r.nav?`<h2>🚌 Navetta — ${navGiorni} corse · inclusa nella quota</h2>
 <div class="info">
-<div><span class="lbl">Tratta</span><span class="val">${r.citta||"—"}</span></div>
+<div><span class="lbl">Tratta (partenza)</span><span class="val">${getPartenza(r.citta)||"—"}</span></div>
 <div><span class="lbl">Settimane</span><span class="val">${weeks.length}</span></div>
-<div><span class="lbl">Giorni totale</span><span class="val">${navGiorni}</span></div>
-<div><span class="lbl">Costo/giorno</span><span class="val">€ ${NAV_RATE}</span></div>
-<div><span class="lbl">Totale navette</span><span class="val">€ ${navTotale}</span></div>
+<div><span class="lbl">Corse totali</span><span class="val">${navGiorni}</span></div>
+<div><span class="lbl">Costo famiglia</span><span class="val">inclusa nella quota</span></div>
 </div>`:""}
 
 <h2>✅ Registro Presenze — ${presCount}/${totalDays}</h2>
@@ -989,9 +994,9 @@ ${wkData.map(w=>"<tr><td style='text-align:left;font-weight:700'>"+w.label+"<br>
 <h2>💰 Riepilogo Economico</h2>
 <table>
 <tr><th>Voce</th><th>Dettaglio</th><th>Importo</th></tr>
-<tr><td style="text-align:left">Quota iscrizione</td><td>—</td><td style="font-weight:700">€ ${r.quota||0}</td></tr>
+<tr><td style="text-align:left">Quota iscrizione${r.nav?" (navetta inclusa)":""}</td><td>—</td><td style="font-weight:700">€ ${r.quota||0}</td></tr>
+${r.nav?`<tr><td style="text-align:left">Navetta</td><td>${navGiorni} corse · ${getPartenza(r.citta)||"—"}</td><td style="font-weight:700;color:#1e40af">inclusa</td></tr>`:""}
 <tr><td style="text-align:left">Pasti mensa</td><td>${pastiCount} giorni × € ${PASTI_RATE}</td><td style="font-weight:700">€ ${pastiTotale}</td></tr>
-${r.nav?`<tr><td style="text-align:left">Navette</td><td>${navGiorni} giorni × € ${NAV_RATE}</td><td style="font-weight:700">€ ${navTotale}</td></tr>`:""}
 <tr style="font-weight:800;background:#eee"><td style="text-align:left">TOTALE DOVUTO</td><td></td><td>€ ${quotaTotDovuto}</td></tr>
 <tr><td style="text-align:left;color:#16a34a">Acconto versato</td><td></td><td style="color:#16a34a;font-weight:700">− € ${r.acconto||0}</td></tr>
 <tr><td style="text-align:left;color:#16a34a">Saldo versato</td><td></td><td style="color:#16a34a;font-weight:700">− € ${r.saldato||0}</td></tr>
@@ -1027,9 +1032,9 @@ ${r.note_pag?`<h2>= Note Pagamento</h2><p>${r.note_pag}</p>`:""}
       ["TOTALE","","","","","",presCount+"/"+totalDays],
       [],
       ["RIEPILOGO ECONOMICO","Dettaglio","Importo €"],
-      ["Quota iscrizione","",r.quota||0],
+      ["Quota iscrizione"+(r.nav?" (navetta inclusa)":""),"",r.quota||0],
+      ...(r.nav?[["Navetta",navGiorni+" corse · "+(getPartenza(r.citta)||"—"),"inclusa"]]:[]),
       ["Pasti mensa",pastiCount+" gg × €"+PASTI_RATE,pastiTotale],
-      ...(r.nav?[["Navette",navGiorni+" gg × €"+NAV_RATE,navTotale]]:[]),
       ["TOTALE DOVUTO","",quotaTotDovuto],
       ["Acconto versato","",r.acconto||0],
       ["Saldo versato","",r.saldato||0],
@@ -1080,16 +1085,16 @@ ${r.note_pag?`<h2>= Note Pagamento</h2><p>${r.note_pag}</p>`:""}
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
             <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",background:r.nav?"#dbeafe":"#f5f5f3",border:`1px solid ${r.nav?"#3b82f6":"#ccc"}`}}>
               <input type="checkbox" checked={!!r.nav} onChange={e=>upd("nav",e.target.checked)} style={{width:16,height:16,cursor:"pointer"}}/>
-              <span style={{fontSize:12,fontWeight:r.nav?700:400,color:r.nav?"#1e40af":"#888"}}>= Navetta{r.nav&&r.citta?` (${getPartenza(r.citta)})`:""}</span>
+              <span style={{fontSize:12,fontWeight:r.nav?700:400,color:r.nav?"#1e40af":"#888"}}>🚌 Navetta{r.nav&&r.citta?` (${getPartenza(r.citta)})`:""}</span>
             </div>
             <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",background:r.pasto_casa?"#fef9c3":"#f0fdf4",border:`1px solid ${r.pasto_casa?"#d97706":"#16a34a"}`}}>
               <input type="checkbox" checked={!r.pasto_casa} onChange={e=>upd("pasto_casa",!e.target.checked)} style={{width:16,height:16,cursor:"pointer"}}/>
-              <span style={{fontSize:12,fontWeight:600,color:r.pasto_casa?"#854d0e":"#166534"}}>{r.pasto_casa?"🥪 Pranzo al sacco":"== Mensa"}</span>
+              <span style={{fontSize:12,fontWeight:600,color:r.pasto_casa?"#854d0e":"#166534"}}>{r.pasto_casa?"🥪 Pranzo al sacco":"🍽 Mensa"}</span>
             </div>
           </div>
 
           {/* REGISTRO PASTI */}
-          <div style={{fontWeight:800,fontSize:13,marginBottom:10,borderBottom:"2px solid #166534",paddingBottom:5,color:"#166534"}}>== Registro Pasti <span style={{fontWeight:400,fontSize:11,color:"#666"}}>({pastiCount} pasti · {E(pastiTotale)})</span></div>
+          <div style={{fontWeight:800,fontSize:13,marginBottom:10,borderBottom:"2px solid #166534",paddingBottom:5,color:"#166534"}}>🍽 Registro Pasti <span style={{fontWeight:400,fontSize:11,color:"#666"}}>({pastiCount} pasti · {E(pastiTotale)})</span></div>
           <div style={{padding:"8px 12px",background:"#f0fdf4",border:"1px solid #16a34a",marginBottom:10,fontSize:12,color:"#166534"}}>
             Spunta i giorni in cui il bambino ha mangiato al campo. Ogni pasto = <strong>{E2(PASTI_RATE)}</strong>
           </div>
@@ -1104,7 +1109,7 @@ ${r.note_pag?`<h2>= Note Pagamento</h2><p>${r.note_pag}</p>`:""}
                 <div style={{display:"flex",gap:4,flex:1}}>
                   {GIORNI_NOMI.map((g,di)=>{
                     const key=`${wId}_${di}`;const checked=!!r.pasti_log?.[key];
-                    return(<button key={di} onClick={()=>setRSync(prev=>({...prev,pasti_log:{...(prev.pasti_log||{}),[key]:!checked}}))} style={{padding:"4px 8px",fontSize:11,fontWeight:checked?700:400,border:`1px solid ${checked?"#166534":"#ccc"}`,background:checked?"#dcfce7":"#fff",color:checked?"#166534":"#aaa",cursor:"pointer",minWidth:36,textAlign:"center"}}>{g}{checked?" ==":""}</button>);
+                    return(<button key={di} onClick={()=>setRSync(prev=>{const u={...prev,pasti_log:{...(prev.pasti_log||{}),[key]:!checked}};u.da_saldare=calcResidue(u);u.stato=autoStato(u);return u;})} style={{padding:"4px 8px",fontSize:11,fontWeight:checked?700:400,border:`1px solid ${checked?"#166534":"#ccc"}`,background:checked?"#dcfce7":"#fff",color:checked?"#166534":"#aaa",cursor:"pointer",minWidth:36,textAlign:"center"}}>{g}{checked?" ✓":""}</button>);
                   })}
                 </div>
                 <span style={{fontSize:11,fontWeight:700,color:wPasti>0?"#166534":"#aaa"}}>{wPasti}g · {E(wCosto)}</span>
@@ -1131,25 +1136,50 @@ ${r.note_pag?`<h2>= Note Pagamento</h2><p>${r.note_pag}</p>`:""}
             </div>
           </div>
 
-          {/* NAVETTE */}
+          {/* NAVETTE — frequenze infrasettimanali (collegate al piano navette) */}
           {r.nav&&<>
-          <div style={{fontWeight:800,fontSize:13,marginBottom:10,borderBottom:"2px solid #1e40af",paddingBottom:5,color:"#1e40af"}}>= Navette <span style={{fontWeight:400,fontSize:11,color:"#666"}}>({navGiorni} giorni · {E(navTotale)})</span></div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:8,marginBottom:16}}>
+          <div style={{fontWeight:800,fontSize:13,marginBottom:10,borderBottom:"2px solid #1e40af",paddingBottom:5,color:"#1e40af"}}>🚌 Navetta <span style={{fontWeight:400,fontSize:11,color:"#666"}}>({getPartenza(r.citta)||"—"} · {navGiorni} corse/sett.)</span></div>
+          <div style={{padding:"8px 12px",background:"#eff6ff",border:"1px solid #3b82f6",marginBottom:10,fontSize:12,color:"#1e40af"}}>
+            La navetta è <strong>inclusa nella quota</strong> (nessun costo aggiuntivo). Spunta i giorni in cui il bambino usa effettivamente la navetta: il <strong>piano navette</strong> userà questi dati per i posti per giorno.
+          </div>
+          {weeks.length===0?<div style={{color:"#aaa",fontSize:12,padding:10}}>Nessuna settimana selezionata</div>:
+          <div style={{display:"grid",gap:6,marginBottom:10}}>
+            {weeks.map(wId=>{
+              const wk=WEEKS.find(x=>x.id===wId);
+              const hasLog=GIORNI_NOMI.some((_,di)=>r.nav_log?.[`${wId}_${di}`]!==undefined);
+              const wNav=GIORNI_NOMI.filter((_,di)=>hasLog?r.nav_log?.[`${wId}_${di}`]:true).length;
+              return(<div key={wId} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 10px",background:"#fafafa",border:"1px solid #e0e0e0"}}>
+                <span style={{fontWeight:700,fontSize:12,minWidth:90,color:"#333"}}>{wk?.label} <span style={{fontWeight:400,fontSize:10,color:"#888"}}>{wk?.range}</span></span>
+                <div style={{display:"flex",gap:4,flex:1}}>
+                  {GIORNI_NOMI.map((g,di)=>{
+                    const key=`${wId}_${di}`;
+                    // default: se non c'è alcun log per la settimana, la navetta vale tutti i giorni
+                    const checked=hasLog?!!r.nav_log?.[key]:true;
+                    return(<button key={di} onClick={()=>setRSync(prev=>{
+                      const nl={...(prev.nav_log||{})};
+                      // se la settimana non era loggata, materializza prima tutti i giorni a true
+                      if(!GIORNI_NOMI.some((_,d)=>nl[`${wId}_${d}`]!==undefined)){GIORNI_NOMI.forEach((_,d)=>{nl[`${wId}_${d}`]=true;});}
+                      nl[key]=!checked;
+                      return{...prev,nav_log:nl};
+                    })} style={{padding:"4px 8px",fontSize:11,fontWeight:checked?700:400,border:`1px solid ${checked?"#1e40af":"#ccc"}`,background:checked?"#dbeafe":"#fff",color:checked?"#1e40af":"#aaa",cursor:"pointer",minWidth:36,textAlign:"center"}}>{g}{checked?" 🚌":""}</button>);
+                  })}
+                </div>
+                <span style={{fontSize:11,fontWeight:700,color:wNav>0?"#1e40af":"#aaa"}}>{wNav}/{GIORNI_SETT}</span>
+              </div>);
+            })}
+          </div>}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:16}}>
             <div style={{background:"#dbeafe",border:"1px solid #3b82f6",padding:"8px 10px",textAlign:"center"}}>
-              <div style={{fontSize:10,color:"#1e40af"}}>Tratta</div>
-              <div style={{fontSize:14,fontWeight:900,color:"#1e40af"}}>{r.citta||"—"}</div>
+              <div style={{fontSize:10,color:"#1e40af"}}>Tratta (partenza)</div>
+              <div style={{fontSize:14,fontWeight:900,color:"#1e40af"}}>{getPartenza(r.citta)||"—"}</div>
             </div>
             <div style={{background:"#dbeafe",border:"1px solid #3b82f6",padding:"8px 10px",textAlign:"center"}}>
-              <div style={{fontSize:10,color:"#1e40af"}}>Settimane</div>
-              <div style={{fontSize:18,fontWeight:900,color:"#1e40af"}}>{weeks.length}</div>
+              <div style={{fontSize:10,color:"#1e40af"}}>Corse totali (stagione)</div>
+              <div style={{fontSize:18,fontWeight:900,color:"#1e40af"}}>{navGiorni}</div>
             </div>
-            <div style={{background:"#dbeafe",border:"1px solid #3b82f6",padding:"8px 10px",textAlign:"center"}}>
-              <div style={{fontSize:10,color:"#1e40af"}}>Giorni × tariffa</div>
-              <div style={{fontSize:14,fontWeight:900,color:"#1e40af"}}>{navGiorni} × {E2(NAV_RATE)}</div>
-            </div>
-            <div style={{background:"#1e40af",border:"1px solid #000",padding:"8px 10px",textAlign:"center",color:"#fff"}}>
-              <div style={{fontSize:10,opacity:.8}}>Totale navette</div>
-              <div style={{fontSize:18,fontWeight:900}}>{E(navTotale)}</div>
+            <div style={{background:"#f0fdf4",border:"1px solid #16a34a",padding:"8px 10px",textAlign:"center"}}>
+              <div style={{fontSize:10,color:"#166534"}}>Costo per la famiglia</div>
+              <div style={{fontSize:14,fontWeight:900,color:"#166534"}}>inclusa</div>
             </div>
           </div>
           </>}
@@ -1158,14 +1188,14 @@ ${r.note_pag?`<h2>= Note Pagamento</h2><p>${r.note_pag}</p>`:""}
           <div style={{fontWeight:800,fontSize:13,marginBottom:10,borderBottom:"2px solid #7c3aed",paddingBottom:5,color:"#7c3aed"}}>📊 Riepilogo Costi Totale</div>
           <div style={{border:"2px solid #000",marginBottom:16,fontSize:12}}>
             <div style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",background:"#fafafa",borderBottom:"1px solid #ddd"}}>
-              <span>Quota iscrizione</span><span style={{fontWeight:700}}>{E(r.quota||0)}</span>
+              <span>Quota iscrizione{r.nav?" (navetta inclusa)":""}</span><span style={{fontWeight:700}}>{E(r.quota||0)}</span>
             </div>
-            <div style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",background:"#f0fdf4",borderBottom:"1px solid #ddd"}}>
-              <span>== Pasti ({pastiCount} gg × {E2(PASTI_RATE)})</span><span style={{fontWeight:700,color:"#166534"}}>{E(pastiTotale)}</span>
-            </div>
-            {r.nav&&<div style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",background:"#dbeafe",borderBottom:"1px solid #ddd"}}>
-              <span>= Navette ({navGiorni} gg × {E2(NAV_RATE)})</span><span style={{fontWeight:700,color:"#1e40af"}}>{E(navTotale)}</span>
+            {r.nav&&<div style={{display:"flex",justifyContent:"space-between",padding:"6px 12px",background:"#eff6ff",borderBottom:"1px solid #ddd",fontSize:11,color:"#1e40af"}}>
+              <span>🚌 Navetta ({navGiorni} corse)</span><span style={{fontWeight:700}}>inclusa nella quota</span>
             </div>}
+            <div style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",background:"#f0fdf4",borderBottom:"1px solid #ddd"}}>
+              <span>🍽 Pasti ({pastiCount} gg × {E2(PASTI_RATE)})</span><span style={{fontWeight:700,color:"#166534"}}>{E(pastiTotale)}</span>
+            </div>
             <div style={{display:"flex",justifyContent:"space-between",padding:"10px 12px",background:"#111",color:"#fff",fontWeight:800,fontSize:14}}>
               <span>TOTALE DOVUTO</span><span>{E(quotaTotDovuto)}</span>
             </div>
@@ -1175,8 +1205,8 @@ ${r.note_pag?`<h2>= Note Pagamento</h2><p>${r.note_pag}</p>`:""}
             <div style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",background:"#dcfce7",borderBottom:"1px solid #ddd"}}>
               <span>Saldo versato</span><span style={{fontWeight:700,color:"#166534"}}>− {E(r.saldato||0)}</span>
             </div>
-            <div style={{display:"flex",justifyContent:"space-between",padding:"10px 12px",background:(r.da_saldare||0)>0?"#fee2e2":"#dcfce7",fontWeight:800,fontSize:14,color:(r.da_saldare||0)>0?"#dc2626":"#166534"}}>
-              <span>RESIDUO</span><span>{E(r.da_saldare||0)}</span>
+            <div style={{display:"flex",justifyContent:"space-between",padding:"10px 12px",background:residuoLive>0?"#fee2e2":"#dcfce7",fontWeight:800,fontSize:14,color:residuoLive>0?"#dc2626":"#166534"}}>
+              <span>RESIDUO</span><span>{E(residuoLive)}</span>
             </div>
           </div>
 
@@ -1186,7 +1216,7 @@ ${r.note_pag?`<h2>= Note Pagamento</h2><p>${r.note_pag}</p>`:""}
             <div>{lbl("Quota €")}<input type="number" value={r.quota||0} min={0} onChange={e=>upd("quota",Number(e.target.value))} style={{...inpS,fontWeight:700}}/></div>
             <div>{lbl("Acconto €")}<input type="number" value={r.acconto||0} min={0} onChange={e=>upd("acconto",Number(e.target.value))} style={{...inpS,color:"#166534",fontWeight:700}}/></div>
             <div>{lbl("Saldo €")}<input type="number" value={r.saldato||0} min={0} onChange={e=>upd("saldato",Number(e.target.value))} style={{...inpS,color:"#166534",fontWeight:700}}/></div>
-            <div>{lbl("Residuo (auto)")}<div style={{...inpS,background:(r.da_saldare||0)>0?"#fef2f2":"#f0fdf4",color:(r.da_saldare||0)>0?"#dc2626":"#166534",fontWeight:800}}>{E(r.da_saldare||0)}</div></div>
+            <div>{lbl("Residuo (auto)")}<div style={{...inpS,background:residuoLive>0?"#fef2f2":"#f0fdf4",color:residuoLive>0?"#dc2626":"#166534",fontWeight:800}}>{E(residuoLive)}</div></div>
           </div>
           <div style={{display:"flex",gap:8,marginBottom:16}}>
             {["SALDATO","ACCONTO","DA PAGARE"].map(s=>(
@@ -1272,7 +1302,7 @@ function TabIscritti({data,setData,showToast,extCerca="",onExtCercaUsed,navCap,t
 
   const schedaRecord=schedaId?data.find(r=>r.id===schedaId):null;
   const handleSchedaSave=(updated)=>{setData(prev=>prev.map(r=>r.id===updated.id?{...updated,da_saldare:calcResidue(updated),stato:autoStato(updated)}:r));showToast("Scheda aggiornata");};
-  const handleLiveSync=useCallback((updated)=>{setData(prev=>prev.map(r=>r.id===updated.id?{...r,pasti_log:updated.pasti_log,presenze:updated.presenze,n_pasti:Object.values(updated.pasti_log||{}).filter(Boolean).length}:r));},[setData]);
+  const handleLiveSync=useCallback((updated)=>{setData(prev=>prev.map(r=>{if(r.id!==updated.id)return r;const m={...r,pasti_log:updated.pasti_log,presenze:updated.presenze,nav_log:updated.nav_log,n_pasti:Object.values(updated.pasti_log||{}).filter(Boolean).length};m.da_saldare=calcResidue(m);m.stato=autoStato(m);return m;}));},[setData]);
   const printCardIscritto=(r)=>{
     const weeks=getSettimane(r);
     const presCount=Object.values(r.presenze||{}).filter(Boolean).length;
@@ -1280,15 +1310,15 @@ function TabIscritti({data,setData,showToast,extCerca="",onExtCercaUsed,navCap,t
     const pastiCount=Object.values(r.pasti_log||{}).filter(Boolean).length;
     const pastiNonCons=totalDays-pastiCount;
     const pastiTotale=pastiCount*PASTI_RATE;
-    const navGiorni=r.nav?weeks.length*GIORNI_SETT:0;
+    const navGiorni=r.nav?weeks.reduce((tot,wId)=>{const hasLog=GIORNI_NOMI.some((_,di)=>r.nav_log?.[`${wId}_${di}`]!==undefined);return tot+GIORNI_NOMI.filter((_,di)=>hasLog?r.nav_log?.[`${wId}_${di}`]:true).length;},0):0;
     const navTotale=navGiorni*NAV_RATE;
-    const quotaTotDovuto=(r.quota||0)+pastiTotale+navTotale;
+    const quotaTotDovuto=(r.quota||0)+pastiTotale; // navetta inclusa nella quota
     const wkData=weeks.map(wId=>{
       const wk=WEEKS.find(x=>x.id===wId);
       const days=GIORNI_NOMI.map((_,di)=>r.pasti_log?.[`${wId}_${di}`]?"✔":"—");
-      const wP=days.filter(d=>d==="?").length;
+      const wP=days.filter(d=>d==="✔").length;
       const presD=GIORNI_NOMI.map((_,di)=>r.presenze?.[`${wId}_${di}`]?"✔":"—");
-      const wPr=presD.filter(d=>d==="?").length;
+      const wPr=presD.filter(d=>d==="✔").length;
       return{wId,label:wk?.label||"",range:wk?.range||"",days,wP,presD,wPr};
     });
     const pw=window.open("","_blank","width=800,height=900");
@@ -1312,8 +1342,8 @@ th,td{border:1px solid #333;padding:5px 8px;text-align:center}th{background:#222
 <div class="info">
 <div><span class="lbl">Nome</span><span class="val">${esc(r.bambino||"—")}</span></div>
 <div><span class="lbl">Data di nascita</span><span class="val">${esc(r.nato_il||"—")}</span></div>
-<div><span class="lbl">Et=</span><span class="val">${r.eta||"—"}</span></div>
-<div><span class="lbl">Citt=</span><span class="val">${esc(r.citta||"—")}</span></div>
+<div><span class="lbl">Età</span><span class="val">${r.eta||"—"}</span></div>
+<div><span class="lbl">Città</span><span class="val">${esc(r.citta||"—")}</span></div>
 <div><span class="lbl">Genitore</span><span class="val">${esc(r.genitore||"—")}</span></div>
 <div><span class="lbl">Telefono</span><span class="val">${esc(r.telefono||"—")}</span></div>
 </div>
@@ -1322,22 +1352,21 @@ th,td{border:1px solid #333;padding:5px 8px;text-align:center}th{background:#222
 <div><span class="lbl">Inizio</span><span class="val">${esc(r.inizio||"—")}</span></div>
 <div><span class="lbl">Fine</span><span class="val">${esc(r.fine||"—")}</span></div>
 <div><span class="lbl">Settimane</span><span class="val">${r.sett||0}</span></div>
-<div><span class="lbl">Navetta</span><span class="val">${r.nav?"S=":"No"}${r.nav&&r.citta?" ("+r.citta+")":""}</span></div>
+<div><span class="lbl">Navetta</span><span class="val">${r.nav?"Sì":"No"}${r.nav&&r.citta?" ("+esc(r.citta)+")":""}</span></div>
 <div><span class="lbl">Pasto</span><span class="val">${r.pasto_casa?"Pranzo al sacco":"Mensa"}</span></div>
 <div><span class="lbl">Allergie / Note</span><span class="val">${esc(r.note_bimbo||"—")}</span></div>
 </div>
 <h2>Registro Pasti = ${pastiCount} consumati / ${pastiNonCons} non consumati</h2>
 <table>
 <tr><th>Settimana</th>${GIORNI_NOMI.map(g=>"<th>"+g+"</th>").join("")}<th>Tot</th><th>Costo</th></tr>
-${wkData.map(w=>"<tr><td style='text-align:left;font-weight:700'>"+esc(w.label)+"<br><span style='font-size:10px;color:#888'>"+esc(w.range)+"</span></td>"+w.days.map(d=>"<td class='"+(d==="✔"?"check":"miss")+"'>"+d+"</td>").join("")+"<td style='font-weight:700'>"+w.wP+"</td><td style='font-weight:700'>= "+(w.wP*PASTI_RATE)+"</td></tr>").join("")}
-<tr style="font-weight:800;background:#f0fdf4"><td colspan="${GIORNI_NOMI.length+1}" style="text-align:right">TOTALE PASTI</td><td>${pastiCount} gg</td><td>= ${pastiTotale}</td></tr>
+${wkData.map(w=>"<tr><td style='text-align:left;font-weight:700'>"+esc(w.label)+"<br><span style='font-size:10px;color:#888'>"+esc(w.range)+"</span></td>"+w.days.map(d=>"<td class='"+(d==="✔"?"check":"miss")+"'>"+d+"</td>").join("")+"<td style='font-weight:700'>"+w.wP+"</td><td style='font-weight:700'>€ "+(w.wP*PASTI_RATE)+"</td></tr>").join("")}
+<tr style="font-weight:800;background:#f0fdf4"><td colspan="${GIORNI_NOMI.length+1}" style="text-align:right">TOTALE PASTI</td><td>${pastiCount} gg</td><td>€ ${pastiTotale}</td></tr>
 </table>
-${r.nav?`<h2>Navette = ${navGiorni} giorni = = ${navTotale}</h2><div class="info">
-<div><span class="lbl">Tratta</span><span class="val">${esc(r.citta||"—")}</span></div>
+${r.nav?`<h2>Navetta — ${navGiorni} corse · inclusa nella quota</h2><div class="info">
+<div><span class="lbl">Tratta (partenza)</span><span class="val">${esc(getPartenza(r.citta)||"—")}</span></div>
 <div><span class="lbl">Settimane</span><span class="val">${weeks.length}</span></div>
-<div><span class="lbl">Giorni totale</span><span class="val">${navGiorni}</span></div>
-<div><span class="lbl">Costo/giorno</span><span class="val">= ${NAV_RATE}</span></div>
-<div><span class="lbl">Totale navette</span><span class="val">= ${navTotale}</span></div>
+<div><span class="lbl">Corse totali</span><span class="val">${navGiorni}</span></div>
+<div><span class="lbl">Costo famiglia</span><span class="val">inclusa nella quota</span></div>
 </div>`:""}
 <h2>Registro Presenze = ${presCount}/${totalDays}</h2>
 <table>
@@ -1348,16 +1377,16 @@ ${wkData.map(w=>"<tr><td style='text-align:left;font-weight:700'>"+esc(w.label)+
 <h2>Riepilogo Economico</h2>
 <table>
 <tr><th>Voce</th><th>Dettaglio</th><th>Importo</th></tr>
-<tr><td style="text-align:left">Quota iscrizione</td><td>=</td><td style="font-weight:700">= ${r.quota||0}</td></tr>
-<tr><td style="text-align:left">Pasti mensa</td><td>${pastiCount} giorni = = ${PASTI_RATE}</td><td style="font-weight:700">= ${pastiTotale}</td></tr>
-${r.nav?`<tr><td style="text-align:left">Navette</td><td>${navGiorni} giorni = = ${NAV_RATE}</td><td style="font-weight:700">= ${navTotale}</td></tr>`:""}
-<tr style="font-weight:800;background:#eee"><td style="text-align:left">TOTALE DOVUTO</td><td></td><td>= ${quotaTotDovuto}</td></tr>
-<tr><td style="text-align:left;color:#16a34a">Acconto versato</td><td></td><td style="color:#16a34a;font-weight:700">? = ${r.acconto||0}</td></tr>
-<tr><td style="text-align:left;color:#16a34a">Saldo versato</td><td></td><td style="color:#16a34a;font-weight:700">? = ${r.saldato||0}</td></tr>
-<tr style="font-weight:800;background:${(r.da_saldare||0)>0?"#fee2e2":"#dcfce7"}"><td style="text-align:left">RESIDUO DA SALDARE</td><td></td><td>= ${r.da_saldare||0}</td></tr>
+<tr><td style="text-align:left">Quota iscrizione${r.nav?" (navetta inclusa)":""}</td><td>—</td><td style="font-weight:700">€ ${r.quota||0}</td></tr>
+${r.nav?`<tr><td style="text-align:left">Navetta</td><td>${navGiorni} corse · ${esc(getPartenza(r.citta)||"—")}</td><td style="font-weight:700;color:#1e40af">inclusa</td></tr>`:""}
+<tr><td style="text-align:left">Pasti mensa</td><td>${pastiCount} giorni × € ${PASTI_RATE}</td><td style="font-weight:700">€ ${pastiTotale}</td></tr>
+<tr style="font-weight:800;background:#eee"><td style="text-align:left">TOTALE DOVUTO</td><td></td><td>€ ${quotaTotDovuto}</td></tr>
+<tr><td style="text-align:left;color:#16a34a">Acconto versato</td><td></td><td style="color:#16a34a;font-weight:700">− € ${r.acconto||0}</td></tr>
+<tr><td style="text-align:left;color:#16a34a">Saldo versato</td><td></td><td style="color:#16a34a;font-weight:700">− € ${r.saldato||0}</td></tr>
+<tr style="font-weight:800;background:${(r.da_saldare||0)>0?"#fee2e2":"#dcfce7"}"><td style="text-align:left">RESIDUO DA SALDARE</td><td></td><td>€ ${r.da_saldare||0}</td></tr>
 </table>
 <div class="tot" style="background:${(r.da_saldare||0)>0?"#fee2e2":"#dcfce7"};border-color:${(r.da_saldare||0)>0?"#dc2626":"#16a34a"};color:${(r.da_saldare||0)>0?"#991b1b":"#166534"}">
-STATO: ${esc(r.stato||"—")} = Residuo: = ${r.da_saldare||0}
+STATO: ${esc(r.stato||"—")} — Residuo: € ${r.da_saldare||0}
 </div>
 ${r.note_pag?`<h2>Note Pagamento</h2><p>${esc(r.note_pag)}</p>`:""}
 <div style="margin-top:30px;text-align:center"><button onclick="window.print()" style="padding:10px 30px;font-size:14px;font-weight:700;border:2px solid #000;background:#7c3aed;color:#fff;cursor:pointer">Stampa / Salva PDF</button></div>
@@ -1384,7 +1413,7 @@ ${r.note_pag?`<h2>Note Pagamento</h2><p>${esc(r.note_pag)}</p>`:""}
     </div>}
     {/* filtri */}
     <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:10,alignItems:"center"}}>
-      <input value={cerca} onChange={e=>setCerca(e.target.value)} placeholder="= Cerca…" style={{padding:"6px 10px",fontSize:12,border:"1px solid #000",minWidth:160}}/>
+      <input value={cerca} onChange={e=>setCerca(e.target.value)} placeholder="🔍 Cerca…" style={{padding:"6px 10px",fontSize:12,border:"1px solid #000",minWidth:160}}/>
       <select value={fS} onChange={e=>setFS(Number(e.target.value))} style={{padding:"6px 8px",fontSize:12,border:"1px solid #000"}}>
         <option value={0}>Tutte le settimane</option>
         {WEEKS.map(w=><option key={w.id} value={w.id}>{w.label} — {w.range} ({weekCounts[w.id]||0})</option>)}
@@ -1407,7 +1436,7 @@ ${r.note_pag?`<h2>Note Pagamento</h2><p>${esc(r.note_pag)}</p>`:""}
     </div>
     {/* KPI */}
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(110px,1fr))",gap:8,marginBottom:12}}>
-      {[["Mostrati",sorted.length,"#111"],["= Navetta",sorted.filter(r=>r.nav).length,"#1e40af"],["== Pasti",sorted.filter(r=>!r.pasto_casa).length,"#166534"],["Quote",E(tot.q),"#185FA5"],["Acconti",E(tot.acc),"#854d0e"],["Saldi",E(tot.sal),"#166534"],["Incassato",E(tot.inc),"#166534"],["Residuo",E(tot.res),"#dc2626"]].map(([l,v,c])=>(
+      {[["Mostrati",sorted.length,"#111"],["🚌 Navetta",sorted.filter(r=>r.nav).length,"#1e40af"],["🍽 Pasti",sorted.filter(r=>!r.pasto_casa).length,"#166534"],["Quote",E(tot.q),"#185FA5"],["Acconti",E(tot.acc),"#854d0e"],["Saldi",E(tot.sal),"#166534"],["Incassato",E(tot.inc),"#166534"],["Residuo",E(tot.res),"#dc2626"]].map(([l,v,c])=>(
         <div key={l} style={{background:"#fff",border:"1px solid #000",padding:"9px 11px"}}><div style={{fontSize:10,color:"#666",marginBottom:2}}>{l}</div><div style={{fontSize:16,fontWeight:800,color:c}}>{v}</div></div>
       ))}
     </div>
@@ -1558,28 +1587,38 @@ function TabNavetteContab({data,setData,giorniSett,showToast}){
       return{...r,nav_log:nl};
     }));
   };
+  // Toggle del singolo giorno (frequenza infrasettimanale): se la settimana non era loggata, parte da "tutti i giorni"
+  const toggleNavDay=(id,settId,di)=>{
+    setData(prev=>prev.map(r=>{
+      if(r.id!==id)return r;
+      const nl={...(r.nav_log||{})};
+      if(!GIORNI_NOMI.some((_,d)=>nl[`${settId}_${d}`]!==undefined)){GIORNI_NOMI.forEach((_,d)=>{nl[`${settId}_${d}`]=true;});}
+      nl[`${settId}_${di}`]=!nl[`${settId}_${di}`];
+      return{...r,nav_log:nl};
+    }));
+  };
   const TH={background:"#111",color:"#fff",padding:"7px 9px",border:"1px solid #000",textAlign:"center",fontWeight:600,fontSize:11};
   const TD={border:"1px solid #000",padding:"6px 9px",fontSize:12};
   return(<div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:10,marginBottom:14}}>
       <div style={{background:"#1e40af",border:"1px solid #000",padding:14,color:"#fff"}}>
-        <div style={{fontSize:11,opacity:.8,marginBottom:4}}>= Totale ricavi navette (stagione)</div>
-        <div style={{fontSize:22,fontWeight:900}}>{E(totNav)}</div>
-        <div style={{fontSize:11,opacity:.8,marginTop:4}}>{totGiorni} navette consumate · {NAV_RATE}€/giorno/bambino</div>
+        <div style={{fontSize:11,opacity:.8,marginBottom:4}}>🚌 Corse navetta (stagione)</div>
+        <div style={{fontSize:22,fontWeight:900}}>{totGiorni} <span style={{fontSize:12,fontWeight:400,opacity:.8}}>corse</span></div>
+        <div style={{fontSize:11,opacity:.8,marginTop:4}}>Inclusa nella quota · valore notional {E(totNav)}</div>
       </div>
       <div style={{background:"#fff",border:"1px solid #000",padding:14}}>
         <div style={{fontSize:11,color:"#666",marginBottom:4}}>Bambini con navetta</div>
         <div style={{fontSize:22,fontWeight:900,color:"#1e40af"}}>{[...new Set(navRows.map(r=>r.id))].length}</div>
-        <div style={{fontSize:11,color:"#888",marginTop:4}}>su {data.length} iscritti ({Math.round([...new Set(navRows.map(r=>r.id))].length/data.length*100)}%)</div>
+        <div style={{fontSize:11,color:"#888",marginTop:4}}>su {data.length} iscritti ({data.length>0?Math.round([...new Set(navRows.map(r=>r.id))].length/data.length*100):0}%)</div>
       </div>
       <div style={{background:"#fff",border:"1px solid #000",padding:14}}>
-        <div style={{fontSize:11,color:"#666",marginBottom:4}}>Ricavo medio per bambino</div>
-        <div style={{fontSize:22,fontWeight:900,color:"#1e40af"}}>{E(navRows.length>0?totNav/[...new Set(navRows.map(r=>r.id))].length:0)}</div>
-        <div style={{fontSize:11,color:"#888",marginTop:4}}>{giorniSett} giorni × {NAV_RATE}€/sett.</div>
+        <div style={{fontSize:11,color:"#666",marginBottom:4}}>Corse medie per bambino</div>
+        <div style={{fontSize:22,fontWeight:900,color:"#1e40af"}}>{[...new Set(navRows.map(r=>r.id))].length>0?Math.round(totGiorni/[...new Set(navRows.map(r=>r.id))].length):0} <span style={{fontSize:12,fontWeight:400,color:"#888"}}>corse</span></div>
+        <div style={{fontSize:11,color:"#888",marginTop:4}}>max {giorniSett} corse/settimana</div>
       </div>
       <div style={{background:"#fff",border:"1px solid #000",padding:14}}>
         <div style={{fontSize:11,color:"#666",marginBottom:4}}>Filtro attivo</div>
-        <div style={{fontSize:22,fontWeight:900,color:"#1e40af"}}>{E(totFiltro)}</div>
+        <div style={{fontSize:22,fontWeight:900,color:"#1e40af"}}>{lista.reduce((s,r)=>s+r.giorni,0)} <span style={{fontSize:12,fontWeight:400,color:"#888"}}>corse</span></div>
         <div style={{fontSize:11,color:"#888",marginTop:4}}>{lista.length} righe selezionate</div>
       </div>
     </div>
@@ -1607,12 +1646,15 @@ function TabNavetteContab({data,setData,giorniSett,showToast}){
           <th style={TH}>Città</th>
           <th style={TH}>Settimana</th>
           <th style={TH}>Date</th>
-          <th style={TH}>Navette consumate</th>
-          <th style={TH}>Tariffa €/giorno</th>
-          <th style={{...TH,background:"#1e40af"}}>Totale singolo</th>
+          <th style={{...TH,minWidth:210}}>Corse navetta (Lun–Ven)</th>
+          <th style={TH}>Corse</th>
+          <th style={{...TH,background:"#1e40af"}}>Valore notional</th>
         </tr></thead>
         <tbody>
-          {lista.map((r,i)=>(
+          {lista.map((r,i)=>{
+            const src=data.find(x=>x.id===r.id);const nl=src?.nav_log||{};
+            const hasLog=GIORNI_NOMI.some((_,d)=>nl[`${r.settId}_${d}`]!==undefined);
+            return(
             <tr key={`${r.id}-${r.settimana}`} style={{background:i%2?"#f0f4ff":"#fff"}}>
               <td style={{...TD,color:"#888",width:28}}>{i+1}</td>
               <td style={{...TD,textAlign:"left",fontWeight:600}}>{r.bambino}</td>
@@ -1620,26 +1662,28 @@ function TabNavetteContab({data,setData,giorniSett,showToast}){
               <td style={{...TD,fontWeight:700}}>{r.settimana}</td>
               <td style={{...TD,fontSize:11,color:"#666"}}>{r.settRange}</td>
               <td style={{...TD,textAlign:"center"}}>
-                <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:4}}>
-                  <button onClick={()=>adjNavGiorni(r.id,r.settId,-1)} disabled={r.giorni<=0} style={{width:22,height:22,border:"1px solid #000",background:r.giorni<=0?"#e5e7eb":"#fff",cursor:r.giorni<=0?"not-allowed":"pointer",fontWeight:900,fontSize:14,lineHeight:1,padding:0,color:"#dc2626"}}>−</button>
-                  <span style={{fontWeight:700,minWidth:18,textAlign:"center",color:r.giorni<giorniSett?"#d97706":"#1e40af"}}>{r.giorni}</span>
-                  <button onClick={()=>adjNavGiorni(r.id,r.settId,1)} disabled={r.giorni>=giorniSett} style={{width:22,height:22,border:"1px solid #000",background:r.giorni>=giorniSett?"#e5e7eb":"#fff",cursor:r.giorni>=giorniSett?"not-allowed":"pointer",fontWeight:900,fontSize:14,lineHeight:1,padding:0,color:"#1e40af"}}>+</button>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:3}}>
+                  {GIORNI_NOMI.map((g,di)=>{
+                    const checked=hasLog?!!nl[`${r.settId}_${di}`]:true;
+                    return(<button key={di} onClick={()=>toggleNavDay(r.id,r.settId,di)} style={{padding:"3px 6px",fontSize:10,fontWeight:checked?700:400,border:`1px solid ${checked?"#1e40af":"#ccc"}`,background:checked?"#dbeafe":"#fff",color:checked?"#1e40af":"#bbb",cursor:"pointer",minWidth:30}}>{g}</button>);
+                  })}
                 </div>
               </td>
-              <td style={{...TD,textAlign:"center",color:"#666"}}>{E2(NAV_RATE)}</td>
+              <td style={{...TD,textAlign:"center",fontWeight:700,color:r.giorni<giorniSett?"#d97706":"#1e40af"}}>{r.giorni}/{giorniSett}</td>
               <td style={{...TD,background:r.giorni<giorniSett?"#fef9c3":"#dbeafe",fontWeight:700,color:r.giorni<giorniSett?"#854d0e":"#1e40af"}}>{E2(r.totale)}</td>
             </tr>
-          ))}
+            );
+          })}
         </tbody>
         <tfoot><tr>
           <th colSpan={5} style={{...TH,textAlign:"right",padding:"7px 12px"}}>TOTALE {fSett!==0?WEEKS.find(w=>w.id===fSett)?.label+" ·":""} {filtro!=="tutti"?filtro+" ·":""} {lista.length} righe</th>
-          <th style={TH}>{totGiorni} gg</th>
+          <th style={TH}>{totGiorni} corse</th>
           <th style={TH}></th>
           <th style={{...TH,background:"#1e40af",fontSize:14}}>{E(totFiltro)}</th>
         </tr></tfoot>
       </table>
     </div>
-    <div style={{marginTop:8,fontSize:11,color:"#666"}}>Tariffa: <strong>€{NAV_RATE}/giorno × {giorniSett} giorni/settimana</strong> · Usa le frecce ▲▼ per regolare le navette non consumate · Sincronizzato con BEP</div>
+    <div style={{marginTop:8,fontSize:11,color:"#666"}}>🚌 La navetta è <strong>inclusa nella quota</strong> (il "valore notional" €{NAV_RATE}/corsa serve solo a stimarne il costo interno). Spunta/deseleziona i giorni Lun–Ven per impostare le <strong>frequenze infrasettimanali</strong> · sincronizzato con il piano navette e la scheda del bambino.</div>
   </div>);
 }
 
@@ -1662,7 +1706,9 @@ function TabPastiContab({data,setData,giorniSett,showToast}){
       const actual=current>0?current:giorniSett;
       const newVal=Math.max(0,Math.min(giorniSett,actual+delta));
       GIORNI_NOMI.forEach((_,di)=>{pl[`${settId}_${di}`]=di<newVal;});
-      return{...r,pasti_log:pl,n_pasti:Object.values(pl).filter(Boolean).length};
+      const u={...r,pasti_log:pl,n_pasti:Object.values(pl).filter(Boolean).length};
+      u.da_saldare=calcResidue(u);u.stato=autoStato(u);
+      return u;
     }));
   };
   const TH={background:"#111",color:"#fff",padding:"7px 9px",border:"1px solid #000",textAlign:"center",fontWeight:600,fontSize:11};
@@ -1670,7 +1716,7 @@ function TabPastiContab({data,setData,giorniSett,showToast}){
   return(<div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:10,marginBottom:14}}>
       <div style={{background:"#166534",border:"1px solid #000",padding:14,color:"#fff"}}>
-        <div style={{fontSize:11,opacity:.8,marginBottom:4}}>== Totale costo pasti (stagione)</div>
+        <div style={{fontSize:11,opacity:.8,marginBottom:4}}>🍽 Totale costo pasti (stagione)</div>
         <div style={{fontSize:22,fontWeight:900}}>{E(totPasti)}</div>
         <div style={{fontSize:11,opacity:.8,marginTop:4}}>{totGiorni} pasti consumati · {PASTI_RATE}€/pasto</div>
       </div>
@@ -1685,7 +1731,7 @@ function TabPastiContab({data,setData,giorniSett,showToast}){
         <div style={{fontSize:11,color:"#888",marginTop:4}}>{PASTI_RATE}€/pasto</div>
       </div>
       <div style={{background:nPastiManc>0?"#fef3c7":"#fef9c3",border:"1px solid #000",padding:14}}>
-        <div style={{fontSize:11,color:"#666",marginBottom:4}}>== Pasti al sacco / non consumati</div>
+        <div style={{fontSize:11,color:"#666",marginBottom:4}}>🥪 Pasti al sacco / non consumati</div>
         <div style={{fontSize:22,fontWeight:900,color:"#854d0e"}}>{nPastiManc+nPastoCasa*giorniSett}</div>
         <div style={{fontSize:11,color:"#888",marginTop:4}}>{nPastoCasa} al sacco + {nPastiManc} non consumati</div>
       </div>
@@ -1875,7 +1921,7 @@ function TabNavette({data,onAddNav,costs,setCosts}){
         {/* Header navetta */}
         <div style={{padding:"8px 14px",background:alert?"#dc2626":col,color:"#fff",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <div>
-            <span style={{fontWeight:900,fontSize:15}}>= Navetta {p}</span>
+            <span style={{fontWeight:900,fontSize:15}}>🚌 Navetta {p}</span>
             {p==="Terlizzi"&&<span style={{fontSize:11,opacity:.8,marginLeft:8}}>(Terlizzi + Molfetta)</span>}
           </div>
           <div style={{display:"flex",alignItems:"center",gap:12}}>
@@ -1890,6 +1936,15 @@ function TabNavette({data,onAddNav,costs,setCosts}){
         {/* Info settimana */}
         <div style={{padding:"5px 14px",background:"#f5f5f3",fontSize:11,color:"#555",borderBottom:"1px solid #e0e0e0"}}>
           📅 {w.label} · {w.range} · {Math.max(0,cap-used)} posti liberi su {cap}
+        </div>
+        {/* Frequenza giornaliera (infrasettimanale): posti occupati per giorno */}
+        <div style={{padding:"7px 14px",background:"#eff6ff",borderBottom:"1px solid #dbeafe",display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+          <span style={{fontSize:11,fontWeight:700,color:"#1e40af"}}>Posti per giorno:</span>
+          {GIORNI_NOMI.map((g,di)=>{
+            const cnt=list.filter(r=>{const nl=r.nav_log||{};const hasLog=GIORNI_NOMI.some((_,d)=>nl[`${sel}_${d}`]!==undefined);return hasLog?!!nl[`${sel}_${di}`]:true;}).length;
+            const full=cnt>=cap;
+            return(<span key={di} style={{display:"inline-flex",alignItems:"center",gap:4,padding:"2px 8px",background:full?"#fee2e2":"#fff",border:`1px solid ${full?"#dc2626":"#93c5fd"}`,fontSize:11}}><strong style={{color:full?"#dc2626":"#1e40af"}}>{g}</strong> <span style={{color:full?"#dc2626":"#555",fontWeight:700}}>{cnt}/{cap}</span></span>);
+          })}
         </div>
         {/* Tabella bambini */}
         <div style={{padding:14}}>
@@ -1940,56 +1995,67 @@ function TabFinanziario({data,costs,setCosts,showToast}){
   const tF=costs.voci.reduce((s,v)=>s+v.importo,0);
   /* Educator cost from roster */
   const eduCost=useMemo(()=>(costs.educatori||[]).reduce((s,e)=>s+(e.settimane||[]).length*(e.paga||0),0),[costs.educatori]);
-  const scN=Math.max(0,costs.costoNavette-sv.totNav);const scP=Math.max(0,costs.costoCucina-sv.totPasti);
-  const ecN=Math.max(0,sv.totNav-costs.costoNavette);const ecP=Math.max(0,sv.totPasti-costs.costoCucina);
-  const pN=costs.costoNavette>0?sv.totNav/costs.costoNavette:0;const pP=costs.costoCucina>0?sv.totPasti/costs.costoCucina:0;
-  const tQ=data.reduce((s,r)=>s+(r.quota||0),0);
+  /* NUOVO MODELLO: la navetta è inclusa nelle quote → è un COSTO FISSO, non un servizio a ricavo separato.
+     L'unico servizio accessorio con ricavo proprio sono i PASTI (€5/pasto, in aggiunta alla quota). */
+  const scP=Math.max(0,costs.costoCucina-sv.totPasti); // cucina non coperta dai ricavi pasti
+  const ecP=Math.max(0,sv.totPasti-costs.costoCucina); // eccedenza pasti
+  const pP=costs.costoCucina>0?sv.totPasti/costs.costoCucina:0; // copertura cucina
+  const tQ=data.reduce((s,r)=>s+(r.quota||0),0); // quote (navetta inclusa)
   const tI=data.reduce((s,r)=>s+(r.stato==="SALDATO"?r.quota||0:r.stato==="ACCONTO"?(r.acconto||0)+(r.saldato||0):0),0);
   const tAcc=data.reduce((s,r)=>s+(r.acconto||0),0);
   const tSal=data.reduce((s,r)=>s+(r.saldato||0),0);
   const tR=data.reduce((s,r)=>s+(r.da_saldare||0),0);
   const qM=data.length>0?tQ/data.reduce((s,r)=>s+(getSettimane(r).length||1),0):20;
-  const tSc=scN+scP;
-  const totCostiFull=tF+eduCost;
+  const tSc=scP; // scoperta servizi = solo cucina non coperta
+  const totCostiFull=tF+eduCost+(costs.costoNavette||0); // navetta inclusa tra i costi fissi
   const bP=qM>0?Math.ceil((totCostiFull+tSc)/qM):0;
   const pTot=data.reduce((s,r)=>s+getSettimane(r).length,0);
   const bOk=pTot>=bP;const bW=Math.min(100,bP>0?Math.round(pTot/bP*100):0);
-  const uN=tI-totCostiFull-scN-scP+ecN+ecP;const uP=tQ-totCostiFull-scN-scP+ecN+ecP;
+  const uN=tI-totCostiFull-scP+ecP;const uP=tQ-totCostiFull-scP+ecP;
   const Pct=v=>isNaN(v)||!isFinite(v)?"0%":(Math.round(v*100)+"%");
   return(<div>
     <div style={{background:"#fff",border:"2px solid #000",padding:16,marginBottom:14}}>
       <div style={{fontWeight:900,fontSize:14,marginBottom:12,borderBottom:"2px solid #000",paddingBottom:6}}>💰 Servizi Accessori</div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
-        <div style={{background:"#eff6ff",border:"1px solid #3b82f6",padding:14,textAlign:"center"}}><div style={{fontSize:13,color:"#1e40af"}}>= Ricavo Navette</div><div style={{fontSize:22,fontWeight:900,color:"#1e40af",marginTop:4}}>{E(sv.totNav)}</div></div>
-        <div style={{background:"#f0fdf4",border:"1px solid #16a34a",padding:14,textAlign:"center"}}><div style={{fontSize:13,color:"#166534"}}>== Ricavo Pasti</div><div style={{fontSize:22,fontWeight:900,color:"#166534",marginTop:4}}>{E(sv.totPasti)}</div></div>
-        <div style={{background:"#111",border:"1px solid #000",padding:14,textAlign:"center",color:"#fff"}}><div style={{fontSize:13,opacity:.8}}>💰 Totale Extra</div><div style={{fontSize:22,fontWeight:900,marginTop:4}}>{E(sv.totExtra)}</div></div>
+        <div style={{background:"#eff6ff",border:"1px solid #3b82f6",padding:14,textAlign:"center"}}><div style={{fontSize:13,color:"#1e40af"}}>🚌 Navetta</div><div style={{fontSize:18,fontWeight:900,color:"#1e40af",marginTop:4}}>inclusa nelle quote</div><div style={{fontSize:11,color:"#888",marginTop:2}}>costo {E(costs.costoNavette)} · {sv.navRows.reduce((s,x)=>s+x.giorni,0)} corse</div></div>
+        <div style={{background:"#f0fdf4",border:"1px solid #16a34a",padding:14,textAlign:"center"}}><div style={{fontSize:13,color:"#166534"}}>🍽 Ricavo Pasti (extra)</div><div style={{fontSize:22,fontWeight:900,color:"#166534",marginTop:4}}>{E(sv.totPasti)}</div></div>
+        <div style={{background:"#111",border:"1px solid #000",padding:14,textAlign:"center",color:"#fff"}}><div style={{fontSize:13,opacity:.8}}>💰 Totale extra (pasti)</div><div style={{fontSize:22,fontWeight:900,marginTop:4}}>{E(sv.totPasti)}</div></div>
       </div>
     </div>
     <div style={{background:"#fff",border:"2px solid #000",padding:16,marginBottom:14}}>
       <div style={{fontWeight:900,fontSize:14,marginBottom:12,borderBottom:"2px solid #000",paddingBottom:6}}>📊 Copertura Servizi</div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-        {[{l:"= Navette",co:costs.costoNavette,ri:sv.totNav,p:pN,sc:scN,ec:ecN},{l:"== Pasti",co:costs.costoCucina,ri:sv.totPasti,p:pP,sc:scP,ec:ecP}].map(({l,co,ri,p,sc,ec})=>{
-          const ok=p>=1;const warn=p>=0.75;const col=ok?"#166534":warn?"#d97706":"#dc2626";const bg=ok?"#f0fdf4":warn?"#fef3c7":"#fef2f2";
-          return(<div key={l} style={{background:bg,border:`1px solid ${ok?"#16a34a":warn?"#d97706":"#dc2626"}`,padding:14}}>
-            <div style={{fontWeight:700,fontSize:14,marginBottom:8}}>{l} — <span style={{color:col}}>{Pct(p)}</span></div>
+        {/* Navetta: inclusa nelle quote → costo fisso, già coperto dalle quote */}
+        <div style={{background:"#eff6ff",border:"1px solid #3b82f6",padding:14}}>
+          <div style={{fontWeight:700,fontSize:14,marginBottom:8,color:"#1e40af"}}>🚌 Navetta — inclusa nelle quote</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,fontSize:12}}>
+            <div><div style={{color:"#888",fontSize:10}}>Costo (fisso)</div><div style={{fontWeight:700,color:"#dc2626"}}>{E(costs.costoNavette)}</div></div>
+            <div><div style={{color:"#888",fontSize:10}}>Corse stagione</div><div style={{fontWeight:700,color:"#1e40af"}}>{sv.navRows.reduce((s,x)=>s+x.giorni,0)}</div></div>
+          </div>
+          <div style={{marginTop:6,padding:"3px 7px",background:"#dbeafe",border:"1px solid #93c5fd",fontSize:11,color:"#1e40af",fontWeight:700}}>Il ricavo della navetta è già dentro le quote → conteggiata tra i costi fissi del BEP.</div>
+        </div>
+        {/* Pasti: unico servizio con ricavo proprio */}
+        {(()=>{const p=pP,sc=scP,ec=ecP;const ok=p>=1;const warn=p>=0.75;const col=ok?"#166534":warn?"#d97706":"#dc2626";const bg=ok?"#f0fdf4":warn?"#fef3c7":"#fef2f2";
+          return(<div style={{background:bg,border:`1px solid ${ok?"#16a34a":warn?"#d97706":"#dc2626"}`,padding:14}}>
+            <div style={{fontWeight:700,fontSize:14,marginBottom:8}}>🍽 Pasti — <span style={{color:col}}>{Pct(p)}</span></div>
             <div style={{height:12,background:"#e5e7eb",marginBottom:8}}><div style={{height:"100%",width:`${Math.min(100,Math.round(p*100))}%`,background:col}}/></div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,fontSize:12}}><div><div style={{color:"#888",fontSize:10}}>Costo</div><div style={{fontWeight:700,color:"#dc2626"}}>{E(co)}</div></div><div><div style={{color:"#888",fontSize:10}}>Ricavo</div><div style={{fontWeight:700,color:"#166534"}}>{E(ri)}</div></div></div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,fontSize:12}}><div><div style={{color:"#888",fontSize:10}}>Costo cucina</div><div style={{fontWeight:700,color:"#dc2626"}}>{E(costs.costoCucina)}</div></div><div><div style={{color:"#888",fontSize:10}}>Ricavo pasti</div><div style={{fontWeight:700,color:"#166534"}}>{E(sv.totPasti)}</div></div></div>
             {ec>0&&<div style={{marginTop:6,padding:"3px 7px",background:"#dcfce7",border:"1px solid #86efac",fontSize:11,color:"#166534",fontWeight:700}}>✓ Eccedenza {E(ec)} → utile netto</div>}
             {sc>0&&<div style={{marginTop:6,padding:"3px 7px",background:"#fee2e2",border:"1px solid #fca5a5",fontSize:11,color:"#991b1b",fontWeight:700}}>⚠ Scoperta {E(sc)} → pesa sul BEP</div>}
           </div>);
-        })}
+        })()}
       </div>
     </div>
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
       <div style={{background:"#fff",border:"1px solid #000",padding:14}}>
         <div style={{fontWeight:800,fontSize:13,marginBottom:8,borderBottom:"2px solid #000",paddingBottom:5}}>💰 Entrate</div>
-        {[["Quote iscrizioni",tQ,"#185FA5"],["+ Navette",sv.totNav,"#1e40af"],["+ Pasti",sv.totPasti,"#166534"],["= Totale lorde",tQ+sv.totExtra,"#000"],["Acconti",tAcc,"#854d0e"],["Saldi",tSal,"#166534"],["Incassato",tI,"#166534"],["Da incassare",tR,"#dc2626"]].map(([l,v,c])=>(
+        {[["Quote iscrizioni (navetta incl.)",tQ,"#185FA5"],["+ Pasti (extra)",sv.totPasti,"#166534"],["= Totale ricavi",tQ+sv.totPasti,"#000"],["Acconti",tAcc,"#854d0e"],["Saldi",tSal,"#166534"],["Incassato",tI,"#166534"],["Da incassare",tR,"#dc2626"]].map(([l,v,c])=>(
           <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"4px 0",borderBottom:"0.5px solid #f0f0f0",fontSize:12}}><span style={{color:"#555"}}>{l}</span><span style={{fontWeight:l.startsWith("=")||l.startsWith("Inc")?700:500,color:c}}>{E(v)}</span></div>
         ))}
       </div>
       <div style={{background:"#fff",border:"1px solid #000",padding:14}}>
         <div style={{fontWeight:800,fontSize:13,marginBottom:8,borderBottom:"2px solid #000",paddingBottom:5}}>📊 Costi</div>
-        {[["Costi fissi",tF,"#dc2626"],["Educatori (da roster)",eduCost,"#dc2626"],["Navette",costs.costoNavette,"#dc2626"],["- Copertura nav.",-sv.totNav,"#166534"],["Cucina",costs.costoCucina,"#dc2626"],["- Copertura pasti",-sv.totPasti,"#166534"],["= Costo netto serv.",tSc,"#d97706"],["TOTALE EFFETTIVO",totCostiFull+tSc,"#dc2626"]].map(([l,v,c])=>(
+        {[["Costi fissi",tF,"#dc2626"],["Educatori (da roster)",eduCost,"#dc2626"],["Navette (inclusa nelle quote)",costs.costoNavette,"#dc2626"],["Cucina",costs.costoCucina,"#dc2626"],["- Copertura pasti",-sv.totPasti,"#166534"],["= Costo netto cucina",tSc,"#d97706"],["TOTALE EFFETTIVO",totCostiFull+tSc,"#dc2626"]].map(([l,v,c])=>(
           <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"4px 0",borderBottom:"0.5px solid #f0f0f0",fontSize:12}}><span style={{color:"#555"}}>{l}</span><span style={{fontWeight:l.startsWith("=")||l.startsWith("TOT")?700:500,color:c}}>{l.startsWith("- ")?"- "+E(-v):E(Math.abs(v))}</span></div>
         ))}
       </div>
@@ -1999,8 +2065,9 @@ function TabFinanziario({data,costs,setCosts,showToast}){
     <div style={{background:"#fff",border:`2px solid ${bOk?"#16a34a":"#d97706"}`,padding:18,marginBottom:14}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
         <div>
-          <div style={{fontWeight:900,fontSize:14,marginBottom:2}}>= Break-Even Point — tempo reale</div>
-          <div style={{fontSize:11,color:"#666"}}>= ({E(totCostiFull)} + {E(tSc)}) ÷ {E(qM)}/bambino-sett. = <strong>{bP} presenze</strong></div>
+          <div style={{fontWeight:900,fontSize:14,marginBottom:2}}>⚖ Break-Even Point — tempo reale</div>
+          <div style={{fontSize:11,color:"#666"}}>(costi fissi {E(totCostiFull)} + cucina scoperta {E(tSc)}) ÷ {E(qM)}/bambino-sett. = <strong>{bP} presenze-settimana</strong></div>
+          <div style={{fontSize:10,color:"#888",marginTop:2}}>Navette incluse nei costi fissi · ricavo coperto dalle quote</div>
         </div>
         <div style={{textAlign:"right"}}>
           <div style={{fontWeight:900,fontSize:16,color:bOk?"#16a34a":"#d97706"}}>{bOk?"✓ BEP RAGGIUNTO":"⚡ NON RAGGIUNTO"}</div>
@@ -2942,10 +3009,10 @@ function MainApp({onLogout}){
   const TABS=[
     {id:"import",l:"🤖 Import Smart"},
     {id:"iscritti",l:"Iscritti & Pagamenti"},
-    {id:"educatori",l:"👩=== Educatori"},
-    {id:"navette",l:"Navette"},
-    {id:"nav_contab",l:"= Cont. Navette"},
-    {id:"pasti_contab",l:"== Cont. Pasti"},
+    {id:"educatori",l:"👩‍🏫 Educatori"},
+    {id:"navette",l:"🚌 Piano Navette"},
+    {id:"nav_contab",l:"🚌 Cont. Navette"},
+    {id:"pasti_contab",l:"🍽 Cont. Pasti"},
     {id:"finanziario",l:"Finanziario & BEP"},
     {id:"costi",l:"Costi"},
     {id:"export",l:"Export"},
@@ -2964,9 +3031,9 @@ function MainApp({onLogout}){
         <h1 style={{fontSize:18,fontWeight:900,letterSpacing:"-0.02em",margin:"0 0 2px"}}>🌿 Campi Natura Macaranga 2026</h1>
         <div className="app-kpi" style={{fontSize:11,color:"#666",display:"flex",gap:10,flexWrap:"wrap"}}>
           <span style={{fontWeight:700}}>{data.length} iscritti</span>
-          <span>== {totPastiGG} pasti</span>
-          <span style={{color:"#1e40af"}}>= {E(sv.totNav)}</span>
-          <span style={{color:"#166534"}}>== {E(sv.totPasti)}</span>
+          <span>🍽 {totPastiGG} pasti</span>
+          <span style={{color:"#1e40af"}}>🚌 {sv.navRows.reduce((s,x)=>s+x.giorni,0)} corse</span>
+          <span style={{color:"#166534"}}>🍽 {E(sv.totPasti)}</span>
           <span style={{color:"#166534",fontWeight:700}}>💰 Incassato {E(totIncassato)}</span>
           <span style={{color:totResiduo>0?"#dc2626":"#166534",fontWeight:700}}>Residuo {E(totResiduo)}</span>
           {incompleti>0&&<span style={{color:"#d97706",fontWeight:700}}>⚠ {incompleti} incompleti</span>}
@@ -2974,7 +3041,7 @@ function MainApp({onLogout}){
         </div>
       </div>
       <div className="app-search-wrap" style={{position:"relative"}}>
-        <input className="app-search" value={globalQ} onChange={e=>setGlobalQ(e.target.value)} placeholder="= Cerca…" style={{padding:"7px 12px",fontSize:12,border:"1px solid #000",background:"#fff",width:200}}/>
+        <input className="app-search" value={globalQ} onChange={e=>setGlobalQ(e.target.value)} placeholder="🔍 Cerca…" style={{padding:"7px 12px",fontSize:12,border:"1px solid #000",background:"#fff",width:200}}/>
         {gRes.length>0&&<div style={{position:"absolute",top:"100%",left:0,right:0,background:"#fff",border:"1px solid #000",zIndex:200,boxShadow:"0 4px 12px rgba(0,0,0,.15)"}}>
           {gRes.map(r=><div key={r.id} onClick={()=>{setTab("iscritti");setExtCerca(globalQ);setGlobalQ("");}} style={{padding:"7px 10px",borderBottom:"0.5px solid #eee",cursor:"pointer",fontSize:12}} onMouseEnter={e=>e.currentTarget.style.background="#f5f5f3"} onMouseLeave={e=>e.currentTarget.style.background="#fff"}>
             <span style={{fontWeight:700}}>{r.bambino}</span><span style={{color:"#888",marginLeft:8,fontSize:11}}>{r.citta} · {r.stato}</span>
