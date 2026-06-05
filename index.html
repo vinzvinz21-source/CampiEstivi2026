@@ -2072,29 +2072,39 @@ function TabFinanziario({data,costs,setCosts,showToast}){
   const eduCost=useMemo(()=>(costs.educatori||[]).reduce((s,e)=>s+(e.settimane||[]).length*GIORNI_SETT*eduDayRate(e),0),[costs.educatori]);
   /* NUOVO MODELLO: la navetta è inclusa nelle quote → è un COSTO FISSO, non un servizio a ricavo separato.
      L'unico servizio accessorio con ricavo proprio sono i PASTI (€5/pasto, in aggiunta alla quota). */
-  const scP=Math.max(0,costs.costoCucina-sv.totPasti); // cucina non coperta dai ricavi pasti
-  const ecP=Math.max(0,sv.totPasti-costs.costoCucina); // eccedenza pasti
-  const pP=costs.costoCucina>0?sv.totPasti/costs.costoCucina:0; // copertura cucina
+  /* PASTI ↔ BEP: il ricavo pasti (€5/pasto) è una "quota" da cui si attinge per la SPESA QUOTIDIANA.
+     Costo cucina effettivo = spesa quotidiana inserita (Costi → Risorse Pasti) se presente, altrimenti budget pianificato.
+     Margine pasti = ricavo − spesa: se positivo CONTRIBUISCE a coprire i costi fissi (abbassa il BEP),
+     se negativo lo appesantisce (alza il BEP). */
+  const ricavoPasti=sv.totPasti;
+  const spesaPasti=Object.values(costs.spesaGiornaliera||{}).reduce((s,v)=>s+(Number(v)||0),0);
+  const cucinaCost=spesaPasti>0?spesaPasti:(costs.costoCucina||0); // spesa reale se inserita, altrimenti budget
+  const netPasti=ricavoPasti-cucinaCost;        // margine pasti (può essere + o −)
+  const scP=Math.max(0,-netPasti);              // deficit pasti → pesa sul BEP
+  const ecP=Math.max(0,netPasti);               // surplus pasti → risorse disponibili, alleggerisce il BEP
+  const pP=cucinaCost>0?ricavoPasti/cucinaCost:(ricavoPasti>0?1:0); // copertura cucina
   const tQ=data.reduce((s,r)=>s+(r.quota||0),0); // quote (navetta inclusa)
   const tI=data.reduce((s,r)=>s+(r.stato==="SALDATO"?r.quota||0:r.stato==="ACCONTO"?(r.acconto||0)+(r.saldato||0):0),0);
   const tAcc=data.reduce((s,r)=>s+(r.acconto||0),0);
   const tSal=data.reduce((s,r)=>s+(r.saldato||0),0);
   const tR=data.reduce((s,r)=>s+(r.da_saldare||0),0);
   const qM=data.length>0?tQ/data.reduce((s,r)=>s+(getSettimane(r).length||1),0):20;
-  const tSc=scP; // scoperta servizi = solo cucina non coperta
+  const tSc=scP; // scoperta servizi = solo cucina non coperta dai pasti
   const totCostiFull=tF+eduCost+(costs.costoNavette||0); // navetta inclusa tra i costi fissi
-  const bP=qM>0?Math.ceil((totCostiFull+tSc)/qM):0;
+  // Il margine pasti (netPasti) contribuisce a coprire i costi fissi → ± sul BEP
+  const bP=qM>0?Math.max(0,Math.ceil((totCostiFull-netPasti)/qM)):0;
   const pTot=data.reduce((s,r)=>s+getSettimane(r).length,0);
   const bOk=pTot>=bP;const bW=Math.min(100,bP>0?Math.round(pTot/bP*100):0);
-  const uN=tI-totCostiFull-scP+ecP;const uP=tQ-totCostiFull-scP+ecP;
+  const uN=tI-totCostiFull+netPasti;const uP=tQ-totCostiFull+netPasti;
   const Pct=v=>isNaN(v)||!isFinite(v)?"0%":(Math.round(v*100)+"%");
   return(<div>
     <div style={{background:"#fff",border:"2px solid #000",padding:16,marginBottom:14}}>
-      <div style={{fontWeight:900,fontSize:14,marginBottom:12,borderBottom:"2px solid #000",paddingBottom:6}}>💰 Servizi Accessori</div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
-        <div style={{background:"#eff6ff",border:"1px solid #3b82f6",padding:14,textAlign:"center"}}><div style={{fontSize:13,color:"#1e40af"}}>🚌 Navetta</div><div style={{fontSize:18,fontWeight:900,color:"#1e40af",marginTop:4}}>inclusa nelle quote</div><div style={{fontSize:11,color:"#888",marginTop:2}}>costo {E(costs.costoNavette)} · {sv.navRows.reduce((s,x)=>s+x.giorni,0)} corse</div></div>
-        <div style={{background:"#f0fdf4",border:"1px solid #16a34a",padding:14,textAlign:"center"}}><div style={{fontSize:13,color:"#166534"}}>🍽 Ricavo Pasti (extra)</div><div style={{fontSize:22,fontWeight:900,color:"#166534",marginTop:4}}>{E(sv.totPasti)}</div></div>
-        <div style={{background:"#111",border:"1px solid #000",padding:14,textAlign:"center",color:"#fff"}}><div style={{fontSize:13,opacity:.8}}>💰 Totale extra (pasti)</div><div style={{fontSize:22,fontWeight:900,marginTop:4}}>{E(sv.totPasti)}</div></div>
+      <div style={{fontWeight:900,fontSize:14,marginBottom:12,borderBottom:"2px solid #000",paddingBottom:6}}>💰 Servizi Accessori — Pasti & BEP</div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
+        <div style={{background:"#f0fdf4",border:"1px solid #16a34a",padding:14,textAlign:"center"}}><div style={{fontSize:12,color:"#166534"}}>🍽 Ricavo Pasti</div><div style={{fontSize:22,fontWeight:900,color:"#166534",marginTop:4}}>{E(ricavoPasti)}</div><div style={{fontSize:10,color:"#888",marginTop:2}}>{Math.round(ricavoPasti/PASTI_RATE)} pasti × {E2(PASTI_RATE)}</div></div>
+        <div style={{background:"#fff7ed",border:"1px solid #d97706",padding:14,textAlign:"center"}}><div style={{fontSize:12,color:"#92400e"}}>🛒 Spesa quotidiana</div><div style={{fontSize:22,fontWeight:900,color:"#92400e",marginTop:4}}>{E(spesaPasti)}</div><div style={{fontSize:10,color:"#888",marginTop:2}}>{spesaPasti>0?"da Costi → Risorse Pasti":"budget "+E(costs.costoCucina)}</div></div>
+        <div style={{background:netPasti>=0?"#dcfce7":"#fee2e2",border:`1px solid ${netPasti>=0?"#16a34a":"#dc2626"}`,padding:14,textAlign:"center"}}><div style={{fontSize:12,color:netPasti>=0?"#166534":"#991b1b"}}>{netPasti>=0?"✓ Margine pasti":"⚠ Deficit pasti"}</div><div style={{fontSize:22,fontWeight:900,color:netPasti>=0?"#166534":"#dc2626",marginTop:4}}>{netPasti>=0?"+":""}{E(netPasti)}</div><div style={{fontSize:10,color:"#888",marginTop:2}}>ricavo − spesa</div></div>
+        <div style={{background:"#111",border:"1px solid #000",padding:14,textAlign:"center",color:"#fff"}}><div style={{fontSize:12,opacity:.8}}>⚖ Effetto sul BEP</div><div style={{fontSize:18,fontWeight:900,marginTop:4,color:netPasti>=0?"#86efac":"#fca5a5"}}>{netPasti>=0?"−":"+"}{E(Math.abs(netPasti))}</div><div style={{fontSize:10,opacity:.8,marginTop:2}}>{netPasti>=0?"costi da coprire ridotti":"costi da coprire aumentati"}</div></div>
       </div>
     </div>
     <div style={{background:"#fff",border:"2px solid #000",padding:16,marginBottom:14}}>
@@ -2109,14 +2119,14 @@ function TabFinanziario({data,costs,setCosts,showToast}){
           </div>
           <div style={{marginTop:6,padding:"3px 7px",background:"#dbeafe",border:"1px solid #93c5fd",fontSize:11,color:"#1e40af",fontWeight:700}}>Il ricavo della navetta è già dentro le quote → conteggiata tra i costi fissi del BEP.</div>
         </div>
-        {/* Pasti: unico servizio con ricavo proprio */}
+        {/* Pasti: ricavo vs spesa quotidiana → margine che influisce sul BEP */}
         {(()=>{const p=pP,sc=scP,ec=ecP;const ok=p>=1;const warn=p>=0.75;const col=ok?"#166534":warn?"#d97706":"#dc2626";const bg=ok?"#f0fdf4":warn?"#fef3c7":"#fef2f2";
           return(<div style={{background:bg,border:`1px solid ${ok?"#16a34a":warn?"#d97706":"#dc2626"}`,padding:14}}>
-            <div style={{fontWeight:700,fontSize:14,marginBottom:8}}>🍽 Pasti — <span style={{color:col}}>{Pct(p)}</span></div>
+            <div style={{fontWeight:700,fontSize:14,marginBottom:8}}>🍽 Pasti — copertura spesa <span style={{color:col}}>{Pct(p)}</span></div>
             <div style={{height:12,background:"#e5e7eb",marginBottom:8}}><div style={{height:"100%",width:`${Math.min(100,Math.round(p*100))}%`,background:col}}/></div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,fontSize:12}}><div><div style={{color:"#888",fontSize:10}}>Costo cucina</div><div style={{fontWeight:700,color:"#dc2626"}}>{E(costs.costoCucina)}</div></div><div><div style={{color:"#888",fontSize:10}}>Ricavo pasti</div><div style={{fontWeight:700,color:"#166534"}}>{E(sv.totPasti)}</div></div></div>
-            {ec>0&&<div style={{marginTop:6,padding:"3px 7px",background:"#dcfce7",border:"1px solid #86efac",fontSize:11,color:"#166534",fontWeight:700}}>✓ Eccedenza {E(ec)} → utile netto</div>}
-            {sc>0&&<div style={{marginTop:6,padding:"3px 7px",background:"#fee2e2",border:"1px solid #fca5a5",fontSize:11,color:"#991b1b",fontWeight:700}}>⚠ Scoperta {E(sc)} → pesa sul BEP</div>}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,fontSize:12}}><div><div style={{color:"#888",fontSize:10}}>{spesaPasti>0?"Spesa quotidiana":"Cucina (budget)"}</div><div style={{fontWeight:700,color:"#dc2626"}}>{E(cucinaCost)}</div></div><div><div style={{color:"#888",fontSize:10}}>Ricavo pasti</div><div style={{fontWeight:700,color:"#166534"}}>{E(ricavoPasti)}</div></div></div>
+            {ec>0&&<div style={{marginTop:6,padding:"3px 7px",background:"#dcfce7",border:"1px solid #86efac",fontSize:11,color:"#166534",fontWeight:700}}>✓ Surplus {E(ec)} → copre costi fissi, abbassa il BEP</div>}
+            {sc>0&&<div style={{marginTop:6,padding:"3px 7px",background:"#fee2e2",border:"1px solid #fca5a5",fontSize:11,color:"#991b1b",fontWeight:700}}>⚠ Deficit {E(sc)} → da coprire con le quote, alza il BEP</div>}
           </div>);
         })()}
       </div>
@@ -2130,8 +2140,8 @@ function TabFinanziario({data,costs,setCosts,showToast}){
       </div>
       <div style={{background:"#fff",border:"1px solid #000",padding:14}}>
         <div style={{fontWeight:800,fontSize:13,marginBottom:8,borderBottom:"2px solid #000",paddingBottom:5}}>📊 Costi</div>
-        {[["Costi fissi",tF,"#dc2626"],[`Educatori (${eduGiorni} gg-uomo × €/gg)`,eduCost,"#dc2626"],["Navette (inclusa nelle quote)",costs.costoNavette,"#dc2626"],["Cucina",costs.costoCucina,"#dc2626"],["- Copertura pasti",-sv.totPasti,"#166534"],["= Costo netto cucina",tSc,"#d97706"],["TOTALE EFFETTIVO",totCostiFull+tSc,"#dc2626"]].map(([l,v,c])=>(
-          <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"4px 0",borderBottom:"0.5px solid #f0f0f0",fontSize:12}}><span style={{color:"#555"}}>{l}</span><span style={{fontWeight:l.startsWith("=")||l.startsWith("TOT")?700:500,color:c}}>{l.startsWith("- ")?"- "+E(-v):E(Math.abs(v))}</span></div>
+        {[["Costi fissi",tF,"#dc2626"],[`Educatori (${eduGiorni} gg-uomo × €/gg)`,eduCost,"#dc2626"],["Navette (incluse nelle quote)",costs.costoNavette,"#dc2626"],[spesaPasti>0?"Spesa pasti (quotidiana)":"Cucina (budget)",cucinaCost,"#dc2626"],["- Ricavo pasti",-ricavoPasti,"#166534"],["= Margine pasti",netPasti,netPasti>=0?"#166534":"#dc2626"],["TOTALE da coprire con le quote",totCostiFull-netPasti,"#dc2626"]].map(([l,v,c])=>(
+          <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"4px 0",borderBottom:"0.5px solid #f0f0f0",fontSize:12}}><span style={{color:"#555"}}>{l}</span><span style={{fontWeight:l.startsWith("=")||l.startsWith("TOT")?700:500,color:c}}>{l.startsWith("- ")?"- "+E(-v):E(v)}</span></div>
         ))}
       </div>
     </div>
@@ -2141,8 +2151,8 @@ function TabFinanziario({data,costs,setCosts,showToast}){
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
         <div>
           <div style={{fontWeight:900,fontSize:14,marginBottom:2}}>⚖ Break-Even Point — tempo reale</div>
-          <div style={{fontSize:11,color:"#666"}}>(costi fissi {E(totCostiFull)} + cucina scoperta {E(tSc)}) ÷ {E(qM)}/bambino-sett. = <strong>{bP} presenze-settimana</strong></div>
-          <div style={{fontSize:10,color:"#888",marginTop:2}}>Navette incluse nei costi fissi · ricavo coperto dalle quote</div>
+          <div style={{fontSize:11,color:"#666"}}>(costi fissi {E(totCostiFull)} {netPasti>=0?"− margine pasti ":"+ deficit pasti "}{E(Math.abs(netPasti))}) ÷ {E(qM)}/bambino-sett. = <strong>{bP} presenze-settimana</strong></div>
+          <div style={{fontSize:10,color:"#888",marginTop:2}}>Navette incluse nei costi fissi · il <strong>margine pasti</strong> (ricavo − spesa quotidiana) {netPasti>=0?"abbassa":"alza"} il BEP</div>
         </div>
         <div style={{textAlign:"right"}}>
           <div style={{fontWeight:900,fontSize:16,color:bOk?"#16a34a":"#d97706"}}>{bOk?"✓ BEP RAGGIUNTO":"⚡ NON RAGGIUNTO"}</div>
@@ -2182,7 +2192,7 @@ function TabFinanziario({data,costs,setCosts,showToast}){
         <div style={{fontSize:12,color:"#92400e",marginTop:2}}>Servono ~<strong>{Math.ceil((bP-pTot)/4)} bambini in più per 4 settimane</strong>.</div>
       </div>}
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(120px,1fr))",gap:8}}>
-        {[["Costi fissi",E(tF),"#dc2626"],["Scoperta serv.",E(tSc),"#d97706"],["BEP",bP+" pres.","#000"],["BEP/sett.",Math.ceil(bP/WEEKS.length)+" bimbi","#000"],["Utile attuale",E(uN),uN>=0?"#166534":"#dc2626"],["Utile potenz.",E(uP),uP>=0?"#166534":"#dc2626"]].map(([l,v,c])=>(
+        {[["Costi fissi",E(totCostiFull),"#dc2626"],["Margine pasti",(netPasti>=0?"+":"")+E(netPasti),netPasti>=0?"#166534":"#dc2626"],["BEP",bP+" pres.","#000"],["BEP/sett.",Math.ceil(bP/WEEKS.length)+" bimbi","#000"],["Utile attuale",E(uN),uN>=0?"#166534":"#dc2626"],["Utile potenz.",E(uP),uP>=0?"#166534":"#dc2626"]].map(([l,v,c])=>(
           <div key={l} style={{background:"#f5f5f3",border:"1px solid #000",padding:"8px 10px"}}><div style={{fontSize:10,color:"#666",marginBottom:2}}>{l}</div><div style={{fontSize:13,fontWeight:800,color:c}}>{v}</div></div>
         ))}
       </div>
@@ -2812,9 +2822,13 @@ function TabCosti({costs,setCosts,data}){
           <div style={{fontSize:22,fontWeight:900,color:totSpesa>budgetPasti?"#dc2626":"#111"}}>{E(totSpesa)}</div>
         </div>
         <div style={{background:rimanente<0?"#fef2f2":"#f0fdf4",border:"1px solid "+(rimanente<0?"#dc2626":"#16a34a"),padding:10,textAlign:"center"}}>
-          <div style={{fontSize:10,color:"#666",marginBottom:2}}>Rimanente</div>
-          <div style={{fontSize:22,fontWeight:900,color:rimanente<0?"#dc2626":"#166534"}}>{E(rimanente)}</div>
+          <div style={{fontSize:10,color:"#666",marginBottom:2}}>Rimanente → BEP</div>
+          <div style={{fontSize:22,fontWeight:900,color:rimanente<0?"#dc2626":"#166534"}}>{rimanente>=0?"+":""}{E(rimanente)}</div>
+          <div style={{fontSize:10,color:"#888",marginTop:2}}>{rimanente>=0?"abbassa il BEP":"alza il BEP"}</div>
         </div>
+      </div>
+      <div style={{padding:"8px 12px",background:rimanente>=0?"#f0fdf4":"#fef2f2",border:`1px solid ${rimanente>=0?"#16a34a":"#dc2626"}`,marginBottom:12,fontSize:11,color:rimanente>=0?"#166534":"#991b1b"}}>
+        La <strong>spesa quotidiana</strong> attinge dal ricavo pasti. Il <strong>Rimanente</strong> ({rimanente>=0?"surplus":"deficit"} {E(Math.abs(rimanente))}) è il <strong>margine pasti</strong>: {rimanente>=0?"contribuisce a coprire i costi fissi e ABBASSA il BEP":"va coperto con le quote e ALZA il BEP"} nel tab «Finanziario &amp; BEP». Tutto sincronizzato in tempo reale.
       </div>
       <div style={{overflowX:"auto"}}>
         <table style={{borderCollapse:"collapse",width:"100%",fontSize:12}}>
