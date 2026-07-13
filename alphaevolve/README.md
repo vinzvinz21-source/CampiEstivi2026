@@ -41,6 +41,15 @@ python -m alphaevolve.cli \
 The best program found is written to `out/function_minimization/best_program.py`,
 and the full population to `out/function_minimization/database.json`.
 
+A second, applied example lives in
+[`examples/wellbeing_outcomes/`](../examples/wellbeing_outcomes/README.md):
+it evolves a model that predicts pre/post wellbeing outcomes (e.g. for
+forest therapy or Rhythm2Recovery/Rhythm2School sessions) from your own
+survey data, plus a utility to suggest which protocol parameters look best
+according to that model. Read its README's caveats before using it on real
+data — it's a hypothesis-exploration tool, not a substitute for a proper
+study.
+
 ## Writing your own problem
 
 You need two files:
