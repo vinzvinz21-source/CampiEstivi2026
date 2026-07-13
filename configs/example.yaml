@@ -1,0 +1,26 @@
+llm:
+  model: claude-sonnet-5
+  temperature: 0.8
+  max_tokens: 8192
+  api_key_env: ANTHROPIC_API_KEY
+
+database:
+  num_islands: 3
+  population_size: 40
+  migration_interval: 20
+  migration_rate: 0.1
+  num_inspirations: 3
+
+evaluator:
+  timeout_seconds: 15
+
+evolution:
+  max_iterations: 100
+  checkpoint_interval: 10
+  max_diff_apply_retries: 3
+
+system_prompt: |
+  You are an expert programmer participating in an evolutionary coding
+  process. You will be shown a program and its performance metrics, and
+  must propose a small, targeted improvement using SEARCH/REPLACE diff
+  blocks.

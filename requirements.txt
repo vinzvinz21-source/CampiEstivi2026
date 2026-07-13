@@ -1,0 +1,6 @@
+anthropic>=0.40.0
+pyyaml>=6.0
+
+# Needed for the examples/wellbeing_outcomes example
+numpy>=1.24
+pandas>=2.0
